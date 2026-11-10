@@ -53,26 +53,25 @@ def test_docs_only_pr_expects_nothing() -> None:
     assert _files([], "main", ["docs/RAG_PIPELINE_OPENSEARCH_INDEXER_PLAN.md"]) == set()
 
 
-def test_discovery_change_expects_only_discovery() -> None:
-    assert _files([], "main", ["services/discovery-api/app/x.py"]) == {"ci-discovery.yml"}
+def test_analytics_change_expects_the_analytics_workflow() -> None:
+    assert "ci-analytics.yml" in _files([], "main", ["services/analytics-api/app/x.py"])
+    assert "ci-landing.yml" not in _files([], "main", ["services/analytics-api/app/x.py"])
 
 
-def test_contract_changes_run_the_backends_that_use_them() -> None:
-    got = _files([], "main", ["packages/platform_contracts/evidence.py"])
-    assert {"ci-analytics.yml", "ci-support.yml", "ci-agentic-eval.yml"} <= got
-    # Discovery owns its contracts (services/discovery-api/app/contracts) and no longer reads packages/.
-    assert "ci-discovery.yml" not in got
-    assert "ci-landing.yml" not in got
+def test_contract_changes_run_the_analytics_backend() -> None:
+    assert "ci-analytics.yml" in _files([], "main", ["packages/platform_contracts/evidence.py"])
+
+
+def test_landing_change_expects_only_the_landing_workflow() -> None:
+    assert _files([], "main", ["apps/landing/src/a.ts"]) == {"ci-landing.yml"}
 
 
 def test_renamed_file_counts_by_old_path() -> None:
     assert "ci-landing.yml" in _files([], "main", ["apps/landing/old.ts", "elsewhere/new.ts"])
 
 
-def test_branch_filter_excludes_stacked_prs_but_not_unfiltered_workflows() -> None:
-    got = _files([], "claude/other", ["services/discovery-api/app/x.py", "packages/platform_contracts/a.py"])
-    assert "ci-discovery.yml" not in got  # branches: [main]
-    assert "ci-agentic-eval.yml" in got  # no branch filter
+def test_branch_filter_excludes_stacked_prs() -> None:
+    assert "ci-analytics.yml" not in _files([], "claude/other", ["services/analytics-api/app/x.py"])  # branches: [main]
 
 
 def test_the_gate_never_waits_for_itself_or_for_manual_workflows() -> None:

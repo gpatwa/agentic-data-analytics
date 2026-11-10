@@ -5,18 +5,14 @@ on:
     paths:
       - "packages/platform_contracts/**"
       - "services/analytics-api/app/harness/**"
-      - "services/analytics-api/tests/test_ads02*.py"
       - "services/analytics-api/tests/fixtures/ads-m2-baseline.json"
-      - "docs/execution/enterprise-analytics/ADS-02*.md"
       - ".github/workflows/ci-agentic-eval.yml"
   push:
     branches: [main]
     paths:
       - "packages/platform_contracts/**"
       - "services/analytics-api/app/harness/**"
-      - "services/analytics-api/tests/test_ads02*.py"
       - "services/analytics-api/tests/fixtures/ads-m2-baseline.json"
-      - "docs/execution/enterprise-analytics/ADS-02*.md"
       - ".github/workflows/ci-agentic-eval.yml"
 
 concurrency:
