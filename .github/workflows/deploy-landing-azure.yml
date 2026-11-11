@@ -1,38 +1,72 @@
 name: Deploy Public Landing to Azure
 
+# Manual only. No stored secret: the Static Web App deployment token is read from Azure at run time with the narrow
+# `analytics-deploy` identity (GitHub OIDC, main-only `pilot-deploy` environment) and masked.
+#
+#   mode deploy  build the landing bundle and publish it
+#   mode verify  sign in and prove the deployment token is readable (its length is printed, never the value)
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: deploy publishes the landing page; verify only checks sign-in and permissions
+        required: true
+        type: choice
+        options:
+          - deploy
+          - verify
+        default: deploy
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
     name: Build and publish landing page
     runs-on: ubuntu-latest
-    environment: production
+    environment: pilot-deploy
     env:
+      MODE: ${{ inputs.mode }}
       SITE_URL: ${{ vars.PUBLIC_SITE_URL || 'https://salmon-ground-06555890f.4.azurestaticapps.net' }}
+      RG: ${{ vars.PILOT_RESOURCE_GROUP }}
+      SWA_LANDING: ${{ vars.PILOT_SWA_LANDING }}
     steps:
       - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Read the deployment token
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list -n "$SWA_LANDING" -g "$RG" --query properties.apiKey -o tsv)"
+          echo "::add-mask::$token"
+          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "Deployment token length ${#token}"
       - uses: actions/setup-node@v4
+        if: env.MODE == 'deploy'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/landing/package-lock.json
       - name: Install dependencies and the prerender browser
+        if: env.MODE == 'deploy'
         working-directory: apps/landing
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
       - name: Build landing bundle
+        if: env.MODE == 'deploy'
         working-directory: apps/landing
         run: |
           VITE_SITE_URL="$SITE_URL" npm run build
       - name: Deploy to Azure Static Web Apps
+        if: env.MODE == 'deploy'
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: apps/landing/dist

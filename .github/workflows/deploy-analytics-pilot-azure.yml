@@ -1,13 +1,25 @@
 name: Deploy Analytics pilot (Container Apps)
 
-# Manual only. Infrastructure is created by infra/terraform/azure-analytics-pilot (see its README); this workflow ships code.
+# Manual only. Infrastructure is managed by the Infra workflow (infra/terraform/azure-analytics-pilot); this workflow ships code.
+# No stored secret: it signs in with GitHub OIDC as the narrow `analytics-deploy` identity (infra/terraform/platform-identity in
+# agentic-resolution-intelligence) from the main-only `pilot-deploy` environment. Names come from repository variables; the API
+# key and the Static Web App deployment token are read from Azure at run time and masked.
+#
+#   mode deploy  build and push the API image (tagged with the commit SHA), point the API and the purge job at it, build and
+#                publish the web app
+#   mode verify  sign in, log in to the registry, re-apply the CURRENT image to the API and the purge job (a no-op) and prove
+#                the API key and the web deployment token are readable (their lengths are printed, never the values)
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: GitHub deployment environment
+      mode:
+        description: deploy ships code; verify only checks sign-in and permissions
         required: true
-        type: environment
+        type: choice
+        options:
+          - deploy
+          - verify
+        default: deploy
 
 permissions:
   contents: read
@@ -16,41 +28,79 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: pilot-deploy
     env:
-      IMAGE: ${{ secrets.PILOT_ACR_LOGIN_SERVER }}/compass-analytics-api:${{ github.sha }}
+      MODE: ${{ inputs.mode }}
+      RG: ${{ vars.PILOT_RESOURCE_GROUP }}
+      KV: ${{ vars.PILOT_KEY_VAULT }}
+      ACR_NAME: ${{ vars.PILOT_ACR_NAME }}
+      API_APP: ${{ vars.PILOT_API_APP }}
+      JOB_NAME: ${{ vars.PILOT_JOB_NAME }}
+      SWA_WEB: ${{ vars.PILOT_SWA_WEB }}
     steps:
       - uses: actions/checkout@v4
       - uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Build and push the API image
+          client-id: ${{ vars.DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Resolve what the web build needs (nothing is stored in GitHub)
         run: |
-          az acr login --name "${{ secrets.PILOT_ACR_LOGIN_SERVER }}"
+          set -euo pipefail
+          fqdn="$(az containerapp show -n "$API_APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          key="$(az keyvault secret show --vault-name "$KV" --name analytics-api-key --query value -o tsv)"
+          token="$(az staticwebapp secrets list -n "$SWA_WEB" -g "$RG" --query properties.apiKey -o tsv)"
+          echo "::add-mask::$key"
+          echo "::add-mask::$token"
+          {
+            echo "ACR_LOGIN_SERVER=$ACR_NAME.azurecr.io"
+            echo "API_URL=https://$fqdn"
+            echo "API_KEY=$key"
+            echo "SWA_TOKEN=$token"
+          } >> "$GITHUB_ENV"
+          echo "API URL resolved; API key length ${#key}; web deployment token length ${#token}"
+      - name: Log in to the registry
+        run: az acr login --name "$ACR_NAME"
+      - name: Verify (no change)
+        if: env.MODE == 'verify'
+        run: |
+          image="$(az containerapp show -n "$API_APP" -g "$RG" --query "properties.template.containers[0].image" -o tsv)"
+          echo "API app runs ${image##*/}; re-applying the same image (no-op)"
+          az containerapp update -n "$API_APP" -g "$RG" --image "$image" --query "properties.provisioningState" -o tsv
+          jimage="$(az containerapp job show -n "$JOB_NAME" -g "$RG" --query "properties.template.containers[0].image" -o tsv)"
+          echo "purge job runs ${jimage##*/}; re-applying the same image (no-op)"
+          az containerapp job update -n "$JOB_NAME" -g "$RG" --image "$jimage" --query "properties.provisioningState" -o tsv
+      - name: Build and push the API image
+        if: env.MODE == 'deploy'
+        run: |
+          IMAGE="$ACR_LOGIN_SERVER/compass-analytics-api:${{ github.sha }}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
           docker build --platform linux/amd64 -t "$IMAGE" -f services/analytics-api/Dockerfile .
           docker push "$IMAGE"
       - name: Update the API and the purge job
+        if: env.MODE == 'deploy'
         run: |
-          az containerapp update -n "${{ secrets.PILOT_API_APP_NAME }}" -g "${{ secrets.PILOT_RESOURCE_GROUP }}" --image "$IMAGE"
-          az containerapp job update -n "${{ secrets.PILOT_PURGE_JOB_NAME }}" -g "${{ secrets.PILOT_RESOURCE_GROUP }}" --image "$IMAGE"
+          az containerapp update -n "$API_APP" -g "$RG" --image "$IMAGE"
+          az containerapp job update -n "$JOB_NAME" -g "$RG" --image "$IMAGE"
       - uses: actions/setup-node@v4
+        if: env.MODE == 'deploy'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/analytics-web/package-lock.json
       - name: Build the web app
+        if: env.MODE == 'deploy'
         working-directory: apps/analytics-web
         env:
-          VITE_ANALYTICS_API_URL: ${{ secrets.PILOT_API_URL }}
-          VITE_ANALYTICS_API_KEY: ${{ secrets.PILOT_API_KEY }}
+          VITE_ANALYTICS_API_URL: ${{ env.API_URL }}
+          VITE_ANALYTICS_API_KEY: ${{ env.API_KEY }}
           VITE_ANALYTICS_DEFAULT_VIEW: governed
         run: npm ci --no-audit --no-fund && npm run build
       - name: Deploy the web app
+        if: env.MODE == 'deploy'
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.PILOT_SWA_DEPLOY_TOKEN }}
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
           action: upload
           app_location: apps/analytics-web/dist
           skip_app_build: true
