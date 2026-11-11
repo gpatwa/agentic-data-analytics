@@ -233,6 +233,12 @@ resource "azuread_application" "api" {
     value                = "Analytics.Reviewer"
     enabled              = true
   }
+
+  # Ownership is managed outside this stack (infra/terraform/platform-identity makes the CI apply identity an owner). With no
+  # `owners` configured here the provider would otherwise remove every owner, including that identity.
+  lifecycle {
+    ignore_changes = [owners]
+  }
 }
 
 resource "azuread_service_principal" "api" {
