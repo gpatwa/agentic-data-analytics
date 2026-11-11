@@ -79,6 +79,12 @@ resource "azurerm_role_assignment" "deployer_kv" {
   scope                = azurerm_key_vault.kv.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
+
+  # Whoever runs Terraform (a person, or the CI apply identity) is not part of the desired state: do not replace the
+  # assignment when a different principal runs it. The CI identities get their own access from infra/terraform/platform-identity.
+  lifecycle {
+    ignore_changes = [principal_id]
+  }
 }
 
 locals {
@@ -226,6 +232,12 @@ resource "azuread_application" "api" {
     id                   = "4e3f6c2a-8d1b-4f5e-9a7c-2b6d8e0f1a3c"
     value                = "Analytics.Reviewer"
     enabled              = true
+  }
+
+  # Ownership is managed outside this stack (infra/terraform/platform-identity makes the CI apply identity an owner). With no
+  # `owners` configured here the provider would otherwise remove every owner, including that identity.
+  lifecycle {
+    ignore_changes = [owners]
   }
 }
 
