@@ -81,13 +81,18 @@ app.include_router(build_demo_router(v2_runtime, verify_api_key, settings))
 
 @app.get("/health", response_model=AnalyticsHealthResponse)
 async def health() -> AnalyticsHealthResponse:
-    ready = (
-        analytics_service.database_configured
-        and analytics_service.llm_configured
-        and analytics_service.context_index_ready
-    )
+    reasons = [
+        code
+        for code, ok in (
+            ("database_not_configured", analytics_service.database_configured),
+            ("llm_not_configured", analytics_service.llm_configured),
+            ("context_index_not_ready", analytics_service.context_index_ready),
+        )
+        if not ok
+    ]
     return AnalyticsHealthResponse(
-        status="ready" if ready else "degraded",
+        status="degraded" if reasons else "ready",
+        degraded_reasons=reasons,
         database_configured=analytics_service.database_configured,
         llm_configured=analytics_service.llm_configured,
         context_index_configured=analytics_service.context_bootstrap.state.configured,

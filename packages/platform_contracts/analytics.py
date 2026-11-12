@@ -55,4 +55,6 @@ class AnalyticsHealthResponse(BaseModel):
     dashboard_configured: bool = False
     dashboard_ready: bool = False
     context_bootstrap_error: str | None = None
+    # Short codes for what keeps status at "degraded"; empty when ready. Additive, so the contract stays v1.
+    degraded_reasons: list[str] = Field(default_factory=list)
     contract_version: Literal["v1"] = "v1"
