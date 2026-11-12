@@ -18,11 +18,13 @@ includes work on the sibling products' shared tooling.
 - Deploy-log secret scan (2026-11-11, runs 43093695032, 42981529462, 42981500897): no tokens, keys, connection strings,
   SAS signatures or private keys found. Container app secrets appear only as Key Vault references (`secretRef`, empty
   `value`). The logs do show identifiers (subscription, tenant and client IDs, resource IDs); these are not credentials.
+- Owner decision (2026-11-12): the pilot stays `degraded` on purpose (no LLM, context index or dashboard configured).
+  `/health` now lists why in `degraded_reasons` (short codes only); configuring them is a separate, owner-approved step.
 - Open decisions that are the owner's: any licence other than MIT, and the items listed in `CLAUDE.md` as human gates.
 
 ## Next actions
 
 1. Read `CLAUDE.md`, then verify real state (`git status -sb`, `gh pr list`) and report.
-2. Not yet done: run the Infra (Terraform) workflow in plan mode to confirm no drift after the deploy (needs the owner's
-   go-ahead; it reads cloud state).
+2. Infra drift check after the deploy: done 2026-11-12 via a throwaway PR (plan only, never merged); the plan reported
+   no changes. Do not use `workflow_dispatch` on main for a plan-only check: it also auto-applies non-destructive changes.
 3. The owner decides what comes next.

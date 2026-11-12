@@ -20,5 +20,6 @@ export interface HealthResponse {
   status: 'ready' | 'degraded';
   database_configured: boolean;
   llm_configured: boolean;
+  degraded_reasons?: string[];
   contract_version: 'v1';
 }
