@@ -1,3 +1,4 @@
+# Drift check: throwaway PR, plan only, never merged.
 # Infrastructure as code for the Analytics (Compass) pilot. Nothing here needs a stored secret or a manual step.
 #
 #   pull request  -> plan only (read-only identity), summary lists what would change
