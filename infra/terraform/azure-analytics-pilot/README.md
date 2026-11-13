@@ -71,7 +71,7 @@ With `create_openai = true` the account `<prefix>-<env>-openai` (`compass-pilot-
 | Deployment | Managed here | Notes |
 |---|---|---|
 | `gpt-5.6-luna` | `azurerm_cognitive_deployment.intent` | The intent model the API uses (`AZURE_OPENAI_DEPLOYMENT`). |
-| `gpt-6-luna` (model version `2026-09-22`, GlobalStandard, capacity 10) | `azurerm_cognitive_deployment.intent_gpt6` | Created by hand with the Azure CLI, then declared here. The API does not use it yet; switching `azure_openai_deployment` is a separate, deliberate change. Variables: `azure_openai_gpt6_deployment`, `azure_openai_gpt6_model`, `azure_openai_gpt6_model_version`; capacity shares `openai_capacity`. |
+| `gpt-6-luna` (model version `2026-09-22`, GlobalStandard, capacity 10) | `azurerm_cognitive_deployment.intent_gpt6` | Created by hand with the Azure CLI, then declared here. The API uses it when `api_openai_deployment` is `gpt-6-luna` (set in `pilot.auto.tfvars`); do not change `azure_openai_deployment` to switch, it names the `intent` deployment resource and would replace it. Variables: `azure_openai_gpt6_deployment`, `azure_openai_gpt6_model`, `azure_openai_gpt6_model_version`; capacity shares `openai_capacity`. |
 | ~~`text-embedding-3-small`~~ | n/a | Hand-made for Discovery; **removed 2026-11-10** after Discovery's own account was verified (see below). |
 
 ### Importing the hand-made `gpt-6-luna` deployment
