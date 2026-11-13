@@ -26,7 +26,10 @@ class AnalyticsService:
 
     @property
     def llm_configured(self) -> bool:
-        return self.config.ANALYTICS_DEMO_MODE or self.llm.configured
+        # The v2 pilot wiring talks to Azure OpenAI (endpoint + key) when AZURE_OPENAI_ENDPOINT is set; the legacy client
+        # only knows the OpenAI-compatible settings. Either one means a model is reachable.
+        azure = bool(self.config.AZURE_OPENAI_ENDPOINT and self.config.AZURE_OPENAI_API_KEY)
+        return self.config.ANALYTICS_DEMO_MODE or self.llm.configured or azure
 
     @property
     def context_index_ready(self) -> bool:

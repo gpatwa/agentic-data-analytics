@@ -33,3 +33,14 @@ def test_each_missing_dependency_is_named():
 def test_single_missing_dependency_is_the_only_reason():
     body = _health(database=True, llm=False, index=True)
     assert body["status"] == "degraded" and body["degraded_reasons"] == ["llm_not_configured"]
+
+
+def test_azure_openai_settings_count_as_a_configured_llm():
+    from app.config import Settings
+    from app.service import AnalyticsService
+
+    base = {"ANALYTICS_DEMO_MODE": False}
+    azure = Settings(**base, AZURE_OPENAI_ENDPOINT="https://example.invalid", AZURE_OPENAI_API_KEY="test-key")
+    assert AnalyticsService(azure).llm_configured is True
+    endpoint_only = Settings(**base, AZURE_OPENAI_ENDPOINT="https://example.invalid")
+    assert AnalyticsService(endpoint_only).llm_configured is False
