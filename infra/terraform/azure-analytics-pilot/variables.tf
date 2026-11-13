@@ -117,8 +117,14 @@ variable "azure_openai_deployment" {
   default = "gpt-5.6-luna"
 }
 
+variable "api_openai_deployment" {
+  description = "Deployment the API calls. Empty means azure_openai_deployment. Kept apart from azure_openai_deployment because that one names the `intent` deployment resource: changing it would replace the deployment."
+  type        = string
+  default     = ""
+}
+
 variable "azure_openai_gpt6_model" {
-  description = "Model of the second (gpt-6-luna) deployment on the same account. Declared here only so the hand-made deployment is managed; the API still uses azure_openai_deployment."
+  description = "Model of the second (gpt-6-luna) deployment on the same account. Declared here only so the hand-made deployment is managed; the API uses api_openai_deployment (falling back to azure_openai_deployment)."
   type        = string
   default     = "gpt-6-luna"
 }

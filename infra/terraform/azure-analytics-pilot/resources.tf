@@ -301,7 +301,7 @@ locals {
     ANALYTICS_CORS_ORIGINS            = local.cors
     ANALYTICS_MIN_COHORT              = var.min_cohort
     AZURE_OPENAI_ENDPOINT             = local.openai_endpoint
-    AZURE_OPENAI_DEPLOYMENT           = var.azure_openai_deployment
+    AZURE_OPENAI_DEPLOYMENT           = var.api_openai_deployment != "" ? var.api_openai_deployment : var.azure_openai_deployment
     AZURE_OPENAI_API_VERSION          = var.azure_openai_api_version
     AZURE_OPENAI_REASONING_EFFORT     = var.azure_openai_reasoning_effort
     ENTRA_TENANT_ID                   = data.azurerm_client_config.current.tenant_id
