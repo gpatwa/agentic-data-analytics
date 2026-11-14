@@ -63,6 +63,23 @@ rule now so the result cannot be spun afterwards.
 - "Agentic analytics you can trust" stays the headline unless the CMO answer in the messaging review changes it. The ontology
   story is the proof line under it, not a second headline.
 
+## Naming proposal (owner preference stated 2026-11-14; proposal, not a decision)
+
+The owner likes "Agent Data Service", "Agentic Data Analytics" and "Auto Ontology". Checked against what is already in use:
+
+| Term | Proposal | Why |
+|---|---|---|
+| **Agentic Data Analytics** | Use as the category descriptor under the product name "Compass" | Descriptive, close to existing market language, and the name of this repository. |
+| **Auto ontology** | Use as plain description (subhead, search text, docs), not as a feature or product name | "Auto Ontology" is the name of NVIDIA's open-source project (`NVIDIA/auto-ontology`). We plan to cite NVIDIA as a trend reference, so a Compass feature of the same name risks confusion or an implied affiliation. Feature name instead: **Drafted definitions** (or **Certified Ontology**). |
+| **Agent Data Service(s)** | Do not use as a name | It is the name of DigitalOcean's product (announced 2026-10-12) and would be mistaken for it. It also clashes with our internal `ADS-###` task IDs. For the idea behind it (agents call Compass through typed tools and MCP) use **Compass for Agents**, or "Agent access" as a section label. |
+
+Proposed structure: **Compass** (product) / **Agentic Data Analytics** (what it is) / **Compass for Agents** (how agents use it) /
+**Drafted definitions**, with "auto ontology" as the descriptor (the draft, certify, run feature).
+
+Not done and needed before any of these is used as a name on the site: a trademark and domain check by someone qualified (I
+cannot clear trademarks), and the CMO's open brand and naming answer in `docs/LANDING_MESSAGING_REVIEW.md`. No site copy is
+changed by this proposal.
+
 ## Proof assets to build (cheapest first)
 
 1. **A draft-to-certified walkthrough** on the demo dataset `sales-demo@v1`: the draft diff, a dropped candidate with its reason,
@@ -205,6 +222,7 @@ before merge, and deployed only on the owner's explicit request.
 | Adopt the spine and the claims ladder | CEO and Founder | Yes |
 | First buyer: data leader, security, or business-unit head | CEO | Data or analytics leader |
 | Lead word: "business definitions" with "ontology" in the subhead | CMO | Yes |
+| Naming: Agentic Data Analytics as descriptor, "Drafted definitions" as feature name, "Compass for Agents" for agent access; do not use "Auto Ontology" or "Agent Data Service" as names; trademark and domain check first | CMO and CEO | Yes |
 | Headline leads with certified rather than learned context | CMO | Yes |
 | Name NVIDIA and others in public copy, under the rules in 'Referencing the trend publicly' | CEO | Yes, as trend references only, primary-linked and dated, no comparisons |
 | Evaluation thresholds for M3 (also a gate in the design doc) | Owner | Set before M3 runs |

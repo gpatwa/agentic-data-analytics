@@ -42,6 +42,13 @@ closes that gap **without weakening the certification gate**: AI drafts, a perso
 7. **Certify (human)**: owners edit and certify in Git. Only after that does the registry resolve it. Re-runs produce a diff
    against the certified version, never an overwrite.
 
+## Known limit: joins and ratios (added 2026-11-14)
+
+The PostgreSQL compiler supports one physical dataset per query and excludes joins and ratios (`app/compiler/postgres.py`).
+So a drafted join cannot be dry-run compiled, and a drafted ratio metric cannot compile. Until the compiler supports them,
+milestone 1 drafts single-dataset metrics and dimensions only, and drafted joins are emitted as `candidate` edges with key
+evidence, marked not executable. See `docs/WAREHOUSE_AND_DBT_PLAN.md` for the options; the owner has not yet chosen one.
+
 ## Safety rules
 
 - Read-only database role only; no write path exists in the drafter.
