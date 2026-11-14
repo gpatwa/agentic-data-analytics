@@ -43,8 +43,8 @@ const FAQS: { q: string; a: string }[] = [
     a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is on the roadmap, not shipped.',
   },
   {
-    q: 'Why certified definitions instead of context learned from usage?',
-    a: 'Context learned from usage can improve recall, but what a metric means can drift without anyone approving it. AI can help draft context; people should certify what a number means. Compass only answers from definitions your team has certified, so a change in meaning is a reviewed change, not a silent one.',
+    q: 'Can Compass learn what our metrics mean from how people use it?',
+    a: 'Usage can propose; a person certifies. What people ask shows where definitions are missing or unclear, and in pilot Compass already turns user feedback into proposed changes that a person reviews. But a suggestion is not an agreement on what a number means, and meaning can drift if learned context applies itself. Compass only answers from definitions your team has certified, so a change in meaning is a reviewed change, not a silent one.',
   },
   {
     q: 'What data does it run on?',
