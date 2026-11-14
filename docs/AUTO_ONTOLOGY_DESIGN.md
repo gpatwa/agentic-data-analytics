@@ -81,6 +81,15 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
 ## Milestones
 
 1. Contract and validators (draft output types, dry-run compile check), on fixture schemas with a fake model.
+   **Built 2026-11-14** in `services/analytics-api/app/ontology_draft/`, tested in `tests/test_ontology_draft_m1.py` (50 tests, no
+   database, no network, fake model only). What it does: a typed proposal shape that cannot carry SQL; per-item parsing so one bad
+   item cannot sink the rest; coded drops for unknown tables or columns, type mismatches, no key evidence, sensitive columns,
+   links or markup in text, duplicate ids and failed compiles; every metric and dimension compiled through the real PostgreSQL
+   compiler and checked by the real read-only SQL validator; an injectable EXPLAIN probe; a `draft` registry document with
+   `candidate` metrics and `candidate` ontology nodes carrying provenance; drafted joins returned as non-executable candidates.
+   What it does not do: it has not run with a real model, there is no EXPLAIN against a real database (the probe is injected
+   and only faked in tests), there is no sampling or profiling (milestone 2), and composite-primary-key tables are handled by
+   matching the full key only. Not certified, not deployed.
 2. Introspection, profiling and redaction, with tests (PII-bait, small-cohort, free-text cases).
 3. Drafter with the real model against fixtures; evaluation report.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
