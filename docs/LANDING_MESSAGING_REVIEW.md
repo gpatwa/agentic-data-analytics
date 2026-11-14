@@ -87,3 +87,14 @@ Removed because unevidenced: SOC 2 / GDPR status, aggregate rating, the 70% test
 | Positioning line, brand/naming, domain, proof points | CMO | |
 
 Known follow-ups regardless of answers: add a real domain (currently an Azure default hostname), fix the CTA target, and decide whether the in-app Agents page (which lists connectors and actions we do not ship) should be trimmed to match.
+
+## Update 2026-11-13: context layers and auto ontology
+
+Desk research (web, November 2026; vendor sources, not buyer research): Databricks announced Genie Ontology (learned context, early access) over Unity Catalog metric views; WisdomAI sells an "Enterprise Context Layer" that learns from usage and argues classic semantic layers are built for human analysts; NVIDIA's open-source Auto Ontology drafts an ontology from database profiling and has experts certify it; Microsoft Fabric generates ontologies from semantic models. The common pattern is AI-drafted context with a human gate.
+
+Copy changes in this update, each limited to what the product demonstrably does:
+- **SQL claims removed.** The page said answers "show the SQL". The governed v2 path does not return generated SQL (the live validation of 2026-11-13 showed `evidence.generated_sql` absent; the SQL panel in the web app belongs to the older v1 path). Copy now says definitions used, filters, policy decision, result fingerprint and an evidence trail. Restoring "shows the SQL" is a product and security decision (what end users may see), not a copy fix.
+- **Two FAQs added.** "Does Compass build the ontology automatically?" says not yet: definitions are certified by the data team in Git; in pilot Compass reads dbt/OpenMetadata metadata and turns feedback into proposals a person reviews (ADS-044, ADS-052, ADS-053: implemented locally on fakes, still at `review`); automatic drafting from a schema is roadmap only. "Why certified definitions instead of learned context?" frames certification as the control against silent drift.
+- Headline unchanged.
+
+Decisions for the named owners: whether to lead the headline with the certified-versus-learned contrast, whether the SQL should be exposed on v2 answers, and whether to name competitors anywhere (the copy does not).

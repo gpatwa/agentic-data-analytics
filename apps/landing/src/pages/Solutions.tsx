@@ -26,14 +26,14 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
   finance: {
     persona: 'CFO & Finance',
     heroEyebrow: 'Compass for Finance',
-    heroHeadline: 'Board-ready answers, with the SQL attached.',
+    heroHeadline: 'Board-ready answers, with the evidence attached.',
     heroSubhead:
       'Revenue, margin, churn, forecast, and board metrics — answered against your warehouse and your finance glossary, with full audit trail.',
     wins: [
       {
         title: 'Stop the 9pm scramble',
         description:
-          'Ad-hoc CFO questions answered in seconds, not days. Source SQL attached for sign-off.',
+          'Ad-hoc CFO questions answered in seconds, not days. Definitions and evidence attached for sign-off.',
       },
       {
         title: 'One definition of revenue',
@@ -58,7 +58,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       {
         title: 'Deals at risk, in plain English',
         description:
-          'Ask which accounts are slipping and get the number with the SQL behind it, built from metrics your data team certified.',
+          'Ask which accounts are slipping and get the number with its evidence, built from metrics your data team certified.',
       },
       {
         title: 'Stop the spreadsheet pulls',
@@ -93,7 +93,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       {
         title: 'Lineage built in',
         description:
-          'Every answer carries the certified definitions it used and the compiled SQL, so reviewers can trace it.',
+          'Every answer carries the certified definitions it used and an evidence record, so reviewers can trace it.',
       },
     ],
     suggestedSkill: 'Semantic Layer Skill',
@@ -103,7 +103,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
     heroEyebrow: 'Compass for Engineering',
     heroHeadline: 'Trace ownership, lineage, and incidents in plain English.',
     heroSubhead:
-      'Answer operational metric questions from certified definitions, with the SQL and evidence attached.',
+      'Answer operational metric questions from certified definitions, with the definitions used and evidence attached.',
     wins: [
       {
         title: 'Owners on every definition',
@@ -113,7 +113,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       {
         title: 'Incident timelines',
         description:
-          'Ask operational metric questions and get the answer with its SQL and evidence, not a screenshot.',
+          'Ask operational metric questions and get the answer with its definitions and evidence, not a screenshot.',
       },
       {
         title: 'Reviewed before it runs',
@@ -132,7 +132,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       {
         title: 'Audit-ready answers',
         description:
-          'Every run records who asked, the purpose, the definitions used, the compiled SQL, and the policy decisions.',
+          'Every run records who asked, the purpose, the definitions used, and the policy decisions.',
       },
       {
         title: 'Permission-aware retrieval',
@@ -142,7 +142,7 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       {
         title: 'Separation of duties',
         description:
-          'Reviewers see the plan, SQL, and cost before approving, and requesters cannot approve their own runs.',
+          'Reviewers see the facts of the run before approving, and requesters cannot approve their own runs.',
       },
     ],
     suggestedSkill: 'Security Skill',
@@ -161,11 +161,11 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
       },
       {
         title: 'Plain language in, plain English out',
-        description: 'No SQL required. But the SQL is shown if you want to verify it.',
+        description: 'No SQL required. The definitions behind the number are shown if you want to verify it.',
       },
       {
         title: 'Built for trust',
-        description: 'Every answer ships with its SQL and evidence. If Compass cannot answer safely, it says so.',
+        description: 'Every answer ships with its definitions and evidence. If Compass cannot answer safely, it says so.',
       },
     ],
     suggestedSkill: 'Starter Skills (curated)',
