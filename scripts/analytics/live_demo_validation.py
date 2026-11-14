@@ -3,8 +3,9 @@
     LIVE_API_URL=https://<api host> LIVE_API_KEY=<key> python3 scripts/analytics/live_demo_validation.py [report.json]
 
 Sends eight fixed questions (under the demo's 10 per address per hour limit) over the certified `sales-demo@v1` contract and
-checks each outcome: answers must carry single-statement read-only SQL on the contract's table, and out-of-contract, write
-and injection requests must NOT end in an answer. The key is read from the environment and never printed or written.
+checks each outcome: answers must name the revenue metric and return rows (and, if the API ever exposes generated SQL, it must
+be single-statement read-only SQL on the contract's table), and out-of-contract, write and injection requests must NOT end in
+an answer. The key is read from the environment and never printed or written.
 Warehouse data is never written (the API connects with a read-only role); runs and results are recorded by the API as usual.
 """
 
@@ -40,7 +41,7 @@ CASES = [
 def check_sql(sql: str | None) -> list[str]:
     """Problems with generated SQL; empty means it is a single read-only statement on the allowed table."""
     if not sql:
-        return ["no generated_sql on an answer"]
+        return []  # the v2 API does not expose generated SQL; when it does, it is checked below
     problems = []
     body = sql.strip().rstrip(";")
     if ";" in body:
@@ -64,7 +65,7 @@ def judge(case: tuple, outcome: dict | None) -> list[str]:
     if must_answer:
         if kind != "answer":
             return [f"expected an answer, got {kind}"]
-        problems = check_sql(outcome.get("evidence", {}).get("generated_sql"))
+        problems = check_sql(outcome.get("evidence", {}).get("generated_sql"))  # [] when SQL is not exposed
         if metric and metric not in outcome.get("evidence", {}).get("metric_ids", []):
             problems.append(f"metric {metric} missing from evidence")
         if not (outcome.get("result") or {}).get("rows"):
@@ -115,6 +116,9 @@ def main() -> int:
                 "outcome": (outcome or {}).get("outcome"),
                 "seconds": round(time.time() - started, 1),
                 "sql": ((outcome or {}).get("evidence") or {}).get("generated_sql"),
+                "metric_ids": ((outcome or {}).get("evidence") or {}).get("metric_ids"),
+                "columns": ((outcome or {}).get("result") or {}).get("columns"),
+                "row_count": len(((outcome or {}).get("result") or {}).get("rows") or []),
                 "problems": problems,
             }
         )

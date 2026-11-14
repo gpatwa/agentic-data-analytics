@@ -14,7 +14,7 @@ def test_clean_select_passes():
 
 
 def test_bad_sql_is_flagged():
-    assert v.check_sql(None)
+    assert v.check_sql(None) == []  # not exposed by the v2 API: nothing to check
     assert v.check_sql("DELETE FROM demo_sales_orders")
     assert v.check_sql("SELECT 1; DROP TABLE demo_sales_orders")
     assert v.check_sql("SELECT * FROM pg_catalog.pg_tables")
