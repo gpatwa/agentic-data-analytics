@@ -133,6 +133,28 @@ generation").
 - NVIDIA is open source, Apache-2.0 and Ossie-compatible, so it is also a possible input or complement (through the Ossie
   boundary), not only a peer. Worth a technical look before we build a parallel path for the same job.
 
+## Learning from DigitalOcean Agent Data Services (internal, owner direction 2026-11-14)
+
+Agent Data Services is a different layer (see the sources above), but its published design and docs hold lessons for us. Each
+lesson ends with what it would change; none is approved or built, and these are inputs to the design, not decisions. Basis: the
+DigitalOcean blog and docs of 2026-10-12 and one newsletter review. Private preview, no hands-on trial.
+
+| What they do | What we can learn | Possible change for us |
+|---|---|---|
+| Process once at ingestion and store the outputs with lineage back to the source asset | Expensive model work should not repeat on every read | Cache each drafter run by schema fingerprint and prompt version; re-draft only when the fingerprint changes. The design already stamps provenance; add the cache rule to milestone 3. |
+| Assemble agent sessions (tool calls, events, histories) into queryable data, with configured redaction | Usage traces are a real input for improving context | Our question log could feed ADS-051 to ADS-053 proposals and later the drafter as evidence. Needs its own privacy design first; keep it out of milestones 1 to 4. |
+| The newsletter notes that redaction before embedding helps, but anything embedded before removal can still leak meaning | Redact before data leaves the process, not after | Already our rule (redact before the model call, samples never persisted or logged). Add a test that proves no raw value reaches the model client or any log. |
+| Separate scopes for managing resources and for querying; a token that can change query configuration can also run queries | Scope separation is easy to get subtly wrong | Use distinct credentials for the drafter: read-only introspection role, model call, and the credential that opens the draft pull request. None can do another's job. |
+| A limits page that states plainly what is missing (no row-level controls, no MCP, at-least-once delivery, no SLA, no custom functions) | Published limits build more trust than adjectives, and exposed a gap between their blog ("governed catalog") and their docs | Publish a "what Compass does not do yet" page and keep it in step with the product. Keep public copy no stronger than our own docs; extend the existing CI copy guards to this. |
+| At-least-once delivery, so consumers must tolerate duplicates | Make repeat runs safe | Drafter re-runs already produce a diff, never an overwrite; add an idempotency test (same schema and same inputs give the same draft). |
+| Query layer is read-only; underlying storage is not directly reachable | Narrow the surface agents touch | Matches our read-only role and MCP read tools. Keep the drafter's database access to the read-only role only. |
+| "Agent Learning Services": observe, detect problems, evaluate proposed changes, simulate | The loop is observe, propose, evaluate, then change | Same shape as our proposals (always `proposed`) plus evaluation. Our difference is the human certification step before anything changes execution. |
+
+**What not to copy.** A "governed by default" claim before the controls exist. Their docs say per-dataset policies and row- and
+column-level controls are not available; we should hold our own claims to what our tests show.
+
+**Naming note.** Their product is "ADS". Our program uses `ADS-###` task IDs. Avoid public use of "ADS" for either.
+
 ## Where this changes the site (not part of this PR)
 
 1. PR #12 already replaced the overclaimed "shows the SQL" copy and added the honest "not yet" FAQ. Merge it first.
