@@ -155,12 +155,40 @@ column-level controls are not available; we should hold our own claims to what o
 
 **Naming note.** Their product is "ADS". Our program uses `ADS-###` task IDs. Avoid public use of "ADS" for either.
 
-## Where this changes the site (not part of this PR)
+## Site change plan (proposed; nothing here is built or deployed)
 
-1. PR #12 already replaced the overclaimed "shows the SQL" copy and added the honest "not yet" FAQ. Merge it first.
-2. A later copy PR adds the spine as the proof section **only when a row of the claims ladder unlocks**, with the evidence linked.
-3. Open copy decision for the owner: lead the headline with certified or with learned context. Recommendation: keep "certified"
-   in the lead, because it is the part competitors' pitches leave out.
+Page today (`apps/landing/src/pages/Landing.tsx`, `Solutions.tsx`, `index.html`): hero "Agentic analytics you can trust", trust strip,
+value props, "From question to defensible answer" (how it works), personas, "Controls you can inspect", FAQ, roadmap, book-demo CTA.
+Each change below is a separate, reviewable copy PR. Nothing is deployed without the owner's go-ahead in that task.
+
+| # | Change | Where | Unlocked by | Evidence to link |
+|---|---|---|---|---|
+| 0 | Merge PR #12 (honest "shows the SQL" fix, auto-ontology "not yet" FAQ, FAQ now "usage can propose, a person certifies") | FAQ, hero support line, Solutions | Owner review of PR #12 | Already in the PR |
+| 1 | **Spine section** "Draft. Certify. Run." between "How it works" and "Controls". Three short blocks, one per verb. The "Draft" block is labelled **Roadmap** until stage M4 is reached; "Certify" and "Run" describe what ships today | New section in `Landing.tsx` | Owner adopts the spine; no new capability needed because Draft is labelled roadmap | Code and tests for certify and run (already evidenced) |
+| 2 | **Trend strip** "Part of a wider shift": one sentence plus linked, dated primary sources (NVIDIA Auto Ontology, Databricks Genie Ontology, Apache Ossie), following the reference rules above. Below the fold, not in the hero | New small section above the FAQ | Owner confirms the reference rules; links re-checked on the day | Primary links listed above |
+| 3 | **Roadmap card** "Auto ontology" in the existing roadmap grid, stage "Planned" until M3, then "In pilot". One sentence: AI drafts, a person certifies, nothing runs until certified | Roadmap `items` | Today | The design doc |
+| 4 | **"What the model sees of your data"** explainer (one page or a FAQ answer) stating the approved redaction rule in plain words | New FAQ item, later its own page | M2 done: redaction tests pass | The rule approved 2026-11-14; the tests |
+| 5 | **"What Compass does not do yet"** limits page, kept in step with the product and linked from the footer and the trust section | New page and footer link | Owner approves the wording; no engineering needed | Program file and handoff doc |
+| 6 | **Draft-to-certified walkthrough** (screenshots or a short clip) on `sales-demo@v1`: draft diff, a dropped candidate with its reason, the certifying commit, a refusal before and an answer after | New section or `/how-it-works` page | M4: a real draft PR exists and the owner approves publishing it | The pull request itself |
+| 7 | **Evaluation numbers**, one dataset, method stated, failures included | Linked report page, one line in the walkthrough | M3 results against thresholds approved beforehand | The evaluation report we ran |
+| 8 | Hero subhead: add "AI drafts your definitions, your people certify them" **only** when row 7 or 6 is live. Until then the subhead stays as in PR #12 | Hero | M3 or M4 | As above |
+
+**Not changed.** The headline "Agentic analytics you can trust". Persona pages stay as in PR #12. No competitor names outside the
+trend strip, no logos, no comparison table, no customer or accuracy claims, and no "automatically builds your ontology" claim
+before M4.
+
+**Guards.** Extend the existing CI copy guards (which already block "SOC 2 Type II", "GDPR-ready" and "aggregateRating") with
+phrases we must not use until their row unlocks: "automatically builds your ontology", "self-learning", "autonomous", and any
+numeric accuracy claim. Add a check that each external reference link in the trend strip responds, run on the release PR and not
+on every build.
+
+**SEO and structured data.** `index.html` and the `useSEO` FAQ injection should match the page text exactly, including the new
+FAQ wording, so the structured data never claims more than the visible copy. Search-facing text can use "ontology" and "semantic
+layer"; the visible headline keeps "business definitions".
+
+**Sequence.** 0 now. 3 and 5 can go in the next copy PR because they need no new capability. 1 and 2 follow once the owner adopts
+the spine and the reference rules. 4 after M2. 6, 7 and 8 only after M3 and M4. Each step is its own PR, reviewed by the owner
+before merge, and deployed only on the owner's explicit request.
 
 ## How we will know the narrative works
 
