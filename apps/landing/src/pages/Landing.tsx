@@ -24,7 +24,7 @@ const PAGE_PATH = '/welcome';
 const FAQS: { q: string; a: string }[] = [
   {
     q: 'What is Compass?',
-    a: 'Compass answers business questions from your governed data. Ask in plain English; Compass resolves the question to certified metric definitions, compiles the SQL deterministically, enforces policy, and returns the answer with the SQL and evidence attached.',
+    a: 'Compass answers business questions from your governed data. Ask in plain English; Compass resolves the question to certified metric definitions, compiles the SQL deterministically, enforces policy, and returns the answer with the definitions used and an evidence record attached.',
   },
   {
     q: 'How is Compass different from a chat-with-your-data tool?',
@@ -36,7 +36,15 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Can I see how an answer was produced?',
-    a: 'Yes. Every answer carries the compiled SQL, parameters, the definitions used, and a tamper-evident evidence trail, and runs can be replayed. Result rows are not stored in the audit record.',
+    a: 'Yes. Every answer names the certified metrics and dimensions it used, the filters applied, the policy decision, and a fingerprint of the result, and the run is kept in a tamper-evident evidence trail that can be replayed. Result rows are not stored in the audit record.',
+  },
+  {
+    q: 'Does Compass build the ontology automatically?',
+    a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is on the roadmap, not shipped.',
+  },
+  {
+    q: 'Why certified definitions instead of context learned from usage?',
+    a: 'Context learned from usage can improve recall, but what a metric means can drift without anyone approving it. AI can help draft context; people should certify what a number means. Compass only answers from definitions your team has certified, so a change in meaning is a reviewed change, not a silent one.',
   },
   {
     q: 'What data does it run on?',
@@ -61,7 +69,7 @@ const VALUE_PROPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: FileSearch,
     title: 'Every answer shows its work',
-    body: 'The compiled SQL, parameters, definitions used, and an evidence trail ship with the answer, and runs can be replayed.',
+    body: 'The certified definitions used, the filters applied, the policy decision, and an evidence trail ship with the answer, and runs can be replayed.',
   },
   {
     icon: ShieldCheck,
@@ -89,8 +97,8 @@ const HOW_IT_WORKS: { tag: string; title: string; body: string; icon: LucideIcon
   },
   {
     tag: 'Verify',
-    title: 'See the SQL and the evidence',
-    body: 'The query is compiled deterministically from certified metrics, checked against policy and budget, and returned with the SQL, parameters, and evidence trail.',
+    title: 'See the definitions and the evidence',
+    body: 'The query is compiled deterministically from certified metrics, checked against policy and budget, and returned with the definitions used and an evidence trail.',
     icon: FileSearch,
   },
   {
@@ -114,7 +122,7 @@ export function LandingPage() {
   useSEO({
     title: 'Compass — Agentic analytics you can trust',
     description:
-      'Governed agentic analytics: your team asks, Compass answers from certified definitions and shows the SQL and evidence behind every number. No model-written SQL, policy and budget checks, human review for risky queries.',
+      'Governed agentic analytics: your team asks, Compass answers from certified definitions and shows the definitions and evidence behind every number. No model-written SQL, policy and budget checks, human review for risky queries.',
     canonicalPath: PAGE_PATH,
     ogType: 'website',
     jsonLd: [
@@ -125,7 +133,7 @@ export function LandingPage() {
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
         description:
-          'Governed analytics: plain-English questions answered from certified metric definitions, with the SQL, evidence trail, and human review attached.',
+          'Governed analytics: plain-English questions answered from certified metric definitions, with the definitions used, an evidence trail, and human review attached.',
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -291,7 +299,7 @@ function Hero() {
           Agentic analytics you can{' '}
           <span className="italic font-serif text-accent">trust.</span>
           <span className="block text-fg-secondary text-2xl sm:text-3xl md:text-4xl mt-3 md:mt-5 font-normal leading-snug">
-            Your team asks. Compass answers from definitions you&rsquo;ve certified, and shows the SQL and evidence behind every number.
+            Your team asks. Compass answers from definitions you&rsquo;ve certified, and shows the definitions and evidence behind every number.
           </span>
         </h1>
         <p className="text-fg-secondary text-base sm:text-lg leading-relaxed mt-6 max-w-2xl">
@@ -601,7 +609,7 @@ function FinalCTA() {
         </h2>
         <p className="text-fg-secondary text-base sm:text-lg leading-relaxed mt-5 max-w-xl mx-auto">
           Bring one question your team keeps re-asking and the dataset behind it. We&rsquo;ll
-          scope a pilot and show you the answer, the SQL, and the evidence.
+          scope a pilot and show you the answer, the definitions, and the evidence.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md mx-auto sm:max-w-none">
           <Button asChild size="lg" className="h-12 text-base">
