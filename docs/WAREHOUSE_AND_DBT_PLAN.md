@@ -85,7 +85,7 @@ names follows the reference rules in the narrative plan.
    Databricks). A security gate.
 4. **Authorize S1 to S5 as local-only work now**, with S6 as a later, separate approval.
 5. **dbt scope:** read only (S2), plus write-back proposals (S3), plus Ossie interchange (S4)? Recommendation: S2 first.
-6. **Joins:** option (a), (b) or (c) from the section above.
+6. **Joins:** DECIDED 2026-11-14, option (a), single-dataset now (owner's answer: "(a) single-dataset now"). Compiler joins and ratios are a separate, later packet.
 
 ## Not verified
 
