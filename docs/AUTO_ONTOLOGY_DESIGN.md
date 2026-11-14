@@ -47,7 +47,11 @@ closes that gap **without weakening the certification gate**: AI drafts, a perso
 The PostgreSQL compiler supports one physical dataset per query and excludes joins and ratios (`app/compiler/postgres.py`).
 So a drafted join cannot be dry-run compiled, and a drafted ratio metric cannot compile. Until the compiler supports them,
 milestone 1 drafts single-dataset metrics and dimensions only, and drafted joins are emitted as `candidate` edges with key
-evidence, marked not executable. See `docs/WAREHOUSE_AND_DBT_PLAN.md` for the options; the owner has not yet chosen one.
+evidence, marked not executable. See `docs/WAREHOUSE_AND_DBT_PLAN.md` for the options.
+
+**Decided 2026-11-14:** the owner chose option (a), single-dataset now (answer "(a) single-dataset now"). Compiler join and ratio support
+is a separate, later packet and is not part of milestones 1 to 4. This is a scope decision recorded here; it is not one of the
+human gates in the program file and approves no live run.
 
 ## Safety rules
 
