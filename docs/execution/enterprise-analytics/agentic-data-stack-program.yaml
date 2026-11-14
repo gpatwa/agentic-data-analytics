@@ -143,6 +143,13 @@ milestones:
     human_gate_status: approved
     human_gate_approved_at: 2026-10-13
     human_gate_approval_record: "User wrote \"I approved M0/M1/M5/M6/M7 gates\" in conversation on 2026-10-13, naming M7 (final_go_no_go). Recorded as the gate approval only, in the user's words; the user gave no scope or conditions. This does not approve any threshold or policy file, the reference corpus, the five ADS-079 sign-offs, or independent review of any packet; it does not change any packet status (implemented packets stay `review`), and it does not make any semantic contract certified in the registry. Open items at the time of recording are in reports/ADS-079-evidence-manifest.md."
+    pilot_production_decision:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-13
+      scope: "Internal pilot only: no customers. The Azure pilot stack (compass-pilot-*) is treated as production; there is no separate staging environment until customers are onboarded. Read-only live validation against the pilot warehouse."
+      record: "User wrote, in conversation on 2026-11-12/13: \"We can run live validation in production right now. They're not any customer, it's just internal. So we can actually do it on the live warehouse. It's fine. Production right now, we just go from dev to production right now. There's no need for staging. We can add staging as we find or onboard more customers.\" and, asked whether to record this as the final go/no-go and live-validation approval scoped to the internal pilot, answered \"Yes, record it\". Recorded in the user's words. This does not certify any semantic contract, approve any threshold or policy file, close the independent reviews (implemented packets stay `review`), or approve onboarding any customer; the staging decision must be revisited before the first customer."
+      evidence: "Live read-only validation run on 2026-11-13 by the assistant (deploy 0323ff6 plus the gpt-6-luna switch, /health status ready): 4 of 4 in-contract revenue questions answered with the revenue metric and non-empty rows, 4 of 4 out-of-contract, write, injection and enumeration requests refused. Answer values were not checked against the data. Local Postgres 16 integration run: 1254 passed, 1 skipped."
 
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
