@@ -151,6 +151,13 @@ milestones:
       record: "User wrote, in conversation on 2026-11-12/13: \"We can run live validation in production right now. They're not any customer, it's just internal. So we can actually do it on the live warehouse. It's fine. Production right now, we just go from dev to production right now. There's no need for staging. We can add staging as we find or onboard more customers.\" and, asked whether to record this as the final go/no-go and live-validation approval scoped to the internal pilot, answered \"Yes, record it\". Recorded in the user's words. This does not certify any semantic contract, approve any threshold or policy file, close the independent reviews (implemented packets stay `review`), or approve onboarding any customer; the staging decision must be revisited before the first customer."
       evidence: "Live read-only validation run on 2026-11-13 by the assistant (deploy 0323ff6 plus the gpt-6-luna switch, /health status ready): 4 of 4 in-contract revenue questions answered with the revenue metric and non-empty rows, 4 of 4 out-of-contract, write, injection and enumeration requests refused. Answer values were not checked against the data. Local Postgres 16 integration run: 1254 passed, 1 skipped."
 
+    auto_ontology_redaction_rule:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-14
+      scope: "The sample-redaction rule in docs/AUTO_ONTOLOGY_DESIGN.md (section 'Redaction rule for samples'), exactly as written there: sensitive-name exclusion list, low-cardinality only (at most 50 distinct values), at most 5 values per column, each value in at least min_cohort (10) rows, 40-character truncation, type placeholders for email, phone, card, UUID and long-digit patterns, ranges for numeric and date columns, samples never persisted or logged, LLM egress only to the pilot's Azure OpenAI deployment."
+      record: "Asked \"Approve the proposed sample-redaction rule?\" with options \"Approve as written\" and \"Change the rule\", the user answered \"Approve as written\" on 2026-11-14. Recorded in the user's words. This approves the rule only. It does not approve the design as a whole, evaluation thresholds, any live run against the pilot warehouse (that needs a separate go-ahead in the task that does it), or the semantic certification of any drafted contract."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}
