@@ -1,7 +1,7 @@
 # Auto ontology drafter: design
 
-Status: **Proposed. Not approved, not built.** Written 2026-11-13 after the owner decided the ontology capability must exist.
-Approvals needed before any code reads live data are listed at the end; none is recorded.
+Status: **Proposed. Design not approved as a whole, not built.** Written 2026-11-13 after the owner decided the ontology capability must exist.
+One approval is recorded (2026-11-14): the sample-redaction rule, as written. The remaining approvals are listed at the end.
 
 ## Why
 
@@ -51,7 +51,7 @@ closes that gap **without weakening the certification gate**: AI drafts, a perso
 - Prompt-injection hygiene: column names, comments and sample values are data, passed as quoted fields; the output schema is
   closed, so injected text cannot add operations.
 
-## Proposed redaction rule for samples (needs the owner's approval)
+## Redaction rule for samples (approved as written by the owner, 2026-11-14)
 
 A column contributes samples only if all hold: its name and comment do not match a sensitive list (email, phone, name, address,
 ssn, tax, dob, ip, token, password, secret, key, card, account, iban); its type is not free text beyond 40 characters; and it is
@@ -74,8 +74,9 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
 3. Drafter with the real model against fixtures; evaluation report.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
 
-## Approvals needed (none recorded)
+## Approvals
 
-- The redaction rule above (security and policy gate), before any sampled value is read from a live warehouse.
+- Done 2026-11-14: the redaction rule above (security and policy gate), approved as written. Recorded in the program file as
+  `M7.auto_ontology_redaction_rule`. It does not approve a live run: that still needs a separate, current-task go-ahead.
 - Evaluation thresholds, before milestone 3 results are called a pass.
 - Semantic certification of any draft stays with the semantic owners.
