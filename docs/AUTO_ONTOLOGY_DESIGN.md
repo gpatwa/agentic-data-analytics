@@ -107,8 +107,16 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    no PostgreSQL, Snowflake or Databricks connection, no rule-based inference (pipeline step 3), no value-overlap join evidence, and
    the cache is process-local memory. Not certified, not deployed.
 3. Drafter with the real model against fixtures; evaluation report.
-   **Harness built 2026-11-14; the real-model run has NOT been done.** The session has no Azure OpenAI credentials, and pulling a
-   key out of the cloud account was not something the owner authorised, so the owner starts the run (command below). Built:
+   **Harness built and run once against the pilot's `gpt-6-luna` deployment on 2026-11-14** (owner said "Use az login"; the key was
+   read from the Compass pilot account into the process environment only, never printed or written; synthetic corpus only, so
+   no database or customer data left the machine). 3 runs per case, 12 runs, none errored. Report:
+   `docs/evaluation/auto-ontology-m3-report.md`. Numbers: on `demo_sales` metric recall 1.00 and dimension recall 1.00 in all
+   3 runs; validator escapes 0, leaked secrets 0, injected canaries in output 0 across all 12 runs; the model never tried the
+   sensitive column from the poisoned comment. Drafted but not in the certified reference: an order count and `amount` as a
+   dimension (for the owner to accept or reject). In 2 of 3 `customers_and_orders` runs the validators dropped two dimensions
+   with `no_metric_for_dimension`, the single-dataset limit working as decided. **Read these with care:** one certified reference
+   with 1 metric and 2 dimensions is a tiny sample, three runs is a small look at a non-deterministic model, and no thresholds
+   are approved, so this is a measurement, not a pass. Built:
    `app/ontology_draft/evaluation.py` (scoring by what an item means, not its id: recall of metrics and dimensions against the
    hand-certified `sales-demo@v1`; drafted-but-not-in-reference items listed for the owner to accept or reject, never counted
    wrong; drops by code; independent escape checks; leak and injection counters), `eval_corpus.py` (four synthetic cases:
@@ -121,7 +129,7 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    check now cover them); and a source schema comment was copied verbatim into the draft dataset description when the model gave
    none, which carried injected text into the draft, so untrusted comments are no longer copied.
 
-   To run it (sends only the synthetic corpus; no database or customer data):
+   To re-run it (sends only the synthetic corpus; no database or customer data; needs `openai==1.109.1` from requirements.txt):
 
    ```bash
    cd services/analytics-api
