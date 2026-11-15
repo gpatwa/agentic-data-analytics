@@ -150,6 +150,8 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
 - Done 2026-11-14: evaluation thresholds, as proposed in milestone 3 ("Approve as written"). Recorded in the program file as
   `M7.auto_ontology_eval_thresholds`. Status against them for the first real-model run (12 runs, 3 per case): zero escapes, leaks and
   injections, no errors, and recall 1.00 on `demo_sales` in every run, so those four conditions are met on that run. The fifth, the
-  owner's review of the drafted-but-not-in-reference items (an order count, and `amount` as a dimension), has not happened, so the
-  evaluation is not yet complete. This does not approve milestone 4.
+  owner's review of the drafted-but-not-in-reference items (an order count, and `amount` as a dimension), was done the same day:
+  "Accept both", 2 of 2. All five approved conditions are therefore met on that one evaluation (12 runs, one certified reference
+  with 1 metric and 2 dimensions). That is the whole claim: it does not show the drafter generalises to other schemas, it does
+  not certify the two accepted items, and it does not approve milestone 4.
 - Semantic certification of any draft stays with the semantic owners.
