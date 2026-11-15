@@ -142,6 +142,8 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    in an error; owner review of the "not in the reference" list with at least 80 percent accepted. Until the owner approves
    thresholds, a report is numbers, not a pass.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
+   Planned 2026-11-14 in `docs/AUTO_ONTOLOGY_M4_PLAN.md` (stage M4a on a local PostgreSQL, then an optional, separately
+   approved M4b on the pilot). Not started, no decision recorded.
 
 ## Approvals
 
