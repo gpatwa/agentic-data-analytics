@@ -1,7 +1,9 @@
 # Auto ontology, milestone 4: plan (2026-11-14)
 
 Status: stage M4a was approved ("Yes, start M4a") and built on 2026-11-14; see `docs/AUTO_ONTOLOGY_DESIGN.md`, milestone 4. Stage M4b is
-not approved and not started. The plan below is otherwise as written.
+not approved and not started. On 2026-11-15 the owner asked for the route to be planned ("Plan the route"); that is the section
+"M4b route options" below. It is a plan only: no Azure resource was read or changed to write it, only the Terraform files in this
+repository. The rest of the plan is as written.
 
 Milestone 4 in `docs/AUTO_ONTOLOGY_DESIGN.md` is "live run against the pilot warehouse, read-only, producing a draft PR". Milestones 1
 to 3 are built and the evaluation met the approved thresholds on one run, so what is left is proving the same pipeline on a real
@@ -67,6 +69,59 @@ server. After the run: remove the firewall rule, confirm it is gone, and record 
 Exit evidence: the numbers-only report, the removal confirmation, the draft files. Claims it unlocks: "drafted from a live
 PostgreSQL pilot warehouse (synthetic data)". Nothing about a real customer, because none was used.
 
+## M4b route options (2026-11-15)
+
+**Facts the options rest on** (all from `infra/terraform/azure-analytics-pilot/`, nothing queried live):
+
+- The server is a PostgreSQL Flexible Server (`B_Standard_B1ms`, version 16) with `public_network_access_enabled = true`. Its only
+  firewall rule is `allow-azure-services` (`0.0.0.0` to `0.0.0.0`), so a laptop is refused today. Terraform manages that one rule.
+  A rule added by hand is not in Terraform state, so `terraform plan` will not report it. It must be removed by the run itself, and
+  a leftover rule would stay invisible, which is why removal is verified, not assumed.
+- The warehouse is the database `analytics_warehouse`. The role `analytics_readonly` has `CONNECT`, `USAGE` on `public`, `SELECT` on
+  every table in `public`, and `default_transaction_read_only = on`. It is not limited to the two tables, so "no table outside the
+  two" is enforced by the runner's `--tables` list and a stop rule, not by the database.
+- The role's full connection string, with `sslmode=require`, is already stored as the Key Vault secret `analytics-db-url`. That is
+  exactly the shape `ONTOLOGY_PG_READONLY_URL` wants, so no password needs to be copied, typed or generated.
+- Side finding for the owner, not part of M4: the `0.0.0.0` rule admits any Azure-hosted address, from any tenant, to the server's
+  port. Password and TLS still apply, and the code comment says "tighten for production". It is a reason to prefer a rule scoped to
+  one address, and a production item for the pilot-hardening list.
+
+| Route | What it changes in Azure | Fit | My view |
+|---|---|---|---|
+| **A. Temporary firewall rule for one address, from this machine** | One rule added, then removed, in the same command | Reaches the real server, role and TLS exactly as the pilot API does. Needs the owner's `az` identity to be allowed to edit that server's firewall (unchecked). | **Recommended** |
+| B. The owner runs the command, I read only the report | The same one rule, made by the owner | Same network need as A, because the owner's laptop is also not allowed today. It changes who holds the password, not the route. | Fine as a variant of A if the owner prefers to keep the secret off this session |
+| C. Run inside Azure (a one-off container job, or a shell in the pilot API's container) | A new resource, or a live production-adjacent container; also needs the new code in an image, so a deploy | More Azure change than a firewall rule, and it is a deploy | No |
+| D. Do not do M4b | Nothing | M4a already ran the same code on a real PostgreSQL 18.3 with the same bootstrap tables. M4b would add only the real server settings, the real grants and the real network path | Reasonable if "runs on PostgreSQL" is the only claim wanted |
+
+### Recommended run sheet (route A)
+
+Nothing below runs until the owner approves in the task that does it. The approval must name: the route, the two tables, the model
+call cap, and that one temporary firewall rule may be created and removed.
+
+1. **Before any change (read-only, one pass):** confirm the Azure account and subscription, confirm the server exists and is running
+   (if it is stopped, stop and ask: starting it is a change), list its current firewall rules and record them, and confirm the
+   signed-in identity can edit firewall rules. If it cannot, stop and report; do not widen access.
+2. **Find the address to allow.** Either the owner gives it, or it is read from an IP-echo service; the second sends this machine's
+   address to a third party, so the owner chooses. The rule is a single address, never a range.
+3. **One shell command, so removal cannot be skipped:** create the rule `m4b-temp-<date>`; fetch `analytics-db-url` from Key Vault
+   into the process environment with its output discarded; wait for the rule to take effect; run `draft_run` with
+   `--allow-remote`, `--tables demo_sales_orders` (and `sales_orders` only if the owner names it), and a fresh `--contract-id`; then
+   remove the rule and unset the variable in a `trap` that fires on any exit, including a failure or an interrupt.
+4. **Verify removal:** list the firewall rules again and compare with the step 1 record. The run is not finished until the two
+   lists match. If removal fails, say so at once and give the owner the exact delete command; the rule stays visible until then.
+5. **Report:** the numbers-only report, the rule name, the address and the timestamps of creation and removal, and the draft files
+   on a branch. A pull request is opened only on the owner's word, and certification stays with the owners as before.
+
+Expected cost: a few model calls (the cap stays 12; one pass is expected to use about 1 to 2) and nothing else. No Azure resource is
+created that outlives the run, and nothing is deployed.
+
+### One small code change first (a pull request, no cloud contact)
+
+The runner already refuses a non-local host without `--allow-remote`. Add `--expect-host`, so a mistyped or swapped URL is refused
+before any connection if its host is not the one the owner named, and add a stop-rule check in the runner that fails the run if the
+report shows any drop whose code starts with `explain_failed:` (the exception class follows the colon), or if profiling raises `profile_failed` (for M4b a role problem is a finding, not something to retry).
+Both get tests that need no network. Until that merges, M4b should not start.
+
 ## What stays out of M4
 
 - Certification: a person edits and certifies in Git. The drafts are `draft` and `candidate` and cannot execute.
@@ -87,10 +142,15 @@ PostgreSQL pilot warehouse (synthetic data)". Nothing about a real customer, bec
 
 ## Decisions for the owner
 
-1. **Start M4a now (local PostgreSQL, no cloud change, same model path)?** Recommended: yes.
-2. **M4b against the pilot: yes, later, or never?** If yes, which route: temporary firewall rule (recommended) or run it from your side.
-3. **Where drafts go:** `semantic_registry_drafts/` outside the registry root (recommended), or elsewhere.
-4. **Open the draft as a pull request automatically at the end of M4a,** or hand you the files first.
+Decided on 2026-11-14: M4a now (yes), drafts in `semantic_registry_drafts/` outside the registry root, and the draft was opened
+as a pull request that is not auto-merged. Open now:
 
-No decision is recorded yet. Approving M4a approves a local run and a draft pull request only; it does not approve M4b, any cloud
-change, any deploy or any certification.
+1. **M4b: do it, or stop at M4a?** Recommended: do it only if the claim "drafted from the live pilot warehouse" is wanted; otherwise
+   M4a already supports "runs on PostgreSQL".
+2. **Route:** A (recommended, from this machine), A with the owner running the command (B), or none.
+3. **Address:** the owner supplies it, or the IP-echo service is allowed to find it.
+4. **Tables:** `demo_sales_orders` only (recommended, it has the certified reference to score against), or both synthetic tables.
+5. **Go-ahead for the small code change** (`--expect-host` and the stop-rule check) as its own pull request.
+
+Approving any of this does not approve a deploy, a change to Terraform, any certification, or a second run. M4b, if approved, is
+one run in one task.
