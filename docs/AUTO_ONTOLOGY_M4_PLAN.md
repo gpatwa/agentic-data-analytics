@@ -1,7 +1,7 @@
 # Auto ontology, milestone 4: plan (2026-11-14)
 
-Status: stage M4a was approved ("Yes, start M4a") and built on 2026-11-14; see `docs/AUTO_ONTOLOGY_DESIGN.md`, milestone 4. Stage M4b is
-not approved and not started. On 2026-11-15 the owner asked for the route to be planned ("Plan the route"); that is the section
+Status: stage M4a was approved ("Yes, start M4a") and built on 2026-11-14; see `docs/AUTO_ONTOLOGY_DESIGN.md`, milestone 4. Stage M4b was approved as route A on
+2026-11-15 and run once the same day (see the program file, `auto_ontology_m4b_pilot_run`). On 2026-11-15 the owner asked for the route to be planned ("Plan the route"); that is the section
 "M4b route options" below. It is a plan only: no Azure resource was read or changed to write it, only the Terraform files in this
 repository. The rest of the plan is as written.
 
@@ -154,3 +154,11 @@ as a pull request that is not auto-merged. Open now:
 
 Approving any of this does not approve a deploy, a change to Terraform, any certification, or a second run. M4b, if approved, is
 one run in one task.
+
+## Lessons from the M4b run (2026-11-15)
+
+- Azure CLI 2.84.0: `firewall-rule create` and `delete` have no `--no-wait`, and either can hang after the change has been applied.
+  A watchdog that kills the call, then polling the rule list, is the reliable pattern. macOS has no `timeout`, and a watchdog that
+  kills a wrapper script does not stop its Python child, so kill the child too.
+- A rule can exist for many minutes while the CLI hangs. The plan's "removed in the same task" held, but "for the length of the run"
+  did not. A future run should poll the list from the start and say so.

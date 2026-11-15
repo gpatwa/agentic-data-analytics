@@ -173,6 +173,14 @@ milestones:
         items: "The two drafted-but-not-in-reference items from the first real-model run (docs/evaluation/auto-ontology-m3-report.md): a row count on demo_sales_orders, and amount as a numeric dimension on demo_sales_orders."
         record: "Asked \"Accept the two extra drafted items?\" with options \"Accept both\" and \"Reject one or both\", the user answered \"Accept both\" on 2026-11-14. 2 of 2 accepted, above the 80 percent condition. This accepts them as reasonable drafts for the evaluation's precision condition only. It does not certify them: semantic certification of any contract is a separate owner gate."
 
+    auto_ontology_m4b_pilot_run:
+      status: run_once
+      approved_by: user
+      approved_at: 2026-11-15
+      scope: "Milestone 4b of docs/AUTO_ONTOLOGY_M4_PLAN.md, route A: one read-only draft run against the pilot warehouse (compass-pilot-pg, database analytics_warehouse, role analytics_readonly), the table demo_sales_orders only, using one temporary firewall rule for one address that the run itself creates and removes. Synthetic data only."
+      record: "Asked \"Which M4b route do you choose?\" with options \"Route A\" and \"Stop at M4a\", the user answered \"Route A\" on 2026-11-15. Asked how to find this machine's address, with options \"Use IP-echo service\" and \"I'll give it\", the user answered \"Use IP-echo service\". Recorded in the user's words. The table (demo_sales_orders only) and the model-call cap (12) were the plan's recommended defaults, stated to the user before the run and not objected to; they were not separately approved. This approves one run. It does not approve a second run, a deploy, a Terraform change, or the certification of the drafted contract."
+      evidence: "Run on 2026-11-15 (code: main after PR #30). Result: kept 2 metrics and 3 dimensions, no drops, 0 validator escapes, 0 leaked secrets, 0 injected canaries, recall 1.00 and 1.00 against sales-demo@v1; schema fingerprint 3feeaf88, the same as the local M4a draft. Three attempts were needed: the Azure CLI (2.84.0) hung on firewall-rule create in attempts 1 and 3 although the rule was created, and attempt 2 failed before creating anything because --no-wait is not supported there. Attempts 1 and 3 each left one rule (m4b-temp-20261115, one address, the owner's machine, not recorded here) in place for roughly 15 to 21 minutes, not only the seconds the draft run took. Each was removed and the rule list re-read: only allow-azure-services remained after each. Nothing else in Azure was changed. Secrets (the role's connection string, the model key) were read into the process environment and not printed. Draft files are on the local branch draft/m4b-pilot-ontology, not pushed; a pull request waits for the owner's word."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}

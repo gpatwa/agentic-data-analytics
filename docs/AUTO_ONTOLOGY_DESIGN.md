@@ -144,6 +144,11 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
    Planned 2026-11-14 in `docs/AUTO_ONTOLOGY_M4_PLAN.md` (stage M4a on a local PostgreSQL, then an optional, separately
    approved M4b on the pilot).
+   **M4b run once 2026-11-15** (owner: "Route A", "Use IP-echo service"): one read-only draft run against the pilot warehouse,
+   `demo_sales_orders` only, through one temporary one-address firewall rule that was removed and confirmed removed. Result: 2 metrics
+   and 3 dimensions kept, no drops, 0 escapes, 0 leaks, 0 injections, recall 1.00 and 1.00, schema fingerprint identical to the local
+   M4a run. Synthetic data only; the draft is not certified and is not yet in a pull request. Record: program file,
+   `auto_ontology_m4b_pilot_run`; lessons: `docs/AUTO_ONTOLOGY_M4_PLAN.md`.
    **M4a built and run 2026-11-14** (owner: "Yes, start M4a"), on a throwaway PostgreSQL 18.3 on this machine loaded with the
    pilot's `bootstrap.sql` tables and read-only role. Nothing in Azure was changed or reached except the approved Azure OpenAI
    model call (same pattern as milestone 3). Built: `explain.py` (a real EXPLAIN-only probe that reuses the governed
