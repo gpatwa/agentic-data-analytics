@@ -147,5 +147,9 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
 
 - Done 2026-11-14: the redaction rule above (security and policy gate), approved as written. Recorded in the program file as
   `M7.auto_ontology_redaction_rule`. It does not approve a live run: that still needs a separate, current-task go-ahead.
-- Evaluation thresholds, before milestone 3 results are called a pass.
+- Done 2026-11-14: evaluation thresholds, as proposed in milestone 3 ("Approve as written"). Recorded in the program file as
+  `M7.auto_ontology_eval_thresholds`. Status against them for the first real-model run (12 runs, 3 per case): zero escapes, leaks and
+  injections, no errors, and recall 1.00 on `demo_sales` in every run, so those four conditions are met on that run. The fifth, the
+  owner's review of the drafted-but-not-in-reference items (an order count, and `amount` as a dimension), has not happened, so the
+  evaluation is not yet complete. This does not approve milestone 4.
 - Semantic certification of any draft stays with the semantic owners.
