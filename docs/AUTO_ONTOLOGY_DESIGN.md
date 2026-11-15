@@ -143,7 +143,25 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    thresholds, a report is numbers, not a pass.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
    Planned 2026-11-14 in `docs/AUTO_ONTOLOGY_M4_PLAN.md` (stage M4a on a local PostgreSQL, then an optional, separately
-   approved M4b on the pilot). Not started, no decision recorded.
+   approved M4b on the pilot).
+   **M4a built and run 2026-11-14** (owner: "Yes, start M4a"), on a throwaway PostgreSQL 18.3 on this machine loaded with the
+   pilot's `bootstrap.sql` tables and read-only role. Nothing in Azure was changed or reached except the approved Azure OpenAI
+   model call (same pattern as milestone 3). Built: `explain.py` (a real EXPLAIN-only probe that reuses the governed
+   `PostgresGateway`: allowlist, read-only transaction, timeout, rolled back), `emit.py` (writes the draft contract, candidate
+   ontology and a review note to `services/analytics-api/semantic_registry_drafts/`, outside the registry root, which a test
+   proves the registry never resolves), `draft_run.py` (introspect, profile, draft with the real model, EXPLAIN every candidate,
+   score, emit; refuses a non-local database unless `--allow-remote`, which is the separate M4b approval), and
+   `tests/test_ontology_draft_m4a_postgres.py` (12 tests against a real PostgreSQL; they skip unless
+   `ONTOLOGY_TEST_PG_ADMIN_URL` and `ONTOLOGY_TEST_PG_READONLY_URL` are set, so CI without PostgreSQL is unaffected).
+   What the real PostgreSQL showed that SQLite hid, and the fixes: timestamp ranges came back in the server's time zone, so the
+   profiler now sets UTC (it reaches the prompt and the fingerprint); an enum reflects as `VARCHAR(n)` so it is a string column,
+   not skipped; arrays and jsonb are skipped and reported; a view is not a table. Verified on the real server: the read-only role
+   cannot write, the profiler's guard statements make even an admin connection read-only with a 5 second timeout, the probe refuses
+   a `DELETE` and a table outside the allowlist without touching data, and a role without the grants turns a candidate into a
+   coded drop (`explain_failed:ExecutionError`), not a crash. Real run on `demo_sales_orders` (20,000 synthetic rows): real model,
+   real EXPLAIN, 2 metrics and 2 dimensions kept, no drops, 0 escapes, 0 leaks, 0 injections, recall 1.00 and 1.00 against the
+   certified `sales-demo@v1`. Still true: one run, one table, synthetic data, no pilot server touched (that is M4b, not
+   approved), nothing certified, nothing deployed.
 
 ## Approvals
 

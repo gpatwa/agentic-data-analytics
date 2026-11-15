@@ -226,9 +226,10 @@ class ProfileLimits:
 
 
 def session_guards(dialect_name: str, timeout_ms: int) -> list[str]:
-    """Statements issued first in the profiling transaction. PostgreSQL gets a read-only transaction and a timeout."""
+    """Statements issued first in the profiling transaction. PostgreSQL gets a read-only transaction, a timeout and UTC."""
     if dialect_name == "postgresql":
-        return ["SET TRANSACTION READ ONLY", f"SET LOCAL statement_timeout = {int(timeout_ms)}"]
+        # UTC so a timestamp range does not depend on the server's zone (it reaches the prompt and the fingerprint).
+        return ["SET TRANSACTION READ ONLY", f"SET LOCAL statement_timeout = {int(timeout_ms)}", "SET LOCAL TIME ZONE 'UTC'"]
     return []
 
 
