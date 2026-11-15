@@ -325,7 +325,11 @@ def test_profiling_issues_only_select_statements(engine, facts):
 
 
 def test_postgres_gets_read_only_and_timeout_guards_others_do_not():
-    assert session_guards("postgresql", 3000) == ["SET TRANSACTION READ ONLY", "SET LOCAL statement_timeout = 3000"]
+    assert session_guards("postgresql", 3000) == [
+        "SET TRANSACTION READ ONLY",
+        "SET LOCAL statement_timeout = 3000",
+        "SET LOCAL TIME ZONE 'UTC'",
+    ]
     assert session_guards("sqlite", 3000) == []
 
 

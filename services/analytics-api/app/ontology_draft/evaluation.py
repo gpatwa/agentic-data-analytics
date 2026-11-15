@@ -20,7 +20,7 @@ from app.ontology_draft.drafter import StructuredModel, build_prompt, draft_onto
 from app.ontology_draft.facts import SchemaFacts, is_sensitive_name
 from app.ontology_draft.profile import SchemaProfile
 from app.ontology_draft.proposal import DraftError
-from app.ontology_draft.validate import DraftContext, DraftResult, bad_text
+from app.ontology_draft.validate import DraftContext, DraftResult, ExplainProbe, bad_text
 from packages.platform_contracts.semantic import SemanticContract
 
 Signature = tuple[str, str, str | None]  # (physical table, aggregation, measure column) for a metric; (table, "dim", column)
@@ -131,12 +131,35 @@ def _count_present(needles: tuple[str, ...], haystack: str) -> int:
 # ------------------------------------------------------------------------------------------------------------------ runs
 
 
-def run_case(case: EvalCase, model: StructuredModel, ctx: DraftContext, *, run: int = 0, now: datetime | None = None) -> RunReport:
+def run_case(
+    case: EvalCase,
+    model: StructuredModel,
+    ctx: DraftContext,
+    *,
+    run: int = 0,
+    now: datetime | None = None,
+    explain: ExplainProbe | None = None,
+) -> RunReport:
+    return run_case_full(case, model, ctx, run=run, now=now, explain=explain)[0]
+
+
+def run_case_full(
+    case: EvalCase,
+    model: StructuredModel,
+    ctx: DraftContext,
+    *,
+    run: int = 0,
+    now: datetime | None = None,
+    explain: ExplainProbe | None = None,
+) -> tuple[RunReport, DraftResult | None]:
+    """Draft and score one case, returning the report and the draft itself (None when the model failed)."""
     prompt_leaks = _count_present(case.secrets, build_prompt(case.facts, case.profile))
     try:
-        result = draft_ontology(case.facts, model, ctx, profile=case.profile, now=now or datetime.now(timezone.utc))
+        result = draft_ontology(
+            case.facts, model, ctx, profile=case.profile, explain=explain, now=now or datetime.now(timezone.utc)
+        )
     except DraftError as exc:
-        return RunReport(case=case.name, run=run, error=exc.code, leaks=prompt_leaks)
+        return RunReport(case=case.name, run=run, error=exc.code, leaks=prompt_leaks), None
 
     drops = dict(Counter(d.code.split(":")[0] for d in result.dropped))
     kept_metrics: set[Signature] = set()
@@ -159,7 +182,7 @@ def run_case(case: EvalCase, model: StructuredModel, ctx: DraftContext, *, run: 
             "extra_metrics": tuple(sorted(kept_metrics - expected_metrics, key=str)),
             "extra_dimensions": tuple(sorted(kept_dimensions - expected_dimensions, key=str)),
         }
-    return RunReport(case=case.name, run=run, **report)
+    return RunReport(case=case.name, run=run, **report), result
 
 
 def run_suite(
@@ -218,5 +241,6 @@ __all__ = [
     "reference_signatures",
     "render_markdown",
     "run_case",
+    "run_case_full",
     "run_suite",
 ]

@@ -1,6 +1,7 @@
 # Auto ontology, milestone 4: plan (2026-11-14)
 
-Status: a plan for the owner to decide. Nothing in it has been done or approved. It makes no live call.
+Status: stage M4a was approved ("Yes, start M4a") and built on 2026-11-14; see `docs/AUTO_ONTOLOGY_DESIGN.md`, milestone 4. Stage M4b is
+not approved and not started. The plan below is otherwise as written.
 
 Milestone 4 in `docs/AUTO_ONTOLOGY_DESIGN.md` is "live run against the pilot warehouse, read-only, producing a draft PR". Milestones 1
 to 3 are built and the evaluation met the approved thresholds on one run, so what is left is proving the same pipeline on a real
