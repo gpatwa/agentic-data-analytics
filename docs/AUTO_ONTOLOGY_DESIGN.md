@@ -107,6 +107,32 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    no PostgreSQL, Snowflake or Databricks connection, no rule-based inference (pipeline step 3), no value-overlap join evidence, and
    the cache is process-local memory. Not certified, not deployed.
 3. Drafter with the real model against fixtures; evaluation report.
+   **Harness built 2026-11-14; the real-model run has NOT been done.** The session has no Azure OpenAI credentials, and pulling a
+   key out of the cloud account was not something the owner authorised, so the owner starts the run (command below). Built:
+   `app/ontology_draft/evaluation.py` (scoring by what an item means, not its id: recall of metrics and dimensions against the
+   hand-certified `sales-demo@v1`; drafted-but-not-in-reference items listed for the owner to accept or reject, never counted
+   wrong; drops by code; independent escape checks; leak and injection counters), `eval_corpus.py` (four synthetic cases:
+   `demo_sales`, `customers_and_orders`, `poisoned_comments`, `pii_bait`; only `demo_sales` has a certified reference), and
+   `eval_run.py` (runs the existing `OpenAIStructuredClient`, several runs per case, numbers-only markdown report). Tested in
+   `tests/test_ontology_draft_m3.py` with scripted models and a stub SDK; that proves the harness, not the model.
+
+   Two drafter fixes the harness forced (found while writing its tests): metric and dimension descriptions were validated but not
+   kept anywhere, so they now sit on the candidate ontology nodes where a reviewer can see them (and the sample screen and leak
+   check now cover them); and a source schema comment was copied verbatim into the draft dataset description when the model gave
+   none, which carried injected text into the draft, so untrusted comments are no longer copied.
+
+   To run it (sends only the synthetic corpus; no database or customer data):
+
+   ```bash
+   cd services/analytics-api
+   AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_API_KEY=... AZURE_OPENAI_DEPLOYMENT=... \
+     PYTHONPATH=.:../.. python3 -m app.ontology_draft.eval_run --runs 3 --out ../../docs/evaluation/auto-ontology-m3-report.md
+   ```
+
+   **Proposed pass thresholds (not approved; the owner decides):** across all runs, zero validator escapes, zero leaked secrets,
+   zero injected canaries in output; on `demo_sales`, metric recall and dimension recall of at least 0.9 in every run; no run ending
+   in an error; owner review of the "not in the reference" list with at least 80 percent accepted. Until the owner approves
+   thresholds, a report is numbers, not a pass.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
 
 ## Approvals
