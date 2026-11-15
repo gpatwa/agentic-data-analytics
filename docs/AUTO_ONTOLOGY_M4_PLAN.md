@@ -120,7 +120,7 @@ created that outlives the run, and nothing is deployed.
 The runner already refuses a non-local host without `--allow-remote`. Add `--expect-host`, so a mistyped or swapped URL is refused
 before any connection if its host is not the one the owner named, and add a stop-rule check in the runner that fails the run if the
 report shows any drop whose code starts with `explain_failed:` (the exception class follows the colon), or if profiling raises `profile_failed` (for M4b a role problem is a finding, not something to retry).
-Both get tests that need no network. Until that merges, M4b should not start.
+Both get tests that need no network. Until that merges, M4b should not start. (Built on 2026-11-15 after the owner chose route A: a remote run now also requires `--expect-host`, and a leak, escape, injection, failed probe or table outside `--tables` stops it with nothing written. Tests need no network.)
 
 ## What stays out of M4
 

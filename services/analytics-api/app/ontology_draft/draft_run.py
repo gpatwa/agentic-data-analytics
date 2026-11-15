@@ -9,8 +9,10 @@ It introspects, profiles (redaction rule applied), drafts, dry-runs every candid
 files to the drafts directory for human review. It uses a read-only role's engine and never writes to the database.
 
 The database host must be local (127.0.0.1, ::1 or localhost) unless `--allow-remote` is passed. That flag is the separate
-approval milestone 4b needs (docs/AUTO_ONTOLOGY_M4_PLAN.md): do not pass it without that approval. Credentials and the database URL
-come from the environment and are never printed or written.
+approval milestone 4b needs (docs/AUTO_ONTOLOGY_M4_PLAN.md): do not pass it without that approval. A remote run must also name the
+host it expects with `--expect-host`; a different host is refused before any connection. A remote run stops, writes nothing and
+exits 1 on any stop rule (a leak, a validator escape, an injected canary, a failed EXPLAIN probe, or a table outside `--tables`).
+Credentials and the database URL come from the environment and are never printed or written, and neither is the host.
 """
 
 from __future__ import annotations
@@ -38,6 +40,20 @@ LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
 REQUIRED = ("ONTOLOGY_PG_READONLY_URL", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_DEPLOYMENT")
 
 
+def stop_reasons(report, *, remote: bool) -> list[str]:
+    """Codes only, never values. A leak, an escape or an injection stops any run; a failed EXPLAIN probe stops a remote run."""
+    reasons = []
+    if report.leaks:
+        reasons.append("leak")
+    if report.escapes:
+        reasons.append("validator_escape")
+    if report.injections:
+        reasons.append("injection")
+    if remote and any(code.startswith("explain_failed:") for code in report.drops):
+        reasons.append("explain_failed")
+    return reasons
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--schema", default="public")
@@ -45,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--contract-id", default="auto-draft")
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_DRAFTS_DIR)
     parser.add_argument("--allow-remote", action="store_true", help="milestone 4b only; needs the owner's separate approval")
+    parser.add_argument("--expect-host", help="required with --allow-remote: the one host this run may connect to")
     args = parser.parse_args(argv)
 
     missing = [name for name in REQUIRED if not os.environ.get(name)]
@@ -55,12 +72,21 @@ def main(argv: list[str] | None = None) -> int:
     if url.host not in LOCAL_HOSTS and not args.allow_remote:
         print("Not run. The database host is not local; that is milestone 4b and needs --allow-remote and the owner's approval.", file=sys.stderr)
         return 2
+    remote = url.host not in LOCAL_HOSTS
+    if remote and not args.expect_host:
+        print("Not run. A remote run must name its host with --expect-host.", file=sys.stderr)
+        return 2
+    if args.expect_host and url.host != args.expect_host:
+        print("Not run. The database host does not match --expect-host.", file=sys.stderr)  # neither value is printed
+        return 2
 
     deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
     engine = sa.create_engine(url)
     try:
         introspection = introspect_engine(engine, schema=args.schema, tables=args.tables)
         facts = introspection.facts
+        if not {t.name for t in facts.tables} <= set(args.tables):
+            raise DraftError("table_outside_scope")
         profile = profile_engine(engine, facts, schema=args.schema)
         reference = None
         if [t.name for t in facts.tables] == ["demo_sales_orders"]:  # the one table with a certified reference
@@ -91,6 +117,10 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         engine.dispose()
 
+    reasons = stop_reasons(report, remote=remote)
+    if reasons:
+        print(f"Stopped by a stop rule, nothing written: {', '.join(reasons)}", file=sys.stderr)
+        return 1
     if result is None or result.document is None:
         print(f"No draft written. error={report.error} drops={report.drops}", file=sys.stderr)
         return 1
@@ -99,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         args.out_dir,
         report=report,
         skipped_columns=introspection.skipped,
-        source_note=f"PostgreSQL schema `{args.schema}`, tables {', '.join(args.tables)} (host {'local' if url.host in LOCAL_HOSTS else 'remote'})",
+        source_note=f"PostgreSQL schema `{args.schema}`, tables {', '.join(args.tables)} (host {'remote' if remote else 'local'})",
     )
     print(
         f"Draft written to {where}: kept {report.kept_metrics} metrics and {report.kept_dimensions} dimensions, "

@@ -101,3 +101,75 @@ def test_runner_refuses_a_remote_database_without_the_flag(monkeypatch, capsys):
     assert draft_run.main(["--tables", "t"]) == 2
     err = capsys.readouterr().err
     assert "milestone 4b" in err and "secret-pw" not in err and "db.example.com" not in err
+
+
+# ----------------------------------------------------------------------------------------------------------- M4b guards
+
+REMOTE_URL = "postgresql+psycopg2://ro:secret-pw@pilot-host.example.com:5432/w"
+
+
+def _remote_env(monkeypatch):
+    monkeypatch.setenv("ONTOLOGY_PG_READONLY_URL", REMOTE_URL)
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://x.invalid")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "k")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "d")
+
+
+def test_a_remote_run_must_name_its_host(monkeypatch, capsys):
+    _remote_env(monkeypatch)
+    assert draft_run.main(["--tables", "t", "--allow-remote"]) == 2
+    assert "--expect-host" in capsys.readouterr().err
+
+
+def test_a_different_host_is_refused_before_any_connection_and_nothing_is_echoed(monkeypatch, capsys):
+    _remote_env(monkeypatch)
+    monkeypatch.setattr(draft_run.sa, "create_engine", lambda *a, **k: pytest.fail("connected"))
+    assert draft_run.main(["--tables", "t", "--allow-remote", "--expect-host", "other.example.com"]) == 2
+    err = capsys.readouterr().err
+    assert "does not match" in err and "secret-pw" not in err and "pilot-host" not in err and "other.example.com" not in err
+
+
+def test_stop_reasons_are_codes_only_and_the_probe_rule_is_remote_only():
+    from types import SimpleNamespace
+
+    clean = SimpleNamespace(leaks=0, escapes=(), injections=0, drops={})
+    assert draft_run.stop_reasons(clean, remote=True) == []
+    bad = SimpleNamespace(leaks=1, escapes=("x",), injections=2, drops={"explain_failed:ProgrammingError": 1})
+    assert draft_run.stop_reasons(bad, remote=True) == ["leak", "validator_escape", "injection", "explain_failed"]
+    assert draft_run.stop_reasons(bad, remote=False) == ["leak", "validator_escape", "injection"]
+    ordinary_drop = SimpleNamespace(leaks=0, escapes=(), injections=0, drops={"sensitive_column": 3})
+    assert draft_run.stop_reasons(ordinary_drop, remote=True) == []
+
+
+def _stub_pipeline(monkeypatch, report, tables=("t",)):
+    from types import SimpleNamespace
+
+    facts = SimpleNamespace(tables=[SimpleNamespace(name=n) for n in tables])
+    monkeypatch.setattr(draft_run.sa, "create_engine", lambda *a, **k: SimpleNamespace(dispose=lambda: None))
+    monkeypatch.setattr(draft_run, "introspect_engine", lambda *a, **k: SimpleNamespace(facts=facts, skipped=[]))
+    monkeypatch.setattr(draft_run, "profile_engine", lambda *a, **k: None)
+    monkeypatch.setattr(draft_run, "explain_probe", lambda *a, **k: None)
+    monkeypatch.setattr(draft_run.OpenAIStructuredClient, "azure", staticmethod(lambda **k: None))
+    monkeypatch.setattr(draft_run, "run_case_full", lambda *a, **k: (report, SimpleNamespace(document=object())))
+    monkeypatch.setattr(draft_run, "write_draft", lambda *a, **k: pytest.fail("a draft was written"))
+
+
+def test_a_failed_probe_stops_a_remote_run_and_writes_nothing(monkeypatch, capsys):
+    from types import SimpleNamespace
+
+    _remote_env(monkeypatch)
+    _stub_pipeline(monkeypatch, SimpleNamespace(leaks=0, escapes=(), injections=0, drops={"explain_failed:ProgrammingError": 2}))
+    argv = ["--tables", "t", "--allow-remote", "--expect-host", "pilot-host.example.com"]
+    assert draft_run.main(argv) == 1
+    err = capsys.readouterr().err
+    assert "explain_failed" in err and "secret-pw" not in err
+
+
+def test_a_table_outside_the_named_list_stops_the_run(monkeypatch, capsys):
+    from types import SimpleNamespace
+
+    _remote_env(monkeypatch)
+    _stub_pipeline(monkeypatch, SimpleNamespace(leaks=0, escapes=(), injections=0, drops={}), tables=("t", "other"))
+    argv = ["--tables", "t", "--allow-remote", "--expect-host", "pilot-host.example.com"]
+    assert draft_run.main(argv) == 1
+    assert "table_outside_scope" in capsys.readouterr().err
