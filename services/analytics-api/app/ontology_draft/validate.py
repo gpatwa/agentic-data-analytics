@@ -121,6 +121,7 @@ def validate_and_emit(
     joins = _check_joins(proposal.joins, facts, drops)
     terms = _check_terms(proposal.glossary, drops)
 
+    descriptions = {m.id: m.description for m in metrics} | {d.id: d.description for d in dimensions}
     tables_in_use = sorted({m.table for m in metrics} | {d.table for d in dimensions})
     document: SemanticRegistryDocument | None = None
     ontology: OntologySnapshot | None = None
@@ -128,9 +129,9 @@ def validate_and_emit(
         texts = {item.table: item for item in proposal.datasets}
         contract = _build_contract(metrics, dimensions, tables_in_use, texts, facts, ctx, fingerprint, drops)
         document = SemanticRegistryDocument(lifecycle="draft", contract=contract)
-        ontology = _build_ontology(contract, terms, ctx, fingerprint, now)
+        ontology = _build_ontology(contract, terms, descriptions, ctx, fingerprint, now)
     elif terms:
-        ontology = _build_ontology(None, terms, ctx, fingerprint, now)
+        ontology = _build_ontology(None, terms, descriptions, ctx, fingerprint, now)
 
     provenance = {
         "schema_fingerprint": fingerprint,
@@ -403,14 +404,15 @@ def _build_contract(
         text = texts.get(name)
         description = text.description if text and not bad_text(text.description) else None
         if text and description is None:
-            drops.append(Drop("dataset", name, "bad_description", "used the schema comment instead"))
+            drops.append(Drop("dataset", name, "bad_description", "used the placeholder description instead"))
         datasets.append(
             SemanticDataset(
                 id=name,
                 display_name=text.display_name if text and not bad_text(text.display_name) else name,
                 source_asset_id=table.asset_id,
                 physical_name=name,
-                description=description or _safe_comment(table.comment) or "No description provided. Draft for review.",
+                # A source comment is untrusted text and is not copied into a draft. Only the screened model description is.
+                description=description or "No description provided. Draft for review.",
                 owner_ids=[owner.id],
             )
         )
@@ -466,15 +468,10 @@ def _build_contract(
     )
 
 
-def _safe_comment(comment: str | None) -> str | None:
-    if not comment or bad_text(comment):
-        return None
-    return comment[:500]
-
-
 def _build_ontology(
     contract: SemanticContract | None,
     terms: list[DraftTerm],
+    descriptions: dict[str, str],
     ctx: DraftContext,
     fingerprint: str,
     now: datetime,
@@ -522,10 +519,20 @@ def _build_ontology(
         for dataset in contract.datasets:
             node(f"dataset.{dataset.id}", "dataset", dataset.display_name, {"description": dataset.description})
         for metric in contract.metrics:
-            node(f"metric.{metric.id}", "metric", metric.id, {"aggregation": metric.aggregation})
+            node(
+                f"metric.{metric.id}",
+                "metric",
+                metric.id,
+                {"aggregation": metric.aggregation, "description": descriptions.get(metric.id, "")},
+            )
             edge(metric.dataset_id, f"metric.{metric.id}")
         for dimension in contract.dimensions:
-            node(f"dimension.{dimension.id}", "dimension", dimension.id, {"dimension_type": dimension.dimension_type})
+            node(
+                f"dimension.{dimension.id}",
+                "dimension",
+                dimension.id,
+                {"dimension_type": dimension.dimension_type, "description": descriptions.get(dimension.id, "")},
+            )
             edge(dimension.dataset_id, f"dimension.{dimension.id}")
     for term in terms:
         node(f"term.{_slug(term.term)}", "glossary_term", term.term, {"definition": term.definition})
