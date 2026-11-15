@@ -91,6 +91,21 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    and only faked in tests), there is no sampling or profiling (milestone 2), and composite-primary-key tables are handled by
    matching the full key only. Not certified, not deployed.
 2. Introspection, profiling and redaction, with tests (PII-bait, small-cohort, free-text cases).
+   **Built 2026-11-14** in `app/ontology_draft/` (`introspect.py`, `profile.py`, changes to `drafter.py` and `validate.py`), tested in
+   `tests/test_ontology_draft_m2.py` against a local in-memory SQLite database and a fake model. What it does: reads tables,
+   columns, types, primary and foreign keys and comments through the SQLAlchemy inspector (no row values); profiles with
+   `SELECT` statements built by SQLAlchemy Core under a row limit (and, for PostgreSQL, a read-only transaction and a statement
+   timeout, which are emitted but have not been run against a real PostgreSQL); applies the approved redaction rule exactly
+   (sensitive names and comments, 50-distinct cap, 40-character free-text cutoff, cohort floor of 10, 5 values, placeholders for
+   email, UUID, card, phone and long numbers, ranges only for numeric and date columns); keeps samples out of serialisation,
+   `repr`, logs and the provenance (which records only an aggregate-stats fingerprint); sends the model only the redacted view;
+   drops any drafted description, display name or glossary text that repeats a kept sample value (`sample_value_in_text`); caches a
+   finished draft by a digest of the exact prompt, model and prompt version, so an unchanged schema and profile do not call the
+   model again. Reading of the rule where it is silent (flagged for the owner): a sensitive column contributes no range either;
+   boolean and other non-text columns contribute counts or ranges only; the text screen ignores values shorter than three
+   characters and the words true and false, and does not screen model-chosen identifiers. What it does not do: no real model run,
+   no PostgreSQL, Snowflake or Databricks connection, no rule-based inference (pipeline step 3), no value-overlap join evidence, and
+   the cache is process-local memory. Not certified, not deployed.
 3. Drafter with the real model against fixtures; evaluation report.
 4. Live run against the pilot warehouse, read-only, producing a draft PR. Needs the approvals below.
 

@@ -19,6 +19,7 @@ from typing import Callable
 from app.compiler.postgres import CompilationError, PostgreSQLCompiler
 from app.execution.validation import QueryRejected, validate_read_only_sql
 from app.ontology_draft.facts import FactColumn, FactTable, SchemaFacts, is_sensitive_name
+from app.ontology_draft.profile import SchemaProfile, screen_proposal
 from app.ontology_draft.proposal import (
     DraftDatasetText,
     DraftDimension,
@@ -105,8 +106,10 @@ def validate_and_emit(
     *,
     explain: ExplainProbe | None = None,
     now: datetime | None = None,
+    profile: SchemaProfile | None = None,
 ) -> DraftResult:
     now = now or datetime.now(timezone.utc)
+    proposal = screen_proposal(proposal, profile)  # no kept sample value may be persisted in draft text
     drops: list[Drop] = list(proposal.drops)
     fingerprint = facts.fingerprint()
     used_ids: set[str] = {table.name for table in facts.tables}
@@ -134,6 +137,7 @@ def validate_and_emit(
         "model_id": ctx.model_id,
         "prompt_version": ctx.prompt_version,
         "drafter_version": DRAFTER_VERSION,
+        "profile_fingerprint": profile.aggregate_fingerprint() if profile else None,  # aggregate stats only, never samples
     }
     return DraftResult(document, ontology, tuple(joins), tuple(drops), fingerprint, provenance)
 
