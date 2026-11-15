@@ -1,0 +1,236 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "draft-3feeaf88eff5",
+  "tenant_id": "tenant-draft",
+  "captured_at": "2026-11-15T09:29:36.166836Z",
+  "nodes": [
+    {
+      "node_id": "dataset.demo_sales_orders",
+      "tenant_id": "tenant-draft",
+      "node_type": "dataset",
+      "label": "Sales Orders",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "description": "Records of sales orders with an amount, status, and creation timestamp."
+      }
+    },
+    {
+      "node_id": "metric.order_count",
+      "tenant_id": "tenant-draft",
+      "node_type": "metric",
+      "label": "order_count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Count of sales order rows."
+      }
+    },
+    {
+      "node_id": "metric.order_amount_sum",
+      "tenant_id": "tenant-draft",
+      "node_type": "metric",
+      "label": "order_amount_sum",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of sales order amounts."
+      }
+    },
+    {
+      "node_id": "dimension.order_status",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "order_status",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Status recorded for each sales order."
+      }
+    },
+    {
+      "node_id": "dimension.order_amount",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "order_amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "numeric",
+        "description": "Amount recorded for each sales order."
+      }
+    },
+    {
+      "node_id": "dimension.order_created_at",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "order_created_at",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "temporal",
+        "description": "Timestamp when each sales order was created."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "contains.demo_sales_orders.metric.order_count",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.demo_sales_orders",
+      "to_node_id": "metric.order_count",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.demo_sales_orders.metric.order_amount_sum",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.demo_sales_orders",
+      "to_node_id": "metric.order_amount_sum",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.demo_sales_orders.dimension.order_status",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.demo_sales_orders",
+      "to_node_id": "dimension.order_status",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.demo_sales_orders.dimension.order_amount",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.demo_sales_orders",
+      "to_node_id": "dimension.order_amount",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.demo_sales_orders.dimension.order_created_at",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.demo_sales_orders",
+      "to_node_id": "dimension.order_created_at",
+      "valid_from": "2026-11-15T09:29:36.166836Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "m4b-pilot-draft",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-15T09:29:36.166836Z",
+          "fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b"
+        }
+      ],
+      "confidence": 1.0
+    }
+  ]
+}

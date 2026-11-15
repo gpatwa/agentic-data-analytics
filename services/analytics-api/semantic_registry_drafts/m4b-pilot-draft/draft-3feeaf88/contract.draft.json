@@ -1,0 +1,145 @@
+{
+  "lifecycle": "draft",
+  "contract": {
+    "contract_version": "v1",
+    "id": "m4b-pilot-draft",
+    "tenant_id": "tenant-draft",
+    "domain": "draft",
+    "version": "draft-3feeaf88",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "demo_sales_orders",
+        "display_name": "Sales Orders",
+        "source_asset_id": "public.demo_sales_orders",
+        "physical_name": "demo_sales_orders",
+        "description": "Records of sales orders with an amount, status, and creation timestamp.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "demo_sales_orders.id",
+        "dataset_id": "demo_sales_orders",
+        "physical_name": "id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "demo_sales_orders.amount",
+        "dataset_id": "demo_sales_orders",
+        "physical_name": "amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "demo_sales_orders.status",
+        "dataset_id": "demo_sales_orders",
+        "physical_name": "status",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "demo_sales_orders.created_at",
+        "dataset_id": "demo_sales_orders",
+        "physical_name": "created_at",
+        "data_type": "timestamp",
+        "classification": "internal"
+      }
+    ],
+    "entities": [],
+    "dimensions": [
+      {
+        "id": "order_status",
+        "dataset_id": "demo_sales_orders",
+        "field_id": "demo_sales_orders.status",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_amount",
+        "dataset_id": "demo_sales_orders",
+        "field_id": "demo_sales_orders.amount",
+        "entity_id": null,
+        "dimension_type": "numeric",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_created_at",
+        "dataset_id": "demo_sales_orders",
+        "field_id": "demo_sales_orders.created_at",
+        "entity_id": null,
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "id": "order_count",
+        "dataset_id": "demo_sales_orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "demo_sales_orders.id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_amount_sum",
+        "dataset_id": "demo_sales_orders",
+        "aggregation": "sum",
+        "measure_field_id": "demo_sales_orders.amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "demo_sales_orders.id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [],
+    "policies": [],
+    "metadata": {
+      "draft": {
+        "status": "draft, not certified",
+        "schema_fingerprint": "3feeaf88eff579db4a2b2050461e8df07c71fd011f725229017af9ed6404ab0b",
+        "model_id": "gpt-6-luna",
+        "prompt_version": "m2-v1",
+        "drafter_version": "0.1.0"
+      }
+    }
+  }
+}
