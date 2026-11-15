@@ -157,6 +157,10 @@ milestones:
       approved_at: 2026-11-14
       scope: "The sample-redaction rule in docs/AUTO_ONTOLOGY_DESIGN.md (section 'Redaction rule for samples'), exactly as written there: sensitive-name exclusion list, low-cardinality only (at most 50 distinct values), at most 5 values per column, each value in at least min_cohort (10) rows, 40-character truncation, type placeholders for email, phone, card, UUID and long-digit patterns, ranges for numeric and date columns, samples never persisted or logged, LLM egress only to the pilot's Azure OpenAI deployment."
       record: "Asked \"Approve the proposed sample-redaction rule?\" with options \"Approve as written\" and \"Change the rule\", the user answered \"Approve as written\" on 2026-11-14. Recorded in the user's words. This approves the rule only. It does not approve the design as a whole, evaluation thresholds, any live run against the pilot warehouse (that needs a separate go-ahead in the task that does it), or the semantic certification of any drafted contract."
+      clarifications:
+        - confirmed_by: user
+          confirmed_at: 2026-11-14
+          record: "Asked to confirm two readings of the rule where it is silent, the user answered \"Confirm both\" on 2026-11-14. (1) A sensitive column contributes no range either, not only no samples. (2) The text screen that drops drafted text repeating a kept sample value ignores values shorter than three characters and the words true and false, and does not screen model-chosen identifiers. Implemented in services/analytics-api/app/ontology_draft/profile.py (PR #21). This confirms those readings only; it widens nothing else in the rule and approves no live run."
 
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}

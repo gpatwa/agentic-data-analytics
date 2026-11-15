@@ -101,7 +101,7 @@ digit patterns are replaced by a type placeholder. Numeric and date columns cont
    `repr`, logs and the provenance (which records only an aggregate-stats fingerprint); sends the model only the redacted view;
    drops any drafted description, display name or glossary text that repeats a kept sample value (`sample_value_in_text`); caches a
    finished draft by a digest of the exact prompt, model and prompt version, so an unchanged schema and profile do not call the
-   model again. Reading of the rule where it is silent (flagged for the owner): a sensitive column contributes no range either;
+   model again. Reading of the rule where it is silent (confirmed by the owner, 2026-11-14, "Confirm both"): a sensitive column contributes no range either;
    boolean and other non-text columns contribute counts or ranges only; the text screen ignores values shorter than three
    characters and the words true and false, and does not screen model-chosen identifiers. What it does not do: no real model run,
    no PostgreSQL, Snowflake or Databricks connection, no rule-based inference (pipeline step 3), no value-overlap join evidence, and
