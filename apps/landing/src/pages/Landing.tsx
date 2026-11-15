@@ -40,7 +40,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Does Compass build the ontology automatically?',
-    a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is on the roadmap, not shipped.',
+    a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is in an internal pilot on synthetic data, not shipped.',
   },
   {
     q: 'Can Compass learn what our metrics mean from how people use it?',
@@ -193,6 +193,11 @@ export function LandingPage() {
 
 function RoadmapSection() {
   const items: [string, string, string][] = [
+    [
+      'Auto ontology',
+      'In pilot',
+      'AI drafts business definitions from your schema, a person certifies each one, and nothing runs until it is certified. Internal pilot on synthetic data only; not available to customers.',
+    ],
     [
       'Resolution Intelligence',
       'In development',
