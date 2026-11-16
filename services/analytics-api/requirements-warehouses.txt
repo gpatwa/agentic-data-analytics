@@ -3,3 +3,4 @@
 # Ranges are the versions the sessions were checked against (API surface only; no live warehouse yet).
 snowflake-connector-python>=5.2,<6
 databricks-sql-connector>=4.9,<5
+databricks-sdk>=0.167,<1  # admin sign-in and provisioning only (warehouse_provisioning.py)

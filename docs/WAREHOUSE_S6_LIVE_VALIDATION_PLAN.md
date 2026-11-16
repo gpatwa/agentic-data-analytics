@@ -2,17 +2,29 @@
 
 Status: a plan for the owner to decide. Nothing in it is approved or done. No warehouse, account or credential has been touched.
 
-**Update 2026-11-15: the no-cloud pre-work is built** (owner: "Build pre-work"), still with no warehouse contacted and no live run
-approved. `app/execution/warehouse_validation.py` is the runner (refuses without `--allow-live` and `--expect-target`; eight checks;
-stops at the first failure; numbers-only report; tested against a scripted fake with a test for each stop rule in
-`tests/test_warehouse_validation.py`). `infra/warehouse-sandbox/` holds the two setup scripts and a README for the owner to run.
-Two details differ from the text below: the statement cap defaults to 30, not about 20, because each session spends two statements
-on its settings; and the Snowflake table is created with quoted lower-case names so the existing certified `sales-core@v1` works
-unchanged, so no separate fixture contract was needed (decision 6 is therefore moot). The Databricks grants check sees direct
-grants only; group inheritance is not visible from the session. The setup scripts' SQL and the slow statements used for the timeout
-and cancel checks are written from vendor documentation and have not been run anywhere.
-It is stage S6 of `docs/WAREHOUSE_AND_DBT_PLAN.md` and packet W8 of `docs/ANALYTICS_SNOWFLAKE_DATABRICKS_SCOPE.md`. The real driver
-sessions it would exercise are in `app/execution/warehouse_sessions.py` (PR #36), tested against fake drivers only.
+**Update 2026-11-15: pre-work built, then made fully automatic** (owner: "Build pre-work", then "no manual steps, it should be part of
+product or setup"). Still no warehouse contacted and no live run approved.
+- `app/execution/warehouse_validation.py` is the runner (refuses without `--allow-live` and `--expect-target`; eight checks; stops at
+  the first failure; numbers-only report).
+- `app/execution/warehouse_provisioning.py` is the setup, so there are no scripts to run by hand (the earlier `infra/warehouse-sandbox/`
+  scripts were removed). With `--provision` the run signs an admin in through the browser (Snowflake `externalbrowser`, Databricks OAuth),
+  creates a separate sandbox, a read-only role or service principal and a fresh credential held only in memory (a new RSA key pair, or a
+  one-hour token), runs the checks, and then removes everything in `finally`. No password, key, token, file or environment variable
+  is involved, and teardown drops or deletes only the fixed `COMPASS_VALIDATION` / `compass_validation` names it created.
+- It is an admin tool kept apart from the product's query path, which stays read-only: only the validation runner imports it, and a
+  test checks that nothing else does. This is a narrow exception to "Compass never writes to a warehouse", for the sandbox only.
+- Tests: `tests/test_warehouse_validation.py` and `tests/test_warehouse_provisioning.py`, against scripted fakes, one for each stop
+  rule and each teardown path.
+
+What is left for the owner, replacing "What I need from the owner" below: the two sandbox accounts (they exist and are signed in), one
+browser sign-in approval per engine when the run starts, and the approval of the run itself. Items 3 to 6 of that list (setup scripts, the
+read-only identity, how the secret reaches the run, fixtures) are now done by the tool. The Snowflake spending bound is created by the
+tool (a one-credit resource monitor on a new warehouse). On Databricks the tool uses an existing SQL warehouse without editing it, so its
+auto-stop is whatever the owner already set. Two details differ from the text below: the statement cap defaults to 30, not about 20; and
+the Snowflake table is created with quoted lower-case names so the certified `sales-core@v1` works unchanged (no fixture contract). The
+Databricks grants check sees direct grants only. Unverified anywhere: all the setup statements, the slow statements, `externalbrowser`
+on this Snowflake account (it needs SSO; a password-only login would need another method), whether the workspace allows creating a
+catalog and a service-principal token, and everything about the live engines.
 
 ## What S6 is for
 
