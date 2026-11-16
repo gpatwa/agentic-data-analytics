@@ -200,10 +200,10 @@ class DatabricksProvisioner:
         self._sql(f"GRANT USE CATALOG ON CATALOG {c} TO {who}", "setup_grant_catalog")
         self._sql(f"GRANT USE SCHEMA ON SCHEMA {c}.`{DATABRICKS_SCHEMA}` TO {who}", "setup_grant_schema")
         self._sql(f"GRANT SELECT ON TABLE {table} TO {who}", "setup_grant_table")
+        types = self._types
         try:
-            types = self._types
             if types is None:
-                from databricks.sdk.service import sql as types  # lazy: only a live run needs the SDK
+                types = _sdk_types()  # lazy: only a live run needs the SDK
             self._c.warehouses.update_permissions(
                 self._warehouse_id,
                 access_control_list=[
@@ -212,13 +212,27 @@ class DatabricksProvisioner:
                     )
                 ],
             )
+        except Exception as exc:  # noqa: BLE001
+            raise ProvisioningError(f"setup_warehouse_access:{type(exc).__name__}"[:60]) from None
+        try:
+            # A token can only be created for a principal that is allowed to use tokens (found live: PermissionDenied without this).
+            self._c.token_management.update_permissions(
+                access_control_list=[
+                    types.TokenAccessControlRequest(
+                        service_principal_name=application_id, permission_level=types.TokenPermissionLevel.CAN_USE
+                    )
+                ]
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ProvisioningError(f"setup_token_permission:{type(exc).__name__}"[:60]) from None
+        try:
             token = self._c.token_management.create_obo_token(
                 application_id=application_id, lifetime_seconds=TOKEN_SECONDS, comment="compass validation (temporary)"
             )
             self._token_id = str(token.token_info.token_id)
             secret = str(token.token_value)
         except Exception as exc:  # noqa: BLE001
-            raise ProvisioningError(f"setup_access:{type(exc).__name__}"[:60]) from None
+            raise ProvisioningError(f"setup_token:{type(exc).__name__}"[:60]) from None
         config = DatabricksConfig(
             server_hostname=self._host, http_path=f"/sql/1.0/warehouses/{self._warehouse_id}",
             catalog=self._catalog, schema=DATABRICKS_SCHEMA, access_token=secret,
@@ -248,6 +262,19 @@ class DatabricksProvisioner:
 
     def close(self) -> None:
         return None
+
+
+def _sdk_types() -> Any:
+    from types import SimpleNamespace
+
+    from databricks.sdk.service import settings, sql
+
+    return SimpleNamespace(
+        WarehouseAccessControlRequest=sql.WarehouseAccessControlRequest,
+        WarehousePermissionLevel=sql.WarehousePermissionLevel,
+        TokenAccessControlRequest=settings.TokenAccessControlRequest,
+        TokenPermissionLevel=settings.TokenPermissionLevel,
+    )
 
 
 def pick_warehouse(client: Any, name: str | None = None) -> str:

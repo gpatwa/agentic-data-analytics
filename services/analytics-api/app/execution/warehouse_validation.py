@@ -97,6 +97,30 @@ SLOW_SQL = {
 }
 
 
+STEP_SECONDS = 120.0  # a hard wall-clock bound on every check: a hung call is reported, never waited on
+SLOW_WAIT_SECONDS = 20.0  # how long the timeout and cancel checks wait for a slow statement to stop
+
+
+def _bounded(step: Callable[[], Any], seconds: float) -> Any:
+    """Run a check in a worker thread and stop waiting after `seconds`, so the run (and its teardown) stays in control."""
+    box: dict[str, Any] = {}
+
+    def target() -> None:
+        try:
+            box["result"] = step()
+        except BaseException as exc:  # noqa: BLE001 - re-raised below in the calling thread, including a StopRule
+            box["error"] = exc
+
+    worker = threading.Thread(target=target, daemon=True)
+    worker.start()
+    worker.join(seconds)
+    if worker.is_alive():
+        raise StopRule("check_hung")
+    if "error" in box:
+        raise box["error"]
+    return box["result"]
+
+
 class StopRule(BaseException):  # noqa: N818 - not an Exception on purpose: the gateway's catch-all must not swallow it
     """A stop rule fired. `code` is a short fixed token; the message never carries a value."""
 
@@ -391,16 +415,34 @@ def run_validation(spec: EngineSpec, *, max_statements: int = 30, max_cost_mib: 
 
     def check_timeout() -> CheckResult:
         session = new_session()
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                session.prepare(timeout_seconds=2)
+                session.execute(SLOW_SQL[spec.name], {})
+                outcome["end"] = "finished"
+            except WarehouseTimeout:
+                outcome["end"] = "timeout"
+            except StopRule as stop:
+                outcome["end"] = stop.code
+            except Exception as exc:  # noqa: BLE001 - the type only
+                outcome["end"] = f"error:{type(exc).__name__}"[:60]
+
         started = time.monotonic()
+        thread = threading.Thread(target=work, daemon=True)
+        thread.start()
+        thread.join(SLOW_WAIT_SECONDS)
+        elapsed = round((time.monotonic() - started) * 1000)
         try:
-            session.prepare(timeout_seconds=2)
-            session.execute(SLOW_SQL[spec.name], {})
-        except WarehouseTimeout:
-            elapsed = time.monotonic() - started
-            return CheckResult("timeout", elapsed < 25, "" if elapsed < 25 else "timeout_late", {"elapsed_ms": round(elapsed * 1000)})
+            if thread.is_alive():  # the 2 second timeout did not stop it: stop it ourselves and say so
+                session.cancel()
+                thread.join(5)
+                return CheckResult("timeout", False, "no_timeout", {"elapsed_ms": elapsed})
         finally:
             session.close()
-        return CheckResult("timeout", False, "no_timeout")
+        end = outcome.get("end", "")
+        return CheckResult("timeout", end == "timeout", "" if end == "timeout" else ("no_timeout" if end == "finished" else end), {"elapsed_ms": elapsed})
 
     def check_cancel() -> CheckResult:
         session = new_session()
@@ -424,7 +466,7 @@ def run_validation(spec: EngineSpec, *, max_statements: int = 30, max_cost_mib: 
         time.sleep(1.5)
         try:
             session.cancel()
-            thread.join(20)
+            thread.join(SLOW_WAIT_SECONDS)
         finally:
             session.close()
         elapsed = round((time.monotonic() - started) * 1000)
@@ -443,7 +485,7 @@ def run_validation(spec: EngineSpec, *, max_statements: int = 30, max_cost_mib: 
     ]
     for index, (name, step) in enumerate(steps):
         try:
-            result = step()
+            result = _bounded(step, STEP_SECONDS)
         except StopRule as stop:
             result = CheckResult(name, False, stop.code)
         except Exception as exc:  # noqa: BLE001 - classify by type; a driver message can carry SQL or values

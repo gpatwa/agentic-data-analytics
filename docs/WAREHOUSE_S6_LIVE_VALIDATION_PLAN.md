@@ -26,6 +26,35 @@ Databricks grants check sees direct grants only. Unverified anywhere: all the se
 on this Snowflake account (it needs SSO; a password-only login would need another method), whether the workspace allows creating a
 catalog and a service-principal token, and everything about the live engines.
 
+## Result: run on 2026-11-15 (owner: "Approve both")
+
+Both sandboxes passed all eight checks, and both were verified clean afterwards. Numbers only; no value was recorded.
+
+| | Snowflake (account `zcpwqmj-hd11049`) | Databricks (workspace `dbc-b8672746-8e43`, catalog `dev`) |
+|---|---|---|
+| Checks | 8 of 8 ok, 19 statements | 8 of 8 ok, 22 statements |
+| Query | 3 rows, estimate 0.002 MiB, 2.7 s | 3 rows, estimate 0.001 MiB, 2.1 s |
+| Result equivalence | 3 of 3 rows equal the expected values | 3 of 3 rows equal the expected values |
+| Timeout (2 s limit) | stopped, 3.9 s | stopped, 2.5 s |
+| Cancel | stopped, 2.0 s | stopped, 11.1 s |
+| How the sandbox was made | Run from the owner's signed-in Snowsight, because the account has no SSO identity provider (browser sign-in failed with `390190`). The statements are the ones in `warehouse_provisioning.py`, typed into a new worksheet; the key pair was generated locally and deleted afterwards | Fully automatic with `--provision` (OAuth browser sign-in, then setup, checks and teardown with no manual step) |
+| Teardown verified | Database list back to the original five; no `COMPASS_VALIDATION` warehouse in the six listed; the five drop statements all succeeded | No service principal, token, schema or catalog left, checked through the API |
+
+So the automatic path is verified live for Databricks only. For Snowflake the setup SQL and the checks are verified, but the automatic admin sign-in is not, and
+cannot work on an account without SSO; a password prompt (or key-pair admin sign-in) is the missing method.
+
+What the live runs found, each fixed in code with a test that reproduces it:
+1. Snowflake: with the async path a cursor has no column names until the first fetch (the grants check raised `TypeError`).
+2. Databricks: creating a token for a service principal needs that principal granted permission to use tokens first (`PermissionDenied` otherwise).
+3. Databricks: some Python builds have no default CA bundle, so the SQL connector failed its TLS handshake and then retried for minutes, which looked like a hang. The session now passes `certifi`'s bundle and caps retries at 30 seconds.
+4. Databricks: `cursor.cancel()` does nothing until the first server reply has given the command id ("no currently executing command"), so cancel now waits for the id.
+5. The runner had no hard time limit: a statement that ignores the timeout could hang it. Every check is now bounded, and the timeout check cancels a statement that does not stop.
+6. One run was interrupted by hand and skipped its teardown; the leftovers (the principal and the schema) were removed by hand through the API and confirmed gone.
+
+Not proven: scale, joins, ratios, any other account or edition, OAuth or SSO as the runtime identity (the sessions use a key pair and a token),
+and the Snowflake admin sign-in without SSO. The sandboxes held only the 100-row synthetic table. This validates the sessions and the
+gateways; it does not by itself unlock a public claim, which is its own reviewed change.
+
 ## What S6 is for
 
 Everything about the two engines so far is unverified on a live engine: marker syntax, the statement-timeout error, cancel, the
