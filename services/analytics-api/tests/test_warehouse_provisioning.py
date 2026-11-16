@@ -143,7 +143,7 @@ def test_databricks_setup_creates_a_principal_with_least_privilege_and_a_short_l
     provisioner, client = databricks_provisioner()
     result = provisioner.setup()
     config = result.config
-    assert (config.catalog, config.schema, config.server_hostname, config.http_path) == ("compass_validation", "sandbox", "dbc-host.example", "/sql/1.0/warehouses/wh1")
+    assert (config.catalog, config.schema, config.server_hostname, config.http_path) == ("compass_validation", "compass_validation_sandbox", "dbc-host.example", "/sql/1.0/warehouses/wh1")
     assert config.access_token == "dapi-secret-token" and "dapi-secret-token" not in repr(config)
     grants = [s for s in client.sql if s.startswith("GRANT")]
     assert [g.split(" ON ")[0] for g in grants] == ["GRANT USE CATALOG", "GRANT USE SCHEMA", "GRANT SELECT"]
@@ -176,7 +176,7 @@ def test_databricks_teardown_removes_the_token_the_principal_and_the_schema_and_
     client.calls.clear()
     assert provisioner.teardown() == 4
     assert client.calls == [("delete_token", "tok-id"), ("delete_sp", "sp-id")]
-    assert client.sql == ["DROP SCHEMA IF EXISTS `compass_validation`.`sandbox` CASCADE", "DROP CATALOG IF EXISTS `compass_validation` CASCADE"]
+    assert client.sql == ["DROP SCHEMA IF EXISTS `compass_validation`.`compass_validation_sandbox` CASCADE", "DROP CATALOG IF EXISTS `compass_validation` CASCADE"]
 
 
 def test_a_catalog_that_existed_before_is_left_alone():
@@ -184,7 +184,7 @@ def test_a_catalog_that_existed_before_is_left_alone():
     provisioner.setup()
     client.sql.clear()
     provisioner.teardown()
-    assert client.sql == ["DROP SCHEMA IF EXISTS `compass_validation`.`sandbox` CASCADE"]
+    assert client.sql == ["DROP SCHEMA IF EXISTS `compass_validation`.`compass_validation_sandbox` CASCADE"]
 
 
 def test_databricks_teardown_continues_past_a_failure_and_reports_the_count():
@@ -231,7 +231,7 @@ SF_CONFIG = SnowflakeConfig(
     private_key_der=b"\x30secret-der-bytes",
 )
 DB_CONFIG = DatabricksConfig(
-    server_hostname="dbc-host.example", http_path="/p", catalog="compass_validation", schema="sandbox", access_token="dapi-secret-token"
+    server_hostname="dbc-host.example", http_path="/p", catalog="compass_validation", schema="compass_validation_sandbox", access_token="dapi-secret-token"
 )
 
 
@@ -293,3 +293,33 @@ def test_the_runtime_api_never_imports_the_admin_tool():
     app = pathlib.Path(wp.__file__).parents[1]
     importers = [p.name for p in app.rglob("*.py") if "warehouse_provisioning" in p.read_text() and p.name not in {"warehouse_provisioning.py", "warehouse_validation.py"}]
     assert importers == []
+
+
+def test_a_failed_catalog_creation_leaves_nothing_to_drop_so_teardown_is_quiet():
+    provisioner, client = databricks_provisioner(Client(fail_state="CREATE CATALOG"))
+    with pytest.raises(wp.ProvisioningError) as info:
+        provisioner.setup()
+    assert info.value.code.startswith("setup_catalog:")
+    client.sql.clear()
+    assert provisioner.teardown() == 0 and client.sql == []
+
+
+def test_a_named_existing_catalog_is_never_created_or_dropped_only_the_schema_inside_it():
+    client = Client()
+    provisioner = wp.DatabricksProvisioner(client, host="h", warehouse_id="wh1", catalog="workspace", sql_types=TYPES)
+    config = provisioner.setup().config
+    assert config.catalog == "workspace"
+    assert not any("CREATE CATALOG" in s or s.startswith("SHOW CATALOGS") for s in client.sql)
+    client.sql.clear()
+    provisioner.teardown()
+    assert client.sql == ["DROP SCHEMA IF EXISTS `workspace`.`compass_validation_sandbox` CASCADE"]
+
+
+def test_a_failed_admin_sign_in_is_reported_by_type_only_before_anything_runs(tmp_path, monkeypatch, capsys):
+    def sign_in(args):
+        raise ConnectionError("SSO page said secret-detail")
+
+    monkeypatch.setattr(wv, "make_provisioner", sign_in)
+    code = wv.main(["databricks", "--allow-live", "--provision", "--expect-target", "h", "--out", str(tmp_path / "r.md")], {})
+    err = capsys.readouterr().err
+    assert code == 2 and "ConnectionError" in err and "secret-detail" not in err and not (tmp_path / "r.md").exists()

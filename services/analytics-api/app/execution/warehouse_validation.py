@@ -48,6 +48,7 @@ from app.execution.warehouse_gateway import (
     WarehouseTimeout,
 )
 from app.execution.warehouse_provisioning import (
+    DATABRICKS_CATALOG,
     DatabricksProvisioner,
     ProvisioningError,
     SnowflakeProvisioner,
@@ -483,7 +484,10 @@ def make_provisioner(args: argparse.Namespace) -> Any:
             raise WarehouseConfigError("--admin-user is required for snowflake with --provision")
         return SnowflakeProvisioner(connect_snowflake_admin(args.expect_target, args.admin_user), account=args.expect_target)
     client = connect_databricks_admin(args.expect_target)
-    return DatabricksProvisioner(client, host=args.expect_target, warehouse_id=pick_warehouse(client, args.databricks_warehouse))
+    return DatabricksProvisioner(
+        client, host=args.expect_target, warehouse_id=pick_warehouse(client, args.databricks_warehouse),
+        catalog=args.databricks_catalog or DATABRICKS_CATALOG,
+    )
 
 
 def _provisioned(args: argparse.Namespace) -> int:
@@ -491,6 +495,9 @@ def _provisioned(args: argparse.Namespace) -> int:
         provisioner = make_provisioner(args)
     except (WarehouseConfigError, WarehouseDriverMissing, ProvisioningError) as exc:
         print(f"Not run. {getattr(exc, 'code', None) or exc}", file=sys.stderr)  # a code or a variable/flag name, never a value
+        return 2
+    except Exception as exc:  # noqa: BLE001 - the browser sign-in or the connection failed; the type only, never the message
+        print(f"Not run. admin sign-in failed: {type(exc).__name__}", file=sys.stderr)
         return 2
     report = ValidationReport(args.engine)
     notes: list[str] = []
@@ -530,6 +537,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
     parser.add_argument("--provision", action="store_true", help="create the sandbox and a read-only identity first, remove them after")
     parser.add_argument("--admin-user", help="Snowflake admin user for the browser sign-in (with --provision)")
     parser.add_argument("--databricks-warehouse", help="name of the SQL warehouse to use (with --provision); never edited")
+    parser.add_argument("--databricks-catalog", help="an existing catalog to put the sandbox schema in (with --provision); never created or dropped")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--max-statements", type=int, default=30)
     parser.add_argument("--max-cost-mib", type=float, default=10.0)

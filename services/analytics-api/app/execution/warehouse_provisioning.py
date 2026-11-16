@@ -31,7 +31,7 @@ SNOWFLAKE_MONITOR = "COMPASS_VALIDATION_RM"
 SNOWFLAKE_ROLE = "COMPASS_VALIDATION_RO"
 SNOWFLAKE_USER = "COMPASS_VALIDATION_SVC"
 DATABRICKS_CATALOG = "compass_validation"
-DATABRICKS_SCHEMA = "sandbox"
+DATABRICKS_SCHEMA = "compass_validation_sandbox"  # distinctive, because teardown drops it with CASCADE
 DATABRICKS_PRINCIPAL_NAME = "compass-validation-svc"
 TOKEN_SECONDS = 3600
 ROWS = 100
@@ -149,9 +149,12 @@ class SnowflakeProvisioner:
 class DatabricksProvisioner:
     """`client` is a `databricks.sdk.WorkspaceClient`-shaped object signed in as a workspace admin. It never edits the warehouse."""
 
-    def __init__(self, client: Any, *, host: str, warehouse_id: str, sql_types: Any | None = None) -> None:
-        self._c, self._host, self._warehouse_id = client, host, warehouse_id
+    def __init__(
+        self, client: Any, *, host: str, warehouse_id: str, catalog: str = DATABRICKS_CATALOG, sql_types: Any | None = None
+    ) -> None:
+        self._c, self._host, self._warehouse_id, self._catalog = client, host, warehouse_id, catalog
         self._types = sql_types
+        self._schema_created = False
         self._principal_id: str | None = None
         self._token_id: str | None = None
         self._created_catalog = False
@@ -171,11 +174,14 @@ class DatabricksProvisioner:
             raise ProvisioningError(f"{step}:{type(exc).__name__}"[:60]) from None
 
     def setup(self) -> Provisioned:
-        c = f"`{DATABRICKS_CATALOG}`"
-        existed = bool(self._sql(f"SHOW CATALOGS LIKE '{DATABRICKS_CATALOG}'", "setup_check_catalog"))
-        self._sql(f"CREATE CATALOG IF NOT EXISTS {c}", "setup_catalog")
-        self._created_catalog = not existed
+        c = f"`{self._catalog}`"
+        if self._catalog == DATABRICKS_CATALOG:  # our own catalog: create it, and drop it later only if this run created it
+            existed = bool(self._sql(f"SHOW CATALOGS LIKE '{DATABRICKS_CATALOG}'", "setup_check_catalog"))
+            self._sql(f"CREATE CATALOG IF NOT EXISTS {c}", "setup_catalog")
+            self._created_catalog = not existed
+        # An existing catalog the owner named is never created or dropped: only the schema inside it is ours.
         self._sql(f"CREATE SCHEMA IF NOT EXISTS {c}.`{DATABRICKS_SCHEMA}`", "setup_schema")
+        self._schema_created = True
         table = f"{c}.`{DATABRICKS_SCHEMA}`.`sales_orders`"
         self._sql(
             f"CREATE OR REPLACE TABLE {table} (id STRING NOT NULL, amount DECIMAL(12, 2) NOT NULL, status STRING NOT NULL, "
@@ -215,7 +221,7 @@ class DatabricksProvisioner:
             raise ProvisioningError(f"setup_access:{type(exc).__name__}"[:60]) from None
         config = DatabricksConfig(
             server_hostname=self._host, http_path=f"/sql/1.0/warehouses/{self._warehouse_id}",
-            catalog=DATABRICKS_CATALOG, schema=DATABRICKS_SCHEMA, access_token=secret,
+            catalog=self._catalog, schema=DATABRICKS_SCHEMA, access_token=secret,
         )
         return Provisioned(config, self._steps + 3)  # the SQL statements plus the principal, the warehouse permission and the token
 
@@ -226,7 +232,8 @@ class DatabricksProvisioner:
             calls.append(lambda: self._c.token_management.delete(self._token_id))
         if self._principal_id:
             calls.append(lambda: self._c.service_principals.delete(self._principal_id))
-        calls.append(lambda: self._sql(f"DROP SCHEMA IF EXISTS `{DATABRICKS_CATALOG}`.`{DATABRICKS_SCHEMA}` CASCADE", "teardown_schema"))
+        if self._schema_created:  # nothing to drop if setup never got as far as the schema (a failed CREATE CATALOG, say)
+            calls.append(lambda: self._sql(f"DROP SCHEMA IF EXISTS `{self._catalog}`.`{DATABRICKS_SCHEMA}` CASCADE", "teardown_schema"))
         if self._created_catalog:  # only a catalog this run created; one that existed before is left alone
             calls.append(lambda: self._sql(f"DROP CATALOG IF EXISTS `{DATABRICKS_CATALOG}` CASCADE", "teardown_catalog"))
         for call in calls:
