@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warehouse onboarding prototype</title>
+<style>
+  :root {
+    --bg: hsl(222 47% 6%); --surface: hsl(222 35% 11%); --surface2: hsl(222 28% 16%); --border: hsl(222 20% 25%);
+    --text: hsl(210 18% 92%); --muted: hsl(215 12% 68%); --accent: hsl(252 80% 68%); --accent-fg: #fff;
+    --ok: hsl(142 65% 50%); --bad: hsl(0 75% 64%); --warn: hsl(35 85% 60%); --blue: hsl(210 90% 65%);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: hsl(0 0% 99%); --surface: hsl(220 20% 97%); --surface2: hsl(220 18% 93%); --border: hsl(220 14% 82%);
+      --text: hsl(222 30% 14%); --muted: hsl(220 10% 38%); --accent: hsl(252 70% 52%);
+      --ok: hsl(142 70% 30%); --bad: hsl(0 70% 42%); --warn: hsl(32 90% 34%); --blue: hsl(212 80% 40%);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .banner { background: var(--warn); color: #111; padding: 8px 16px; font-size: 14px; text-align: center; }
+  header.app { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  header.app strong { font-size: 18px; }
+  .scenario { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  select, button, input[type=text] { font: inherit; color: inherit; }
+  select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+  main { max-width: 920px; margin: 0 auto; padding: 16px; }
+  ol.steps { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0 0 20px; font-size: 13px; }
+  ol.steps li { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+  ol.steps li[aria-current=step] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  ol.steps li.done { color: var(--ok); }
+  h1 { font-size: 26px; margin: 0 0 6px; } h2 { font-size: 18px; margin: 20px 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 18px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .card h3 { margin: 0 0 4px; font-size: 16px; } .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  button.choice { text-align: left; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; }
+  button.choice:hover:not([disabled]) { border-color: var(--accent); }
+  button.choice[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  button.choice[disabled] { opacity: .6; cursor: not-allowed; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); margin-left: 6px; }
+  .tag.ok { color: var(--ok); border-color: var(--ok); } .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+  .btn { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px; padding: 10px 18px; cursor: pointer; font-weight: 600; }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .cols { display: grid; gap: 14px; grid-template-columns: 1.4fr 1fr; } @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+  ul.plain { margin: 6px 0 0; padding-left: 20px; } ul.plain li { margin: 4px 0; }
+  ul.plain small, .small { color: var(--muted); font-size: 13px; }
+  ul.checks { list-style: none; margin: 0; padding: 0; } ul.checks li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .ico { width: 22px; text-align: center; font-weight: 700; } .ico.ok { color: var(--ok); } .ico.bad { color: var(--bad); } .ico.run { color: var(--blue); } .ico.wait { color: var(--muted); }
+  .error { border: 1px solid var(--bad); border-radius: var(--radius); padding: 14px; margin-top: 16px; background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
+  .error dl { margin: 8px 0 0; display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; } .error dt { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  code, .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
+  pre.sql { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12.5px; }
+  dialog { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); max-width: 640px; width: calc(100% - 32px); }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  .ask { display: flex; gap: 8px; } .ask input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .ev { font-size: 13px; color: var(--muted); } .good { color: var(--ok); }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="banner">Prototype with fake data. It connects to nothing and stores nothing. Used to review the flow, the consent page and the error text.</div>
+<header class="app">
+  <strong>Compass: connect a warehouse</strong>
+  <label class="scenario">What happens:
+    <select id="scenario" aria-label="Scenario to preview">
+      <option value="ok">Everything works</option>
+      <option value="nosso">Snowflake account has no company sign-in</option>
+      <option value="perm">Not allowed to create a service identity (Databricks)</option>
+      <option value="leftover">Cleanup left two objects behind</option>
+    </select>
+  </label>
+</header>
+<main>
+  <ol class="steps" id="steps" aria-label="Progress"></ol>
+  <div id="view" tabindex="-1" aria-live="polite"></div>
+</main>
+
+<dialog id="dlg"><div id="dlgBody"></div><div class="row"><button class="btn secondary" id="dlgClose">Close</button></div></dialog>
+
+<script>
+const S = { step: 0, engine: null, mode: "sandbox", method: null, ran: false, removed: false, tables: new Set(["sales_orders"]), drafted: false };
+const STEPS = ["Start", "Warehouse", "Sign in", "Review", "Test", "Connected", "Choose tables", "First question"];
+const $ = (s) => document.querySelector(s);
+const sc = () => $("#scenario").value;
+const ENGINES = {
+  snowflake: { name: "Snowflake", tag: ["Sandbox validated", "ok"], sso: true, key: true },
+  databricks: { name: "Databricks", tag: ["Sandbox validated", "ok"], sso: true, key: true },
+  postgres: { name: "PostgreSQL", tag: ["Live in our pilot", "ok"], sso: false, key: false },
+  duckdb: { name: "DuckDB", tag: ["Local files", "warn"], sso: false, key: false },
+};
+const OBJECTS = {
+  snowflake: {
+    sandbox: [["A database COMPASS_VALIDATION and a schema SANDBOX", "Holds only a 100-row synthetic table, so your data is never touched."],
+              ["A warehouse, smallest size, suspends after 60 s", "To run the tests."], ["A resource monitor, one credit", "A hard spending cap that suspends the warehouse."],
+              ["A read-only role and a service user with a new key", "Can read the sample table only. The key is made here and never shown."]],
+    connect: [["A read-only role COMPASS_READER", "SELECT on the schemas you choose next. Nothing else."], ["A service user with a new key pair", "The key is generated here, held in the secret store, rotatable."],
+              ["Use of your warehouse (or a new small one with a one-credit cap)", "You decide. We never resize an existing one."]],
+  },
+  databricks: {
+    sandbox: [["A schema compass_validation_sandbox in a catalog you pick", "Holds only a 100-row synthetic table. The catalog is never created or dropped."],
+              ["A service principal and a one-hour secret", "Sign-in is OAuth client credentials. The secret expires and is deleted afterwards."],
+              ["Permission to use your existing SQL warehouse", "We do not edit the warehouse."]],
+    connect: [["A service principal compass-reader", "OAuth client credentials, short-lived tokens."], ["USE CATALOG, USE SCHEMA and SELECT on the schemas you choose", "Nothing else."], ["Permission to use one SQL warehouse", "You pick it. We never edit it."]],
+  },
+};
+const NEVER = ["Write to, change or delete your data", "Copy your tables out of your warehouse", "Store your admin login", "Run SQL written by an AI model (queries are built from definitions your team certified)"];
+const SQL = {
+  snowflake: "CREATE DATABASE IF NOT EXISTS COMPASS_VALIDATION;\nCREATE SCHEMA IF NOT EXISTS COMPASS_VALIDATION.SANDBOX;\nCREATE RESOURCE MONITOR IF NOT EXISTS COMPASS_VALIDATION_RM WITH CREDIT_QUOTA = 1 ...;\nCREATE WAREHOUSE IF NOT EXISTS COMPASS_VALIDATION_WH WAREHOUSE_SIZE = 'XSMALL' AUTO_SUSPEND = 60 ...;\nCREATE ROLE IF NOT EXISTS COMPASS_VALIDATION_RO;\nGRANT USAGE ON DATABASE COMPASS_VALIDATION TO ROLE COMPASS_VALIDATION_RO;\n-- 15 statements in all, generated by the same code that runs them automatically.",
+  databricks: "CREATE SCHEMA IF NOT EXISTS `<catalog>`.`compass_validation_sandbox`;\nCREATE OR REPLACE TABLE ... (id STRING, amount DECIMAL(12,2), status STRING, created_at TIMESTAMP);\nGRANT USE CATALOG ON CATALOG `<catalog>` TO `<service principal>`;\nGRANT USE SCHEMA ON SCHEMA `<catalog>`.`compass_validation_sandbox` TO `<service principal>`;\nGRANT SELECT ON TABLE ... TO `<service principal>`;\n-- generated by the same code that runs them automatically.",
+};
+const CHECKS = [
+  ["Your access is read-only", "read_only_grants", "0.9 s"], ["We can read your table layout", "metadata_read", "1.1 s"], ["A governed query ran", "compiled_query", "2.1 s"],
+  ["Results match what we expected", "result_equivalence", "0.1 s"], ["A too-expensive query is refused", "cost_ceiling", "0.8 s"], ["A runaway query is stopped", "timeout", "2.5 s"],
+  ["A running query can be cancelled", "cancel", "11.3 s"], ["Nothing sensitive was logged", "no_leaks", "0.0 s"],
+];
+const ERRORS = {
+  nosso: { code: "390190", what: "Your Snowflake account does not use company sign-in, so this method cannot work.", why: "The account has no identity provider set up. This is common on accounts that sign in with a password.", todo: "Choose “Use a key you control”, or “My admin will run it”.", who: "Your Snowflake admin" },
+  perm: { code: "setup_secret:PermissionDenied", what: "Your login is not allowed to create a service identity.", why: "Creating the read-only identity needs workspace admin rights.", todo: "Ask a workspace admin to run setup, or choose “My admin will run it”. Nothing was left behind.", who: "Your workspace admin" },
+};
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function go(n) { if (n === 2 && S.step === 4) S.method = null; S.step = n; render(); $("#view").focus(); window.scrollTo(0, 0); }
+function renderSteps() {
+  $("#steps").innerHTML = STEPS.map((t, i) => `<li ${i === S.step ? 'aria-current="step"' : ""} class="${i < S.step ? "done" : ""}">${i + 1}. ${esc(t)}</li>`).join("");
+}
+function errorBox(e, extra = "") {
+  return `<div class="error" role="alert"><strong>${esc(e.what)}</strong><dl><dt>Why it happens</dt><dd>${esc(e.why)}</dd><dt>What to do</dt><dd>${esc(e.todo)}</dd><dt>Who can fix it</dt><dd>${esc(e.who)}</dd><dt>Details</dt><dd><span class="code">${esc(e.code)}</span> <button class="btn secondary" data-copy="${esc(e.code)}">Copy details</button></dd></dl>${extra}</div>`;
+}
+
+const VIEWS = {
+  0() { return `<h1>Connect your data, safely</h1><p class="lead">Start with sample data to see a governed answer in a minute, or connect your own warehouse.</p>
+    <div class="grid"><button class="choice" data-act="sample"><h3>Try with sample data</h3><p>No warehouse needed. A synthetic orders table and certified definitions.</p></button>
+    <button class="choice" data-act="connect"><h3>Connect my warehouse</h3><p>Takes about five minutes. You see exactly what will be created before anything is.</p></button></div>`; },
+  1() { return `<h1>Which warehouse?</h1><p class="lead">We only list what we have tested. Stage labels say how far each one has been proven.</p>
+    <div class="grid">${Object.entries(ENGINES).map(([k, e]) => `<button class="choice" data-engine="${k}" aria-pressed="${S.engine === k}"><h3>${e.name}<span class="tag ${e.tag[1]}">${e.tag[0]}</span></h3><p>${k === "postgres" || k === "duckdb" ? "Set up from your connection details by your admin." : "Guided setup with a read-only identity."}</p></button>`).join("")}</div>
+    <p class="small"><a href="#" data-act="request">Need another warehouse? Tell us.</a></p>
+    <div class="row"><button class="btn secondary" data-go="0">Back</button><button class="btn" data-go="2" ${S.engine ? "" : "disabled"}>Continue</button></div>`; },
+  2() {
+    const e = ENGINES[S.engine || "snowflake"];
+    const m = [["sso", "Sign in with your company login", e.sso ? "You approve one sign-in on the vendor's own page. If your account does not support it, we say so within seconds and offer the next best way." : "Not used for this warehouse.", e.sso],
+               ["key", "Use a key you control", e.key ? "Sign in as an admin with a key you hold. We never store it." : "Not used for this warehouse.", e.key],
+               ["export", "My admin will run it", "Download the exact steps and statements. We test the connection afterwards.", true],
+               ["pw", "Type a password", "Pending a security decision. Shown here so it can be reviewed.", false]];
+    return `<h1>How do you want to sign in as an admin?</h1><p class="lead">We never ask you to paste a password, token or key into a form. Only methods that can work here are enabled.</p>
+      <div class="grid">${m.map(([k, t, d, on]) => `<button class="choice" data-method="${k}" ${on ? "" : "disabled"} aria-pressed="${S.method === k}"><h3>${t}</h3><p>${d}</p></button>`).join("")}</div>
+      <div class="row"><button class="btn secondary" data-go="1">Back</button><button class="btn" data-go="3" ${S.method ? "" : "disabled"}>Continue</button></div>`; },
+  3() {
+    const eng = S.engine || "snowflake"; const list = (OBJECTS[eng] || OBJECTS.snowflake)[S.mode];
+    return `<h1>Review what will be created</h1><p class="lead">This page is generated from the same code that does the work, so it cannot drift from what happens.</p>
+      <div class="row" role="group" aria-label="Mode"><button class="btn ${S.mode === "sandbox" ? "" : "secondary"}" data-mode="sandbox">Sandbox (synthetic table)</button><button class="btn ${S.mode === "connect" ? "" : "secondary"}" data-mode="connect">Connect my data</button></div>
+      ${S.mode === "connect" ? `<p class="small"><span class="tag warn">Design only</span> Connect mode touches a customer's warehouse. It needs its own security approval before it is built.</p>` : ""}
+      <div class="cols"><div class="card"><h3>Compass will create</h3><ul class="plain">${list.map(([t, d]) => `<li>${esc(t)}<br><small>${esc(d)}</small></li>`).join("")}</ul></div>
+      <div class="card"><h3>Compass will never</h3><ul class="plain">${NEVER.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><h3 style="margin-top:12px">Spending cap</h3><p>${eng === "snowflake" ? "One credit, smallest warehouse." : "Uses your existing warehouse; its auto-stop stays as you set it."}</p></div></div>
+      <div class="row"><button class="btn secondary" data-go="2">Back</button><button class="btn secondary" data-act="export">Export as SQL</button><button class="btn" data-act="run">${S.method === "export" ? "Test the connection" : "Create and test"}</button></div>
+      <p class="small">Saved as a consent record: who, when, which warehouse, and a fingerprint of this list. No credential.</p>`; },
+  4() { return `<h1>Setting up and testing</h1><p class="lead">The eight checks are the connection test. Read-only is something you see, not something we promise.</p><ul class="checks" id="prog" aria-label="Setup and test progress"></ul><div id="after"></div>
+      <div class="row"><button class="btn secondary" id="cancelRun">Cancel and clean up</button></div>`; },
+  5() { return connectedView(); },
+  6() { return `<h1>What may Compass use?</h1><p class="lead">Nothing is used until you choose it. Then see what the model would be shown.</p>
+      <div class="cols"><div class="card"><h3>Tables</h3>${["sales_orders", "customers", "payments"].map((t) => `<label style="display:block;margin:6px 0"><input type="checkbox" data-table="${t}" ${S.tables.has(t) ? "checked" : ""}> <code>${t}</code></label>`).join("")}<p class="small">Default is none.</p></div>
+      <div class="card"><h3>What the model would see for <code>${[...S.tables][0] || "(none chosen)"}</code></h3>${redaction()}</div></div>
+      <div class="row"><button class="btn secondary" data-go="5">Back</button><button class="btn" data-act="draft" ${S.tables.size ? "" : "disabled"}>Draft definitions</button></div>
+      ${S.drafted ? `<div class="card" style="margin-top:14px"><strong class="good">Drafted: 2 metrics and 3 dimensions, all candidates.</strong><p>Nothing runs until a person on your team certifies them. <a href="#" data-go="7">Ask a first question on the sample definitions</a></p></div>` : ""}`; },
+  7() { return `<h1>Ask your first question</h1><p class="lead">On the sample table and its certified definitions.</p>
+      <div class="ask"><input type="text" value="What was paid revenue by month in the first quarter of 2024?" aria-label="Question" id="q"><button class="btn" data-act="ask">Ask</button></div><div id="answer"></div>
+      <div class="row"><button class="btn secondary" data-go="5">Back to connection</button></div>`; },
+};
+
+function redaction() {
+  const rows = [["id", "text", "Not sampled: too many different values"], ["amount", "number", "Range 1 to 100"], ["status", "text", "paid, refunded"], ["created_at", "date", "2024-01-01 to 2024-03-23"],
+                ["customer_email", "text", "Excluded: looks like personal data"], ["card_number", "text", "Excluded: sensitive name"]];
+  return `<table><tr><th>Column</th><th>Shown to the model</th></tr>${rows.map(([c, , v]) => `<tr><td><code>${c}</code></td><td>${/Excluded/.test(v) ? '<span class="tag warn">excluded</span> ' : ""}${esc(v.replace("Excluded: ", ""))}</td></tr>`).join("")}</table><p class="small">Emails and long numbers would appear only as <code>&lt;email&gt;</code> or <code>&lt;long_number&gt;</code>. Samples are never stored or logged.</p>`;
+}
+function connectedView() {
+  if (S.removed) return `<h1>Access removed</h1><div class="card"><p class="good">Removed: the read-only identity, its credential and the sandbox objects. Your own data was never touched.</p></div><div class="row"><button class="btn" data-go="0">Start over</button></div>`;
+  const left = sc() === "leftover" && !S.leftoverFixed;
+  return `<h1>Connected</h1><p class="lead">${ENGINES[S.engine || "snowflake"].name}, ${S.mode === "sandbox" ? "sandbox" : "your data"}. All eight checks passed.</p>
+    ${left ? errorBox({ code: "teardown_incomplete:2", what: "Setup was removed except 2 objects.", why: "An interrupted cleanup can leave objects behind.", todo: "Remove them with the commands below, or click Retry cleanup.", who: "Your admin" }, `<pre class="sql">DROP WAREHOUSE IF EXISTS COMPASS_VALIDATION_WH;\nDROP RESOURCE MONITOR IF EXISTS COMPASS_VALIDATION_RM;</pre><button class="btn secondary" data-act="retry">Retry cleanup</button>`) : ""}
+    <div class="cols"><div class="card"><h3>Test results</h3><table>${CHECKS.map((c) => `<tr><td>${c[0]}</td><td class="good">ok</td><td>${c[2]}</td></tr>`).join("")}</table></div>
+    <div class="card"><h3>Access</h3><ul class="plain"><li>Read-only identity, one warehouse</li><li>Credential: short-lived, in the secret store, rotatable</li><li>Audit trail: every step recorded, names and counts only</li></ul></div></div>
+    <div class="row"><button class="btn" data-go="6">Choose what Compass may use</button><button class="btn danger" data-act="remove">Remove access</button></div>`; }
+
+function render() { renderSteps(); $("#view").innerHTML = VIEWS[S.step](); if (S.step === 4) runProgress(); }
+
+async function runProgress() {
+  const prog = $("#prog"); const scn = sc(); const eng = S.engine || "snowflake";
+  const items = [["Signing you in", "signin"], ["Creating the sandbox", "setup"], ["Creating a read-only identity", "identity"], ...CHECKS.map((c) => [c[0], c[1]]), ["Removing the temporary admin session", "end"]];
+  prog.innerHTML = items.map(([t], i) => `<li id="p${i}"><span class="ico wait">·</span><span>${esc(t)}</span></li>`).join("");
+  const set = (i, cls, ch) => { const el = $("#p" + i + " .ico"); if (el) { el.className = "ico " + cls; el.textContent = ch; } };
+  S.cancel = false; $("#cancelRun").onclick = () => { S.cancel = true; };
+  for (let i = 0; i < items.length; i++) {
+    if (S.cancel) { $("#after").innerHTML = `<div class="card"><p>Cancelled. Everything created so far was removed.</p></div>`; return; }
+    set(i, "run", "…"); await new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 10 : 450));
+    if (scn === "nosso" && eng === "snowflake" && S.method === "sso" && i === 0) { set(i, "bad", "✕"); $("#after").innerHTML = errorBox(ERRORS.nosso, `<div class="row"><button class="btn secondary" data-go="2">Choose another way</button></div>`); return; }
+    if (scn === "perm" && eng === "databricks" && S.method !== "export" && i === 2) { set(i, "bad", "✕"); $("#after").innerHTML = errorBox(ERRORS.perm, `<p class="small">Cleanup ran automatically. Nothing was left behind.</p><div class="row"><button class="btn secondary" data-go="2">Choose another way</button></div>`); return; }
+    set(i, "ok", "✓");
+  }
+  S.ran = true; $("#after").innerHTML = `<div class="row"><button class="btn" data-go="5">See the result</button></div>`;
+}
+
+function ask() {
+  $("#answer").innerHTML = `<div class="card" style="margin-top:14px"><h3>Paid revenue by month, Q1 2024</h3><table><tr><th>Month</th><th>Revenue</th></tr><tr><td>March 2024</td><td>1,969</td></tr><tr><td>February 2024</td><td>1,468</td></tr><tr><td>January 2024</td><td>563</td></tr></table>
+    <p class="ev"><strong>Definitions used:</strong> <code>revenue</code> (certified, sum of amount). <strong>Filters:</strong> status = paid; 2024-01-01 to 2024-03-31. <strong>Policy:</strong> allowed. <strong>Evidence:</strong> run recorded and replayable. <em>Sample data and a sample record, not a real answer.</em></p></div>`;
+}
+
+document.addEventListener("click", (ev) => {
+  const t = ev.target.closest("[data-go],[data-act],[data-engine],[data-method],[data-mode],[data-copy]"); if (!t) return;
+  if (t.dataset.go) { ev.preventDefault(); return go(+t.dataset.go); }
+  if (t.dataset.engine) { S.engine = t.dataset.engine; S.method = null; return render(); }
+  if (t.dataset.method) { S.method = t.dataset.method; return render(); }
+  if (t.dataset.mode) { S.mode = t.dataset.mode; return render(); }
+  if (t.dataset.copy) { navigator.clipboard && navigator.clipboard.writeText(t.dataset.copy).catch(() => {}); t.textContent = "Copied"; return; }
+  const a = t.dataset.act; ev.preventDefault();
+  if (a === "sample") { S.engine = "postgres"; S.mode = "sandbox"; return go(7); }
+  if (a === "connect") return go(1);
+  if (a === "request") return dlg("<h3>Request a warehouse</h3><p>A form would go here. Prototype only.</p>");
+  if (a === "export") return dlg(`<h3>Export as SQL</h3><p>The exact statements, generated by the same code that runs them automatically, plus a checklist. Your admin runs them; we test the connection afterwards.</p><pre class="sql">${esc(SQL[S.engine || "snowflake"] || SQL.snowflake)}</pre>`);
+  if (a === "run") return go(4);
+  if (a === "remove") return dlg(`<h3>Remove access?</h3><p>This removes exactly what setup created: the read-only identity, its credential and the sandbox objects. Your own data is not touched.</p><div class="row"><button class="btn danger" id="confirmRemove">Remove access</button></div>`, () => { $("#confirmRemove").onclick = () => { S.removed = true; $("#dlg").close(); render(); }; });
+  if (a === "retry") { S.leftoverFixed = true; render(); return dlg("<p>Cleanup retried and finished. (In this prototype it always succeeds.)</p>"); }
+  if (a === "draft") { S.drafted = true; return render(); }
+  if (a === "ask") return ask();
+});
+document.addEventListener("change", (ev) => { const c = ev.target.closest("[data-table]"); if (!c) return; c.checked ? S.tables.add(c.dataset.table) : S.tables.delete(c.dataset.table); S.drafted = false; render(); });
+$("#scenario").addEventListener("change", () => { S.removed = false; S.leftoverFixed = false; render(); });
+function dlg(html, after) { $("#dlgBody").innerHTML = html; $("#dlg").showModal(); after && after(); }
+$("#dlgClose").onclick = () => $("#dlg").close();
+render();
+</script>
+</body>
+</html>
