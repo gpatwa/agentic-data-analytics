@@ -1,7 +1,7 @@
 # Compass marketing site
 
 Static site for the public landing page and persona pages. It is a separate deployable from the product apps
-(`apps/support-web`, `apps/analytics-web`, `apps/discovery-web`) so marketing copy ships on its own cadence and carries no
+(`apps/analytics-web`) so marketing copy ships on its own cadence and carries no
 product code, API URLs or keys.
 
 - `npm run dev` serves on :5174. `npm run build` type-checks, builds, templates the sitemap/robots, and prerenders `/welcome`
