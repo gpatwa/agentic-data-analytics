@@ -1,6 +1,6 @@
 # Warehouse connectors and onboarding: plan (2026-11-15)
 
-Status: a plan for the owner to decide. Nothing in it is approved, built or run. It follows the owner's two asks of 2026-11-15: "we should be able to use some connector framework" and "these setup steps should be part of the product onboarding experience". It builds on `docs/WAREHOUSE_AND_DBT_PLAN.md` and the recorded sandbox results in `docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md`.
+Status: a plan for the owner to decide. **C1 was approved ("Approve C1") and built on 2026-11-15**: `app/execution/connector_conformance.py` (the library: capability records, the eight checks, capability gating), `docs/WAREHOUSE_CONNECTOR_CAPABILITIES.md` (generated from it, and a test fails if the two drift) and `tests/test_connector_conformance.py`; `warehouse_validation.py` is now only the live runner around it. Everything else in this plan is not approved, built or run. It follows the owner's two asks of 2026-11-15: "we should be able to use some connector framework" and "these setup steps should be part of the product onboarding experience". It builds on `docs/WAREHOUSE_AND_DBT_PLAN.md` and the recorded sandbox results in `docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md`.
 
 ## What we learned that shapes the plan
 

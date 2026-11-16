@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.execution import connector_conformance as cc
 from app.execution import warehouse_validation as wv
 from app.execution.warehouse_gateway import WarehouseCancelled, WarehouseTimeout
 from app.execution.warehouse_sessions import WarehouseConfigError
@@ -276,7 +277,7 @@ def test_a_failing_run_exits_one_and_still_writes_a_report(spec_for, tmp_path):
 
 
 def test_a_slow_statement_that_ignores_the_timeout_is_reported_cancelled_and_does_not_hang_the_run(spec_for, monkeypatch):
-    monkeypatch.setattr(wv, "SLOW_WAIT_SECONDS", 0.5)
+    monkeypatch.setattr(cc, "SLOW_WAIT_SECONDS", 0.5)
 
     class Stubborn(FakeSession):
         def _slow(self):
@@ -295,7 +296,7 @@ def test_a_slow_statement_that_ignores_the_timeout_is_reported_cancelled_and_doe
 
 
 def test_a_check_that_never_returns_is_stopped_by_the_wall_clock_bound(spec_for, monkeypatch):
-    monkeypatch.setattr(wv, "STEP_SECONDS", 0.3)
+    monkeypatch.setattr(cc, "STEP_SECONDS", 0.3)
     spec, world = spec_for("snowflake")
 
     class Hangs(FakeSession):
