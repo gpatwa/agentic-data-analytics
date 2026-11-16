@@ -66,6 +66,14 @@ function PublicHeader() {
           </li>
           <li>
             <a
+              href="#roadmap"
+              className="px-3 py-1.5 rounded-md text-fg-secondary hover:text-fg hover:bg-surface-muted transition"
+            >
+              Roadmap
+            </a>
+          </li>
+          <li>
+            <a
               href="#faq"
               className="px-3 py-1.5 rounded-md text-fg-secondary hover:text-fg hover:bg-surface-muted transition"
             >
@@ -78,7 +86,7 @@ function PublicHeader() {
           <a href={APP_URL}>Sign in</a>
         </Button>
         <Button asChild size="sm">
-          <a href="#book-demo">Book a demo</a>
+          <a href="#book-demo">Talk to us</a>
         </Button>
       </nav>
     </header>
@@ -105,6 +113,7 @@ function PublicFooter() {
             { label: 'Try Compass', href: APP_URL },
             { label: 'How it works', href: '#how-it-works' },
             { label: 'Security', href: '#trust' },
+            { label: 'Roadmap', href: '#roadmap' },
             { label: 'FAQ', href: '#faq' },
           ]}
         />
@@ -120,7 +129,7 @@ function PublicFooter() {
         <FooterColumn
           heading="Company"
           links={[
-            { label: 'Book a demo', href: '#book-demo' },
+            { label: 'Talk to us', href: '#book-demo' },
             { label: 'Sign in', href: APP_URL },
           ]}
         />
