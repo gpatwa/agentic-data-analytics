@@ -1,6 +1,10 @@
 # Reference data first: a pre-seeded demo warehouse that shows the capability (plan, 2026-11-16)
 
-Status: a plan for the owner to decide. Nothing in it is approved, built or run. It follows the owner's direction of 2026-11-16: **focus on reference data first, to show capability and use cases, by connecting to a warehouse whose data is set up and pre-seeded for the product demo.** It narrows `docs/WAREHOUSE_CONNECTOR_AND_ONBOARDING_PLAN.md`: Connect mode (a customer's real data) is parked; the "Try with sample data" path becomes the product.
+Status: a plan for the owner to decide. **R1 was approved ("Approve R1") and built on 2026-11-16**: `services/analytics-api/reference_data/` (a deterministic generator, a plain-Python oracle, the ten scene definitions, DDL for four dialects, and a loader), tested in `tests/test_reference_data_r1.py`. The oracle matches an independent DuckDB load and, run once on a throwaway local PostgreSQL 18, a real PostgreSQL load (that test is gated by `REFERENCE_TEST_PG_URL` and skips otherwise). No cloud was touched. Everything beyond R1 in this plan is not approved, built or run.
+
+**Finding from R1 (a decision for the owner):** the approved redaction rule flags `email`, `phone` and `card_number` by name but **not `date_of_birth`** (its list matches `dob` only), so the drafter would show a model the date range of birth dates. The reference data keeps the realistic column name and records it as a known gap, pinned by a test, rather than renaming it to hide the gap. Extending the rule (for example to match "birth") changes an owner-approved gate, so it needs the owner's explicit approval; I have not changed it.
+
+Run it: `cd services/analytics-api && PYTHONPATH=.:../.. python3 -m reference_data checksums | scenes | oracle`. It follows the owner's direction of 2026-11-16: **focus on reference data first, to show capability and use cases, by connecting to a warehouse whose data is set up and pre-seeded for the product demo.** It narrows `docs/WAREHOUSE_CONNECTOR_AND_ONBOARDING_PLAN.md`: Connect mode (a customer's real data) is parked; the "Try with sample data" path becomes the product.
 
 ## The idea
 
@@ -86,6 +90,7 @@ Only certified definitions execute, and certification stays with the owners; the
 5. **Engines in order:** PostgreSQL (exists), then Snowflake and Databricks together, or one at a time.
 6. **Public demo scope:** keep it PostgreSQL-only until R5, or add the engine switcher as soon as it is real.
 7. **Scene list:** anything to add or drop from the ten above.
+8. **Redaction rule:** extend the name list so `date_of_birth` (and similar, such as "birth") is excluded? It is an owner-approved gate. Until then scene 6 states the gap honestly.
 
 Approving any of this approves no live run, no account creation, no certification and no public wording.
 
