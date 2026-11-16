@@ -66,9 +66,15 @@ class FakeCursor:
     def __init__(self, conn):
         self.conn = conn
         self.sfqid = None
-        self.description = [SimpleNamespace(name=c) for c in conn.columns]
         self.closed = False
+        self._described = [SimpleNamespace(name=c) for c in conn.columns]
+        self.fetched = False
         self._rows = list(conn.rows)
+
+    @property
+    def description(self):
+        # A live Snowflake async cursor has no description until the first fetch; the fake can do the same.
+        return None if self.conn.late_description and not self.fetched else self._described
 
     def execute(self, sql, params=None):
         self.conn.log.append(("execute", sql, params))
@@ -94,6 +100,7 @@ class FakeCursor:
         return [(self.conn.result,)]
 
     def fetchmany(self, size):
+        self.fetched = True
         batch, self._rows = self._rows[:size], self._rows[size:]
         return batch
 
@@ -111,8 +118,8 @@ class FakeCursor:
 
 
 class FakeConn:
-    def __init__(self, kwargs, *, columns=("month", "revenue"), rows=((("2024-01-01"), 5),), script=None, statuses=None, result="{}"):
-        self.kwargs, self.columns, self.rows = kwargs, columns, rows
+    def __init__(self, kwargs, *, columns=("month", "revenue"), rows=((("2024-01-01"), 5),), script=None, statuses=None, result="{}", late_description=False):
+        self.kwargs, self.columns, self.rows, self.late_description = kwargs, columns, rows, late_description
         self.script, self.statuses, self.result = script or {}, list(statuses or ["SUCCESS"]), result
         self.log, self.cursors, self.qid, self.cancelled, self.closed = [], [], None, False, False
 
@@ -403,3 +410,19 @@ def test_the_installed_databricks_connector_still_has_the_calls_the_session_uses
     for name in ("execute", "fetchmany", "fetchall", "cancel", "close"):
         assert callable(getattr(Cursor, name)), name
     assert hasattr(Cursor, "description") and sql.paramstyle == "named"
+
+
+def test_snowflake_async_results_get_their_column_names_after_the_first_fetch(key_file):
+    """Seen live: an async cursor's description is None until the first fetch. The stream reads the first batch to get it."""
+    driver = FakeDriver(statuses=["SUCCESS"], rows=[("2024-01-01", 5), ("2024-02-01", 7), ("2024-03-01", 9)], late_description=True)
+    session = SnowflakeSession(snowflake_config(key_file), connector=driver, poll_seconds=0)
+    stream = session.execute("SELECT x", {})
+    assert stream.columns == ("month", "revenue")
+    assert [tuple(r) for r in stream.fetchmany(2)] == [("2024-01-01", 5), ("2024-02-01", 7)]  # the prefetched rows are not lost
+    assert [tuple(r) for r in stream.fetchmany(2)] == [("2024-03-01", 9)] and stream.fetchmany(2) == []
+
+
+def test_a_result_with_no_rows_still_streams_cleanly_when_the_description_is_late(key_file):
+    driver = FakeDriver(statuses=["SUCCESS"], rows=[], late_description=True)
+    stream = SnowflakeSession(snowflake_config(key_file), connector=driver, poll_seconds=0).execute("SELECT x", {})
+    assert stream.columns == ("month", "revenue") and stream.fetchmany(5) == []
