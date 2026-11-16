@@ -106,7 +106,10 @@ class Client:
             update_permissions=lambda wid, access_control_list: self.calls.append(("acl", wid, access_control_list)),
             list=lambda: [SimpleNamespace(id="wh1", name="Starter"), SimpleNamespace(id="wh2", name="Other")],
         )
-        self.token_management = SimpleNamespace(create_obo_token=self._token, delete=lambda i: self._delete("token", i))
+        self.token_management = SimpleNamespace(
+            create_obo_token=self._token, delete=lambda i: self._delete("token", i),
+            update_permissions=lambda access_control_list: self.calls.append(("token_acl", access_control_list)),
+        )
 
     def _execute(self, statement, warehouse_id, wait_timeout):
         self.sql.append(statement)
@@ -130,7 +133,8 @@ class Client:
 
 
 TYPES = SimpleNamespace(
-    WarehouseAccessControlRequest=lambda **kw: SimpleNamespace(**kw), WarehousePermissionLevel=SimpleNamespace(CAN_USE="CAN_USE")
+    WarehouseAccessControlRequest=lambda **kw: SimpleNamespace(**kw), WarehousePermissionLevel=SimpleNamespace(CAN_USE="CAN_USE"),
+    TokenAccessControlRequest=lambda **kw: SimpleNamespace(**kw), TokenPermissionLevel=SimpleNamespace(CAN_USE="CAN_USE"),
 )
 
 
@@ -323,3 +327,32 @@ def test_a_failed_admin_sign_in_is_reported_by_type_only_before_anything_runs(tm
     code = wv.main(["databricks", "--allow-live", "--provision", "--expect-target", "h", "--out", str(tmp_path / "r.md")], {})
     err = capsys.readouterr().err
     assert code == 2 and "ConnectionError" in err and "secret-detail" not in err and not (tmp_path / "r.md").exists()
+
+
+def test_a_refused_warehouse_permission_and_a_refused_token_are_told_apart():
+    for broken, code in (("acl", "setup_warehouse_access:"), ("token", "setup_token:")):
+        provisioner, client = databricks_provisioner()
+        if broken == "acl":
+            client.warehouses.update_permissions = lambda *a, **k: (_ for _ in ()).throw(PermissionError("nope"))
+        else:
+            client.token_management.create_obo_token = lambda **k: (_ for _ in ()).throw(PermissionError("nope"))
+        with pytest.raises(wp.ProvisioningError) as info:
+            provisioner.setup()
+        assert info.value.code == code + "PermissionError"
+        assert provisioner.teardown() >= 2  # the principal and the schema are still removed
+
+
+def test_the_principal_is_allowed_to_use_tokens_before_its_token_is_created():
+    provisioner, client = databricks_provisioner()
+    provisioner.setup()
+    names = [c[0] for c in client.calls]
+    assert names.index("token_acl") < names.index("token")
+    acl = next(c for c in client.calls if c[0] == "token_acl")[1][0]
+    assert acl.service_principal_name == "app-uuid" and acl.permission_level == "CAN_USE"
+
+
+def test_the_real_sdk_types_exist_for_the_calls_the_provisioner_makes():
+    pytest.importorskip("databricks.sdk")
+    types = wp._sdk_types()
+    request = types.TokenAccessControlRequest(service_principal_name="x", permission_level=types.TokenPermissionLevel.CAN_USE)
+    assert request.service_principal_name == "x" and types.WarehousePermissionLevel.CAN_USE

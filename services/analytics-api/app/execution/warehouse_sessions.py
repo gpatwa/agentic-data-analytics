@@ -25,6 +25,7 @@ import json
 import math
 import os
 import re
+import threading
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -183,6 +184,14 @@ class _CursorStream:
         self._cursor.close()
 
 
+def _trusted_ca_file() -> str | None:
+    try:
+        import certifi
+    except ImportError:
+        return None
+    return certifi.where()
+
+
 def _status_name(status: Any) -> str:
     return str(getattr(status, "name", status)).upper()
 
@@ -304,14 +313,22 @@ class DatabricksSession:
         driver = _load_driver("databricks.sql", "databricks extra", connector)
         self._cursor: Any | None = None
         self._cancelled = False
-        self._conn = driver.connect(
-            server_hostname=config.server_hostname,
-            http_path=config.http_path,
-            access_token=config.access_token,
-            catalog=config.catalog,
-            schema=config.schema,
-            _user_agent_entry=_QUERY_TAG,
-        )
+        self._finished = threading.Event()
+        options: dict[str, Any] = {
+            "server_hostname": config.server_hostname,
+            "http_path": config.http_path,
+            "access_token": config.access_token,
+            "catalog": config.catalog,
+            "schema": config.schema,
+            "user_agent_entry": _QUERY_TAG,
+            # Fail fast: the connector's default is to retry for minutes, which looks like a hang (found live, 2026-11-15).
+            "_retry_stop_after_attempts_duration": 30.0,
+            "_socket_timeout": 60,
+        }
+        ca_file = _trusted_ca_file()
+        if ca_file:
+            options["_tls_trusted_ca_file"] = ca_file  # some Python builds have no default CA bundle (found live)
+        self._conn = driver.connect(**options)
 
     def prepare(self, *, timeout_seconds: float) -> None:
         _run(self._conn, f"SET STATEMENT_TIMEOUT = {_seconds(timeout_seconds)}")
@@ -328,8 +345,11 @@ class DatabricksSession:
         return _mib(float(match.group(1)), match.group(2)) if match else None
 
     def execute(self, sql: str, parameters: Mapping[str, Any]) -> RowStream:
+        if self._cancelled:
+            raise WarehouseCancelled()
         cursor = self._conn.cursor()
         self._cursor = cursor
+        self._finished.clear()
         try:
             cursor.execute(sql, dict(parameters))
         except Exception as exc:  # noqa: BLE001 - classify only; the driver message may carry SQL or values
@@ -340,12 +360,21 @@ class DatabricksSession:
             if "STATEMENT_TIMEOUT" in text or "TIMED OUT" in text:
                 raise WarehouseTimeout() from None
             raise
+        finally:
+            self._finished.set()
         return _CursorStream(cursor)
 
-    def cancel(self) -> None:
+    def cancel(self, wait_seconds: float = 30.0) -> None:
+        """Cancel the running statement. The driver knows its command id only after the first server reply (found live:
+        an early cancel said "no currently executing command"), so wait for the id, unless the statement finishes first."""
         self._cancelled = True
-        if self._cursor is not None:
-            self._cursor.cancel()
+        cursor = self._cursor
+        deadline = time.monotonic() + wait_seconds
+        while cursor is not None and not self._finished.is_set() and time.monotonic() < deadline:
+            if getattr(cursor, "active_command_id", None) is not None:
+                cursor.cancel()
+                return
+            time.sleep(0.1)
 
     def close(self) -> None:
         self._conn.close()

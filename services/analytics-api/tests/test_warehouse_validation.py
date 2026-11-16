@@ -273,3 +273,36 @@ def test_a_failing_run_exits_one_and_still_writes_a_report(spec_for, tmp_path):
     out = tmp_path / "r.md"
     assert wv.main(["snowflake", "--allow-live", "--expect-target", "org-acct", "--out", str(out)], SF_ENV) == 1
     assert "columns_differ" in out.read_text() and "not run" in out.read_text()
+
+
+def test_a_slow_statement_that_ignores_the_timeout_is_reported_cancelled_and_does_not_hang_the_run(spec_for, monkeypatch):
+    monkeypatch.setattr(wv, "SLOW_WAIT_SECONDS", 0.5)
+
+    class Stubborn(FakeSession):
+        def _slow(self):
+            if self.timeout == 2:  # never times out; only a cancel ends it
+                if self.cancelled.wait(5):
+                    raise WarehouseCancelled()
+                raise AssertionError("never cancelled")
+            return super()._slow()
+
+    spec, world = spec_for("databricks")
+    monkeypatch.setattr(wv, "DatabricksSession", lambda config: Stubborn(world))
+    report = wv.run_validation(wv.build_spec("databricks", DB_ENV))
+    failed = report.checks[-1]
+    assert (failed.name, failed.code, failed.ok) == ("timeout", "no_timeout", False)
+    assert all(s.closed for s in world.sessions)
+
+
+def test_a_check_that_never_returns_is_stopped_by_the_wall_clock_bound(spec_for, monkeypatch):
+    monkeypatch.setattr(wv, "STEP_SECONDS", 0.3)
+    spec, world = spec_for("snowflake")
+
+    class Hangs(FakeSession):
+        def execute(self, sql, parameters):
+            threading.Event().wait(5)  # a driver call that never comes back
+            return super().execute(sql, parameters)
+
+    monkeypatch.setattr(wv, "SnowflakeSession", lambda config: Hangs(world))
+    report = wv.run_validation(wv.build_spec("snowflake", SF_ENV))
+    assert (report.checks[-1].name, report.checks[-1].code) == ("read_only_grants", "check_hung") and len(report.not_run) == 7

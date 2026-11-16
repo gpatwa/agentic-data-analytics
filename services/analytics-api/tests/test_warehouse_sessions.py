@@ -5,6 +5,7 @@ the methods these sessions call still exist on it. Nothing here proves behaviour
 """
 
 import json
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -315,7 +316,7 @@ def test_databricks_connects_with_a_token_catalog_and_schema_and_names_the_clien
     driver = FakeDriver()
     DatabricksSession(databricks_config(), connector=driver)
     kwargs = driver.conns[0].kwargs
-    assert kwargs["catalog"] == "main" and kwargs["schema"] == "s" and kwargs["_user_agent_entry"] == "compass-governed-analytics"
+    assert kwargs["catalog"] == "main" and kwargs["schema"] == "s" and kwargs["user_agent_entry"] == "compass-governed-analytics"
     assert kwargs["access_token"] == SECRET  # handed to the driver and nowhere else
 
 
@@ -361,13 +362,57 @@ def test_databricks_timeout_and_cancel_are_classified_without_echoing_the_driver
         DatabricksSession(databricks_config(), connector=FakeDriver(script={"SELECT": RuntimeError("other")})).execute("SELECT x", {})
 
 
-def test_databricks_cancel_reaches_the_running_cursor():
+def test_databricks_cancel_waits_for_the_command_id_then_cancels_the_running_cursor():
+    """Found live: the driver has no command id until the first server reply, so an early cancel is a no-op unless it waits."""
+    import threading
+    import time
+
     driver = FakeDriver()
     session = DatabricksSession(databricks_config(), connector=driver)
-    session.cancel()  # nothing running: harmless
+    session.cancel()  # nothing running: harmless, and it does not wait
+    session._cancelled = False
+    release = threading.Event()
+
+    class Slow(FakeCursor):
+        active_command_id = None
+
+        def execute(self, sql, params=None):
+            self.conn.log.append(("execute", sql, params))
+            release.wait(5)
+            if self.conn.cancelled:
+                raise RuntimeError("operation cancelled")
+            return self
+
+    driver.conns[0].cursor = lambda: Slow(driver.conns[0])
+    outcome = {}
+
+    def run():
+        try:
+            session.execute("SELECT x", {})
+        except WarehouseCancelled:
+            outcome["end"] = "cancelled"
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    time.sleep(0.2)
+    canceller = threading.Thread(target=session.cancel)
+    canceller.start()
+    time.sleep(0.3)
+    assert ("cursor_cancel",) not in driver.conns[0].log  # no command id yet: it is waiting, not guessing
+    session._cursor.active_command_id = "cmd-1"  # the first server reply arrives
+    canceller.join(3)
+    release.set()
+    worker.join(3)
+    assert ("cursor_cancel",) in driver.conns[0].log and outcome == {"end": "cancelled"}
+
+
+def test_databricks_cancel_gives_up_waiting_once_the_statement_has_finished():
+    driver = FakeDriver()
+    session = DatabricksSession(databricks_config(), connector=driver)
     session.execute("SELECT x", {})
-    session.cancel()
-    assert ("cursor_cancel",) in driver.conns[0].log
+    started = time.monotonic()
+    session.cancel(wait_seconds=5)
+    assert time.monotonic() - started < 1 and ("cursor_cancel",) not in driver.conns[0].log
 
 
 def test_databricks_gateway_end_to_end_and_cancellation_token():
@@ -426,3 +471,12 @@ def test_a_result_with_no_rows_still_streams_cleanly_when_the_description_is_lat
     driver = FakeDriver(statuses=["SUCCESS"], rows=[], late_description=True)
     stream = SnowflakeSession(snowflake_config(key_file), connector=driver, poll_seconds=0).execute("SELECT x", {})
     assert stream.columns == ("month", "revenue") and stream.fetchmany(5) == []
+
+
+def test_databricks_connects_with_a_ca_bundle_and_fails_fast_instead_of_retrying_for_minutes():
+    """Found live: a Python with no default CA store made the connector retry for minutes. Bundle given, retries capped."""
+    driver = FakeDriver()
+    DatabricksSession(databricks_config(), connector=driver)
+    kwargs = driver.conns[0].kwargs
+    assert kwargs["_retry_stop_after_attempts_duration"] <= 30 and kwargs["_socket_timeout"] <= 60
+    assert kwargs["_tls_trusted_ca_file"].endswith(".pem")  # certifi is a dependency of httpx, so it is installed here
