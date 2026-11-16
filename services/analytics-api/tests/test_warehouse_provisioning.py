@@ -106,6 +106,7 @@ class Client:
             update_permissions=lambda wid, access_control_list: self.calls.append(("acl", wid, access_control_list)),
             list=lambda: [SimpleNamespace(id="wh1", name="Starter"), SimpleNamespace(id="wh2", name="Other")],
         )
+        self.service_principal_secrets_proxy = SimpleNamespace(create=self._create_secret, delete=lambda *a: self._delete("secret", a[-1]))
         self.token_management = SimpleNamespace(
             create_obo_token=self._token, delete=lambda i: self._delete("token", i),
             update_permissions=lambda access_control_list: self.calls.append(("token_acl", access_control_list)),
@@ -121,6 +122,10 @@ class Client:
     def _create_sp(self, display_name):
         self.calls.append(("sp", display_name))
         return SimpleNamespace(id="sp-id", application_id="app-uuid")
+
+    def _create_secret(self, service_principal_id, lifetime):
+        self.calls.append(("secret", service_principal_id, lifetime))
+        return SimpleNamespace(id="secret-id", secret="oauth-secret-value")
 
     def _token(self, application_id, lifetime_seconds, comment):
         self.calls.append(("token", application_id, lifetime_seconds))
@@ -138,9 +143,10 @@ TYPES = SimpleNamespace(
 )
 
 
-def databricks_provisioner(client=None):
+def databricks_provisioner(client=None, auth="token"):
+    """The legacy access-token path by default (most tests below describe it); pass auth="oauth_m2m" for the default method."""
     client = client or Client()
-    return wp.DatabricksProvisioner(client, host="dbc-host.example", warehouse_id="wh1", sql_types=TYPES), client
+    return wp.DatabricksProvisioner(client, host="dbc-host.example", warehouse_id="wh1", sql_types=TYPES, auth=auth), client
 
 
 def test_databricks_setup_creates_a_principal_with_least_privilege_and_a_short_lived_token():
@@ -310,7 +316,7 @@ def test_a_failed_catalog_creation_leaves_nothing_to_drop_so_teardown_is_quiet()
 
 def test_a_named_existing_catalog_is_never_created_or_dropped_only_the_schema_inside_it():
     client = Client()
-    provisioner = wp.DatabricksProvisioner(client, host="h", warehouse_id="wh1", catalog="workspace", sql_types=TYPES)
+    provisioner = wp.DatabricksProvisioner(client, host="h", warehouse_id="wh1", catalog="workspace", sql_types=TYPES, auth="token")
     config = provisioner.setup().config
     assert config.catalog == "workspace"
     assert not any("CREATE CATALOG" in s or s.startswith("SHOW CATALOGS") for s in client.sql)
@@ -356,3 +362,42 @@ def test_the_real_sdk_types_exist_for_the_calls_the_provisioner_makes():
     types = wp._sdk_types()
     request = types.TokenAccessControlRequest(service_principal_name="x", permission_level=types.TokenPermissionLevel.CAN_USE)
     assert request.service_principal_name == "x" and types.WarehousePermissionLevel.CAN_USE
+
+
+# ----------------------------------------------------------------------------------------------- OAuth M2M (the default)
+
+
+def test_oauth_m2m_is_the_default_and_creates_client_credentials_not_a_token():
+    client = Client()
+    provisioner = wp.DatabricksProvisioner(client, host="dbc-host.example", warehouse_id="wh1", sql_types=TYPES)
+    config = provisioner.setup().config
+    assert config.auth_method == "oauth_m2m" and config.client_id == "app-uuid" and config.client_secret == "oauth-secret-value"
+    assert config.access_token == "" and "oauth-secret-value" not in repr(config)
+    names = [c[0] for c in client.calls]
+    assert "secret" in names and "token" not in names and "token_acl" not in names  # no token permission is needed for OAuth
+    assert ("secret", "sp-id", "3600s") in client.calls  # a one-hour secret, for the numeric principal id
+
+
+def test_the_oauth_secret_is_deleted_before_its_principal_and_the_schema_is_dropped():
+    provisioner = wp.DatabricksProvisioner(client := Client(), host="h", warehouse_id="wh1", sql_types=TYPES)
+    provisioner.setup()
+    client.calls.clear()
+    client.sql.clear()
+    provisioner.teardown()
+    assert client.calls == [("delete_secret", "secret-id"), ("delete_sp", "sp-id")]
+    assert any(s.startswith("DROP SCHEMA") for s in client.sql)
+
+
+def test_a_refused_oauth_secret_is_reported_by_step_and_teardown_still_cleans_up():
+    client = Client()
+    client.service_principal_secrets_proxy.create = lambda **kw: (_ for _ in ()).throw(PermissionError("nope"))
+    provisioner = wp.DatabricksProvisioner(client, host="h", warehouse_id="wh1", sql_types=TYPES)
+    with pytest.raises(wp.ProvisioningError) as info:
+        provisioner.setup()
+    assert info.value.code == "setup_secret:PermissionError"
+    assert provisioner.teardown() >= 2  # the principal and the schema
+
+
+def test_an_unknown_auth_method_is_refused():
+    with pytest.raises(ValueError):
+        wp.DatabricksProvisioner(Client(), host="h", warehouse_id="wh1", auth="password")

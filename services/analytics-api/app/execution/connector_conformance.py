@@ -280,15 +280,15 @@ CAPABILITIES: dict[str, ConnectorCapabilities] = {
         cancel=True,
         cost_estimate="EXPLAIN COST text, sizeInBytes, in MiB scanned",
         read_only_proof="SHOW GRANTS on catalog, schema and table for the current principal (direct grants only; groups are not visible)",
-        runtime_auth=("access token for a service principal (OAuth M2M is planned)",),
+        runtime_auth=("OAuth M2M (service principal client credentials; short-lived tokens refreshed by the SDK)", "access token (legacy)"),
         admin_sign_in=("OAuth browser sign-in",),
         transport_notes="Passes certifi's CA bundle and caps connection retries at 30 s; cancel waits for the driver's command id",
         known_limits=(
-            "Personal-style tokens are legacy; OAuth M2M is the recommended method",
+            "The access-token method is legacy and kept for compatibility; OAuth M2M is the default",
             "Grant listing sees direct grants only",
             "Result value normalization across engines is not done",
         ),
-        verified_live="2026-11-15, sandbox, 8 of 8 checks (fully automatic provisioning)",
+        verified_live="2026-11-15, sandbox, 8 of 8 checks with an access token (fully automatic provisioning); OAuth M2M not yet verified live",
     ),
 }
 

@@ -109,25 +109,35 @@ class DatabricksConfig:
     http_path: str
     catalog: str
     schema: str
-    access_token: str = field(repr=False, default="")
+    access_token: str = field(repr=False, default="")  # legacy method, kept for compatibility
+    client_id: str = ""  # OAuth M2M: the service principal's application id (not a secret)
+    client_secret: str = field(repr=False, default="")
+
+    @property
+    def auth_method(self) -> str:
+        """OAuth M2M when a client id and secret are present, otherwise the legacy access token."""
+        return "oauth_m2m" if self.client_id and self.client_secret else "token"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> DatabricksConfig:
         env = os.environ if env is None else env
-        names = (
-            "DATABRICKS_SERVER_HOSTNAME",
-            "DATABRICKS_HTTP_PATH",
-            "DATABRICKS_TOKEN",
-            "DATABRICKS_CATALOG",
-            "DATABRICKS_SCHEMA",
-        )
+        names = ("DATABRICKS_SERVER_HOSTNAME", "DATABRICKS_HTTP_PATH", "DATABRICKS_CATALOG", "DATABRICKS_SCHEMA")
         v = _required(env, names)
+        client_id, client_secret = env.get("DATABRICKS_CLIENT_ID", ""), env.get("DATABRICKS_CLIENT_SECRET", "")
+        if client_id or client_secret:  # OAuth M2M needs both together; only variable names are ever reported
+            if not (client_id and client_secret):
+                raise WarehouseConfigError("missing environment variables: DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET (both are needed)")
+            token = ""
+        else:
+            token = _required(env, ("DATABRICKS_TOKEN",))["DATABRICKS_TOKEN"]
         return cls(
             server_hostname=v["DATABRICKS_SERVER_HOSTNAME"],
             http_path=v["DATABRICKS_HTTP_PATH"],
             catalog=v["DATABRICKS_CATALOG"],
             schema=v["DATABRICKS_SCHEMA"],
-            access_token=v["DATABRICKS_TOKEN"],
+            access_token=token,
+            client_id=client_id,
+            client_secret=client_secret,
         )
 
 
@@ -309,7 +319,7 @@ class SnowflakeSession:
 class DatabricksSession:
     """One Databricks SQL connection. Native named markers; cancelled through the cursor."""
 
-    def __init__(self, config: DatabricksConfig, *, connector: Any | None = None) -> None:
+    def __init__(self, config: DatabricksConfig, *, connector: Any | None = None, sdk_core: Any | None = None) -> None:
         driver = _load_driver("databricks.sql", "databricks extra", connector)
         self._cursor: Any | None = None
         self._cancelled = False
@@ -317,7 +327,6 @@ class DatabricksSession:
         options: dict[str, Any] = {
             "server_hostname": config.server_hostname,
             "http_path": config.http_path,
-            "access_token": config.access_token,
             "catalog": config.catalog,
             "schema": config.schema,
             "user_agent_entry": _QUERY_TAG,
@@ -325,6 +334,17 @@ class DatabricksSession:
             "_retry_stop_after_attempts_duration": 30.0,
             "_socket_timeout": 60,
         }
+        if config.auth_method == "oauth_m2m":
+            core = _load_driver("databricks.sdk.core", "databricks extra", sdk_core)
+            host, client_id, client_secret = f"https://{config.server_hostname}", config.client_id, config.client_secret
+
+            def credentials_provider() -> Any:
+                # The SDK exchanges the client credentials for a short-lived access token and refreshes it before it expires.
+                return core.oauth_service_principal(core.Config(host=host, client_id=client_id, client_secret=client_secret))
+
+            options["credentials_provider"] = credentials_provider
+        else:
+            options["access_token"] = config.access_token
         ca_file = _trusted_ca_file()
         if ca_file:
             options["_tls_trusted_ca_file"] = ca_file  # some Python builds have no default CA bundle (found live)

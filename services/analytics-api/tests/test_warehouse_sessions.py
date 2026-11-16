@@ -480,3 +480,70 @@ def test_databricks_connects_with_a_ca_bundle_and_fails_fast_instead_of_retrying
     kwargs = driver.conns[0].kwargs
     assert kwargs["_retry_stop_after_attempts_duration"] <= 30 and kwargs["_socket_timeout"] <= 60
     assert kwargs["_tls_trusted_ca_file"].endswith(".pem")  # certifi is a dependency of httpx, so it is installed here
+
+
+# ----------------------------------------------------------------------------------------------- Databricks OAuth M2M
+
+
+def m2m_config():
+    return DatabricksConfig(
+        server_hostname="h.example", http_path="/sql/1.0/warehouses/x", catalog="main", schema="s",
+        client_id="app-uuid", client_secret="client-secret-xyz",
+    )
+
+
+def test_oauth_m2m_is_chosen_when_both_client_variables_are_present_and_the_token_otherwise():
+    base = {"DATABRICKS_SERVER_HOSTNAME": "h", "DATABRICKS_HTTP_PATH": "/p", "DATABRICKS_CATALOG": "c", "DATABRICKS_SCHEMA": "s"}
+    m2m = DatabricksConfig.from_env({**base, "DATABRICKS_CLIENT_ID": "id", "DATABRICKS_CLIENT_SECRET": "secret-value"})
+    assert m2m.auth_method == "oauth_m2m" and m2m.access_token == ""
+    assert DatabricksConfig.from_env({**base, "DATABRICKS_TOKEN": "t"}).auth_method == "token"
+    for partial in ({"DATABRICKS_CLIENT_ID": "id"}, {"DATABRICKS_CLIENT_SECRET": "secret-value"}):
+        with pytest.raises(WarehouseConfigError) as info:
+            DatabricksConfig.from_env({**base, **partial})
+        assert "CLIENT_ID and DATABRICKS_CLIENT_SECRET" in str(info.value) and "secret-value" not in str(info.value)
+    with pytest.raises(WarehouseConfigError) as info:
+        DatabricksConfig.from_env(base)
+    assert "DATABRICKS_TOKEN" in str(info.value)
+
+
+def test_the_client_secret_never_shows_in_a_config():
+    assert "client-secret-xyz" not in repr(m2m_config()) and "client-secret-xyz" not in str(m2m_config())
+
+
+def test_oauth_m2m_hands_the_connector_a_credentials_provider_and_no_token():
+    seen = {}
+    core = SimpleNamespace(
+        Config=lambda **kwargs: seen.update(config=kwargs) or "cfg",
+        oauth_service_principal=lambda cfg: seen.update(called_with=cfg) or "header-factory",
+    )
+    driver = FakeDriver()
+    DatabricksSession(m2m_config(), connector=driver, sdk_core=core)
+    kwargs = driver.conns[0].kwargs
+    assert "access_token" not in kwargs and "client-secret-xyz" not in json.dumps({k: str(v) for k, v in kwargs.items()})
+    assert kwargs["_retry_stop_after_attempts_duration"] <= 30  # the fail-fast and CA settings still apply
+    assert kwargs["credentials_provider"]() == "header-factory"  # the connector calls this to get fresh credentials
+    assert seen["config"] == {"host": "https://h.example", "client_id": "app-uuid", "client_secret": "client-secret-xyz"}
+    assert seen["called_with"] == "cfg"
+
+
+def test_a_token_config_still_connects_with_the_token():
+    driver = FakeDriver()
+    DatabricksSession(databricks_config(), connector=driver)
+    assert driver.conns[0].kwargs["access_token"] == SECRET and "credentials_provider" not in driver.conns[0].kwargs
+
+
+def test_oauth_m2m_without_the_sdk_is_a_clear_error(monkeypatch):
+    import importlib
+
+    def refuse(name, *a, **k):
+        raise ImportError(name)
+
+    monkeypatch.setattr(importlib, "import_module", refuse)
+    with pytest.raises(WarehouseDriverMissing) as info:
+        DatabricksSession(m2m_config(), connector=FakeDriver())
+    assert "requirements-warehouses.txt" in str(info.value)
+
+
+def test_the_installed_databricks_sdk_still_has_the_oauth_calls_the_session_uses():
+    core = pytest.importorskip("databricks.sdk.core")
+    assert callable(core.oauth_service_principal) and hasattr(core.Config, "client_id") and hasattr(core.Config, "client_secret")
