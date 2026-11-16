@@ -167,9 +167,16 @@ def _column_names(cursor: Any) -> tuple[str, ...]:
 class _CursorStream:
     def __init__(self, cursor: Any) -> None:
         self._cursor = cursor
-        self.columns = _column_names(cursor)
+        self._buffer: list[Any] = []
+        if cursor.description is None:
+            # Snowflake's async results carry no column names until the first fetch (seen on a live account, 2026-11-15).
+            self._buffer = list(cursor.fetchmany(1024))
+        self.columns = _column_names(cursor) if cursor.description is not None else ()
 
     def fetchmany(self, size: int) -> Sequence[tuple[Any, ...]]:
+        if self._buffer:
+            batch, self._buffer = self._buffer[:size], self._buffer[size:]
+            return batch
         return self._cursor.fetchmany(size)
 
     def close(self) -> None:
