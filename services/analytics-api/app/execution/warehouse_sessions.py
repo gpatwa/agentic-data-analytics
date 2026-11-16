@@ -69,12 +69,13 @@ def _required(env: Mapping[str, str], names: Iterable[str]) -> dict[str, str]:
 class SnowflakeConfig:
     account: str
     user: str
-    private_key_path: str
     warehouse: str
     database: str
     schema: str
     role: str
+    private_key_path: str | None = None
     private_key_passphrase: str | None = field(default=None, repr=False)
+    private_key_der: bytes | None = field(default=None, repr=False)  # in-memory key from the sandbox provisioner
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> SnowflakeConfig:
@@ -208,7 +209,7 @@ class SnowflakeSession:
         self._conn = driver.connect(
             account=config.account,
             user=config.user,
-            private_key=_der_private_key(config.private_key_path, config.private_key_passphrase),
+            private_key=config.private_key_der or _der_private_key(config.private_key_path or "", config.private_key_passphrase),
             warehouse=config.warehouse,
             database=config.database,
             schema=config.schema,
