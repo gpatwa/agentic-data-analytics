@@ -1,6 +1,16 @@
 # Snowflake and Databricks live validation (stage S6): plan (2026-11-15)
 
 Status: a plan for the owner to decide. Nothing in it is approved or done. No warehouse, account or credential has been touched.
+
+**Update 2026-11-15: the no-cloud pre-work is built** (owner: "Build pre-work"), still with no warehouse contacted and no live run
+approved. `app/execution/warehouse_validation.py` is the runner (refuses without `--allow-live` and `--expect-target`; eight checks;
+stops at the first failure; numbers-only report; tested against a scripted fake with a test for each stop rule in
+`tests/test_warehouse_validation.py`). `infra/warehouse-sandbox/` holds the two setup scripts and a README for the owner to run.
+Two details differ from the text below: the statement cap defaults to 30, not about 20, because each session spends two statements
+on its settings; and the Snowflake table is created with quoted lower-case names so the existing certified `sales-core@v1` works
+unchanged, so no separate fixture contract was needed (decision 6 is therefore moot). The Databricks grants check sees direct
+grants only; group inheritance is not visible from the session. The setup scripts' SQL and the slow statements used for the timeout
+and cancel checks are written from vendor documentation and have not been run anywhere.
 It is stage S6 of `docs/WAREHOUSE_AND_DBT_PLAN.md` and packet W8 of `docs/ANALYTICS_SNOWFLAKE_DATABRICKS_SCOPE.md`. The real driver
 sessions it would exercise are in `app/execution/warehouse_sessions.py` (PR #36), tested against fake drivers only.
 
