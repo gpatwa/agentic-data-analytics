@@ -1,6 +1,6 @@
 # Warehouse onboarding experience: design (2026-11-16)
 
-Status: **design for the owner to review. Nothing here is built, approved or tested with users.** It is workstream C4 of `docs/WAREHOUSE_CONNECTOR_AND_ONBOARDING_PLAN.md`. A click-through prototype with fake data is in `docs/design/onboarding-prototype.html` (open it in a browser; it connects to nothing).
+Status: **design for the owner to review. Nothing here is built, approved or tested with users.** On 2026-11-16 the owner narrowed the focus to reference data first (`docs/REFERENCE_DATA_DEMO_PLAN.md`): the "Try with sample data" path, connecting to a pre-seeded reference warehouse, is the part to build first; Connect mode is parked. It is workstream C4 of `docs/WAREHOUSE_CONNECTOR_AND_ONBOARDING_PLAN.md`. A click-through prototype with fake data is in `docs/design/onboarding-prototype.html` (open it in a browser; it connects to nothing).
 
 ## Who this is for, and what each person needs
 
