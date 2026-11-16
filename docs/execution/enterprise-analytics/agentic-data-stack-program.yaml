@@ -189,6 +189,14 @@ milestones:
       record: "Asked \"Approve the live run on both sandboxes?\" with options \"Approve both\" and \"Snowflake only\", the user answered \"Approve both\" on 2026-11-15. Recorded in the user's words. This approves the sandbox runs only. It does not approve a public claim (\"Runs on Snowflake / Databricks (sandbox validated)\" is its own reviewed change), runtime selection by a tenant, a business contract on either engine, or customer use."
       evidence: "docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md, section Result. Snowflake 8 of 8 and Databricks 8 of 8 checks ok; both sandboxes verified removed. The Snowflake sandbox was set up from the owner's signed-in Snowsight because the account has no SSO provider; the automatic provisioning path is verified live for Databricks only."
 
+    databricks_oauth_m2m_sandbox_run:
+      status: run_once
+      approved_by: user
+      approved_at: 2026-11-16
+      scope: "One more sandbox validation run on the owner's Databricks workspace (dbc-b8672746-8e43, catalog dev), synthetic data only, to verify the OAuth M2M sign-in added by plan C2. Same limits as warehouse_s6_sandbox_validation."
+      record: "Asked \"Run OAuth M2M live on your Databricks sandbox?\" with options \"Approve the run\" and \"Not yet\", the user answered \"Approve the run\" on 2026-11-16. Recorded in the user's words. This approves that one run only."
+      evidence: "8 of 8 checks ok, 22 statements, OAuth M2M (the provisioner's default); teardown verified through the API: no service principal, no secret and no sandbox schema left. docs/WAREHOUSE_CONNECTOR_CAPABILITIES.md now says so."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}

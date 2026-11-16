@@ -288,7 +288,7 @@ CAPABILITIES: dict[str, ConnectorCapabilities] = {
             "Grant listing sees direct grants only",
             "Result value normalization across engines is not done",
         ),
-        verified_live="2026-11-15, sandbox, 8 of 8 checks with an access token (fully automatic provisioning); OAuth M2M not yet verified live",
+        verified_live="2026-11-16, sandbox, 8 of 8 checks with OAuth M2M (the default; fully automatic provisioning); 2026-11-15, 8 of 8 with an access token",
     ),
 }
 
