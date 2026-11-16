@@ -1,0 +1,5 @@
+# Optional drivers for the Snowflake and Databricks gateways (docs/WAREHOUSE_AND_DBT_PLAN.md, stage S5).
+# Not in requirements.txt and not in the default image. Install only where a warehouse will be used.
+# Ranges are the versions the sessions were checked against (API surface only; no live warehouse yet).
+snowflake-connector-python>=5.2,<6
+databricks-sql-connector>=4.9,<5

@@ -1,6 +1,17 @@
 # Databricks, Snowflake and dbt: integration plan
 
 Status: **Proposed. Not approved. No code written, no warehouse contacted, nothing deployed.** Written 2026-11-14 from `origin/main`.
+
+**Update 2026-11-15.** The owner said, in chat, "go ahead and build Snowflake and Databricks". Recorded here from those words and
+read narrowly: it authorizes stage **S5 for both engines, local only**. Built: `app/execution/warehouse_sessions.py` (real
+Snowflake and Databricks sessions behind the existing gateways: connect with a read-only role, session settings, a cost estimate,
+cancel, row streaming), `requirements-warehouses.txt` (optional drivers, not in the default image) and
+`tests/test_warehouse_sessions.py` (28 tests against recorded-response fake drivers, plus two that check the installed real
+drivers still expose the calls the sessions use). It does **not** authorize S6 (any live warehouse, which needs credentials and a
+separate approval), the authentication-method security review (decision 3: the sessions implement Snowflake key-pair and
+Databricks access token only, so adding OAuth or SSO is a separate review), or anything else in S1 to S4 and S7 to S8. Nothing
+selects these gateways at runtime and no contract targets them. Still unverified on a live engine: marker syntax, the timeout
+error code, cancel, and the shape of `EXPLAIN` output (cost units are MiB scanned, an engine estimate).
 Extends `docs/ANALYTICS_SNOWFLAKE_DATABRICKS_SCOPE.md` (the W-packets) and ties it to `docs/AUTO_ONTOLOGY_DESIGN.md` and
 `docs/AUTO_ONTOLOGY_NARRATIVE.md`. The W-packet names below are that document's placeholders, not manifest IDs.
 
@@ -17,7 +28,7 @@ deterministic compiler. The integration work is therefore mostly about reading w
 | Area | State | Evidence |
 |---|---|---|
 | PostgreSQL, DuckDB | Live path. PostgreSQL runs on the Azure pilot. | Pilot validation of 2026-11-13 |
-| Snowflake, Databricks | Compiler adapters, metadata providers and gateway **policy layer** exist, tested against fakes only. No real driver session, no live run, no contract targets them, and nothing selects them at runtime. | Scope doc, W1 to W7 |
+| Snowflake, Databricks | Compiler adapters, metadata providers, gateway **policy layer** and (2026-11-15) **real driver sessions** exist, tested against fakes only. No live run, no contract targets them, and nothing selects them at runtime. | Scope doc, W1 to W7; `app/execution/warehouse_sessions.py` |
 | dbt, read | `DbtManifestProvider` reads a dbt manifest for metadata. | `app/metadata/providers.py` |
 | dbt, write | ADS-053 proposes docs and test changes to approved `models/**/schema.yml` files as a reviewable diff. It never edits a file and never runs dbt. Evaluated on the reference stack only; the packet is at `review`. | `app/proposals/dbt_*.py` |
 | dbt semantic layer, MetricFlow | Not verified in our code. Apache Ossie has converters to the dbt semantic layer upstream (per its project updates); ours is an import/export boundary only (ADR-ADS-008). | |
