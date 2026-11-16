@@ -48,7 +48,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'What data does it run on?',
-    a: 'PostgreSQL and DuckDB today, against semantic definitions kept in Git. Other warehouses are on the roadmap, not shipped. Other Compass products, such as Resolution Intelligence for support tickets, are in development and are not part of the pilot.',
+    a: 'PostgreSQL and DuckDB today, against semantic definitions kept in Git. Other warehouses are on the roadmap, not shipped.',
   },
   {
     q: 'Is Compass certified for compliance frameworks?',
@@ -192,18 +192,17 @@ function RoadmapSection() {
       'AI drafts business definitions from your schema, a person certifies each one, and nothing runs until it is certified. Internal pilot on synthetic data only; not available to customers.',
     ],
     [
-      'Resolution Intelligence',
-      'In development',
-      'Search over resolved support tickets with tenant-scoped retrieval and citations. Not part of the pilot.',
+      'More warehouses',
+      'Planned',
+      'PostgreSQL and DuckDB today. Other warehouses are planned and not available yet.',
     ],
-    ['Discovery', 'Planned', 'Ranked discovery experiences. Not available yet.'],
   ];
   return (
     <section id="roadmap" aria-labelledby="roadmap-heading" className="py-16 sm:py-20 border-t border-border/40 bg-surface/20 scroll-mt-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-xs uppercase tracking-widest text-fg-muted mb-3">Roadmap</div>
         <h2 id="roadmap-heading" className="text-2xl sm:text-3xl font-semibold tracking-tight leading-[1.1] max-w-2xl">
-          Analytics comes first. More of Compass is on the way.
+          Where Compass Analytics is going.
         </h2>
         <ul className="mt-8 grid gap-4 sm:grid-cols-2">
           {items.map(([name, stage, body]) => (
