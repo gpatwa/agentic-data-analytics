@@ -4,7 +4,7 @@ Status: a plan for the owner to decide. Nothing in it is approved or done. No wa
 
 **Update 2026-11-15: pre-work built, then made fully automatic** (owner: "Build pre-work", then "no manual steps, it should be part of
 product or setup"). Still no warehouse contacted and no live run approved.
-- `app/execution/warehouse_validation.py` is the runner (refuses without `--allow-live` and `--expect-target`; eight checks; stops at
+- `app/execution/warehouse_validation.py` is the live runner (the eight checks themselves now live in `app/execution/connector_conformance.py`) (refuses without `--allow-live` and `--expect-target`; eight checks; stops at
   the first failure; numbers-only report).
 - `app/execution/warehouse_provisioning.py` is the setup, so there are no scripts to run by hand (the earlier `infra/warehouse-sandbox/`
   scripts were removed). With `--provision` the run signs an admin in through the browser (Snowflake `externalbrowser`, Databricks OAuth),
