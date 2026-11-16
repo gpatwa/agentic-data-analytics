@@ -150,9 +150,19 @@ class DatabricksProvisioner:
     """`client` is a `databricks.sdk.WorkspaceClient`-shaped object signed in as a workspace admin. It never edits the warehouse."""
 
     def __init__(
-        self, client: Any, *, host: str, warehouse_id: str, catalog: str = DATABRICKS_CATALOG, sql_types: Any | None = None
+        self,
+        client: Any,
+        *,
+        host: str,
+        warehouse_id: str,
+        catalog: str = DATABRICKS_CATALOG,
+        sql_types: Any | None = None,
+        auth: str = "oauth_m2m",
     ) -> None:
-        self._c, self._host, self._warehouse_id, self._catalog = client, host, warehouse_id, catalog
+        if auth not in ("oauth_m2m", "token"):
+            raise ValueError("auth must be oauth_m2m or token")
+        self._c, self._host, self._warehouse_id, self._catalog, self._auth = client, host, warehouse_id, catalog, auth
+        self._secret_id: str | None = None
         self._types = sql_types
         self._schema_created = False
         self._principal_id: str | None = None
@@ -214,28 +224,40 @@ class DatabricksProvisioner:
             )
         except Exception as exc:  # noqa: BLE001
             raise ProvisioningError(f"setup_warehouse_access:{type(exc).__name__}"[:60]) from None
-        try:
-            # A token can only be created for a principal that is allowed to use tokens (found live: PermissionDenied without this).
-            self._c.token_management.update_permissions(
-                access_control_list=[
-                    types.TokenAccessControlRequest(
-                        service_principal_name=application_id, permission_level=types.TokenPermissionLevel.CAN_USE
-                    )
-                ]
-            )
-        except Exception as exc:  # noqa: BLE001
-            raise ProvisioningError(f"setup_token_permission:{type(exc).__name__}"[:60]) from None
-        try:
-            token = self._c.token_management.create_obo_token(
-                application_id=application_id, lifetime_seconds=TOKEN_SECONDS, comment="compass validation (temporary)"
-            )
-            self._token_id = str(token.token_info.token_id)
-            secret = str(token.token_value)
-        except Exception as exc:  # noqa: BLE001
-            raise ProvisioningError(f"setup_token:{type(exc).__name__}"[:60]) from None
+        if self._auth == "oauth_m2m":
+            # The recommended method: the principal's client credentials, exchanged by the SDK for short-lived access tokens.
+            try:
+                created = self._c.service_principal_secrets_proxy.create(
+                    service_principal_id=self._principal_id, lifetime=f"{TOKEN_SECONDS}s"
+                )
+                self._secret_id = str(created.id)
+                secret = str(created.secret)
+            except Exception as exc:  # noqa: BLE001
+                raise ProvisioningError(f"setup_secret:{type(exc).__name__}"[:60]) from None
+        else:
+            try:
+                # A token can only be created for a principal that is allowed to use tokens (found live: PermissionDenied otherwise).
+                self._c.token_management.update_permissions(
+                    access_control_list=[
+                        types.TokenAccessControlRequest(
+                            service_principal_name=application_id, permission_level=types.TokenPermissionLevel.CAN_USE
+                        )
+                    ]
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise ProvisioningError(f"setup_token_permission:{type(exc).__name__}"[:60]) from None
+            try:
+                token = self._c.token_management.create_obo_token(
+                    application_id=application_id, lifetime_seconds=TOKEN_SECONDS, comment="compass validation (temporary)"
+                )
+                self._token_id = str(token.token_info.token_id)
+                secret = str(token.token_value)
+            except Exception as exc:  # noqa: BLE001
+                raise ProvisioningError(f"setup_token:{type(exc).__name__}"[:60]) from None
+        credentials = {"client_id": application_id, "client_secret": secret} if self._auth == "oauth_m2m" else {"access_token": secret}
         config = DatabricksConfig(
             server_hostname=self._host, http_path=f"/sql/1.0/warehouses/{self._warehouse_id}",
-            catalog=self._catalog, schema=DATABRICKS_SCHEMA, access_token=secret,
+            catalog=self._catalog, schema=DATABRICKS_SCHEMA, **credentials,
         )
         return Provisioned(config, self._steps + 3)  # the SQL statements plus the principal, the warehouse permission and the token
 
@@ -244,6 +266,8 @@ class DatabricksProvisioner:
         calls: list[Callable[[], Any]] = []
         if self._token_id:
             calls.append(lambda: self._c.token_management.delete(self._token_id))
+        if self._secret_id and self._principal_id:  # the secret goes before the principal it belongs to
+            calls.append(lambda: self._c.service_principal_secrets_proxy.delete(self._principal_id, self._secret_id))
         if self._principal_id:
             calls.append(lambda: self._c.service_principals.delete(self._principal_id))
         if self._schema_created:  # nothing to drop if setup never got as far as the schema (a failed CREATE CATALOG, say)

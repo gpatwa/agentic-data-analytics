@@ -12,8 +12,8 @@ A connector must pass the conformance suite for every capability it claims; see
 | Cancel | claimed | claimed |
 | Cost estimate (mandatory) | EXPLAIN USING JSON, GlobalStats.bytesAssigned, in MiB scanned | EXPLAIN COST text, sizeInBytes, in MiB scanned |
 | Read-only proof (mandatory) | SHOW GRANTS TO ROLE: only USAGE and SELECT inside the named database, plus USAGE on the warehouse | SHOW GRANTS on catalog, schema and table for the current principal (direct grants only; groups are not visible) |
-| Runtime auth | key pair | access token for a service principal (OAuth M2M is planned) |
+| Runtime auth | key pair | OAuth M2M (service principal client credentials; short-lived tokens refreshed by the SDK); access token (legacy) |
 | Admin sign-in | browser SSO (needs an identity provider; not available on every account) | OAuth browser sign-in |
 | Transport | Async execution with abort by query id; the connector bundles its own certificates | Passes certifi's CA bundle and caps connection retries at 30 s; cancel waits for the driver's command id |
-| Known limits | Column names appear only after the first fetch (handled); No per-session read-only switch: read-only rests on the role; Result value normalization across engines is not done | Personal-style tokens are legacy; OAuth M2M is the recommended method; Grant listing sees direct grants only; Result value normalization across engines is not done |
-| Verified live | 2026-11-15, sandbox, 8 of 8 checks (setup run from the signed-in console) | 2026-11-15, sandbox, 8 of 8 checks (fully automatic provisioning) |
+| Known limits | Column names appear only after the first fetch (handled); No per-session read-only switch: read-only rests on the role; Result value normalization across engines is not done | The access-token method is legacy and kept for compatibility; OAuth M2M is the default; Grant listing sees direct grants only; Result value normalization across engines is not done |
+| Verified live | 2026-11-15, sandbox, 8 of 8 checks (setup run from the signed-in console) | 2026-11-15, sandbox, 8 of 8 checks with an access token (fully automatic provisioning); OAuth M2M not yet verified live |

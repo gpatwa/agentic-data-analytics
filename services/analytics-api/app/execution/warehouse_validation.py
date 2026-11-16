@@ -138,7 +138,7 @@ def spec_from_config(config: SnowflakeConfig | DatabricksConfig) -> ConformanceS
         return ConformanceSpec(
             "databricks", db.server_hostname, lambda: DatabricksSession(db), DatabricksGateway, DatabricksCompilerAdapter, "named",
             lambda run: DatabricksMetadataProvider(run, catalog=db.catalog, schema=db.schema), _databricks_grants(db),
-            (db.access_token, db.server_hostname, db.http_path),
+            tuple(x for x in (db.access_token, db.client_secret, db.server_hostname, db.http_path) if x),
             capabilities=CAPABILITIES["databricks"],
         )
     raise TypeError("unsupported config")
@@ -156,7 +156,7 @@ def make_provisioner(args: argparse.Namespace) -> Any:
     client = connect_databricks_admin(args.expect_target)
     return DatabricksProvisioner(
         client, host=args.expect_target, warehouse_id=pick_warehouse(client, args.databricks_warehouse),
-        catalog=args.databricks_catalog or DATABRICKS_CATALOG,
+        catalog=args.databricks_catalog or DATABRICKS_CATALOG, auth=args.databricks_auth,
     )
 
 
@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
     parser.add_argument("--provision", action="store_true", help="create the sandbox and a read-only identity first, remove them after")
     parser.add_argument("--admin-user", help="Snowflake admin user for the browser sign-in (with --provision)")
     parser.add_argument("--databricks-warehouse", help="name of the SQL warehouse to use (with --provision); never edited")
+    parser.add_argument("--databricks-auth", choices=("oauth_m2m", "token"), default="oauth_m2m", help="how the temporary identity signs in (with --provision)")
     parser.add_argument("--databricks-catalog", help="an existing catalog to put the sandbox schema in (with --provision); never created or dropped")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--max-statements", type=int, default=30)
