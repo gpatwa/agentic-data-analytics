@@ -56,7 +56,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Can I try Compass?',
-    a: 'Yes. Open the workspace to try the demo, or contact us to run a pilot on one of your datasets.',
+    a: 'Yes. Try Compass in the demo workspace, or contact us to run a pilot on one of your datasets.',
   },
 ];
 
@@ -134,13 +134,6 @@ export function LandingPage() {
         operatingSystem: 'Web',
         description:
           'Governed analytics: plain-English questions answered from certified metric definitions, with the definitions used, an evidence trail, and human review attached.',
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
-          availability: 'https://schema.org/InStock',
-          description: 'Demo workspace',
-        },
       },
       {
         '@context': 'https://schema.org',
@@ -148,7 +141,7 @@ export function LandingPage() {
         name: 'Compass',
         url: SITE_URL,
         logo: SITE_URL + '/compass-mark.svg',
-        slogan: 'Governed answers, with proof.',
+        slogan: 'Governed answers, with the definitions and the evidence.',
         sameAs: [],
       },
       {
@@ -251,7 +244,7 @@ function AnalyticsSection() {
           <div className="mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Button asChild size="lg" className="h-12 text-base">
               <a href={APP_URL}>
-                Open the governed workspace <ArrowRight className="w-4 h-4" />
+                Try Compass <ArrowRight className="w-4 h-4" />
               </a>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 text-base">
@@ -619,12 +612,12 @@ function FinalCTA() {
         <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md mx-auto sm:max-w-none">
           <Button asChild size="lg" className="h-12 text-base">
             <a href={APP_URL}>
-              Open the workspace <ArrowRight className="w-4 h-4" />
+              Try Compass <ArrowRight className="w-4 h-4" />
             </a>
           </Button>
           <Button asChild size="lg" variant="outline" className="h-12 text-base">
             <a href={PILOT_MAILTO}>
-              Request a pilot
+              Talk to us about a pilot
             </a>
           </Button>
         </div>
