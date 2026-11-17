@@ -15,11 +15,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SemanticType = Literal["string", "integer", "decimal", "boolean", "date", "timestamp"]
 
-# The sensitive-name list from the approved redaction rule. A column whose name has one of these tokens is classified
-# `restricted` in a draft and is never offered as a dimension or a measure. Reviewers can add it by hand.
+# The sensitive-name list from the approved redaction rule (docs/AUTO_ONTOLOGY_DESIGN.md). A column whose name has one of these
+# tokens is classified `restricted` in a draft and is never offered as a dimension or a measure. Reviewers can add it by hand.
+# Amended by the owner on 2026-11-16 ("Yes, extend it"): birth, birthday and birthdate, so date_of_birth and birthDate match.
+# Matching is by whole token, so a column such as birth_rate is also excluded (conservative on purpose).
 SENSITIVE_TOKENS = frozenset(
     {"email", "phone", "name", "address", "ssn", "tax", "dob", "ip", "token", "password", "secret", "key", "card",
-     "account", "iban"}
+     "account", "iban", "birth", "birthday", "birthdate"}
 )
 
 _TOKEN_SPLIT = re.compile(r"[^a-z0-9]+")

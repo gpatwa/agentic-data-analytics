@@ -435,6 +435,9 @@ def test_sensitive_columns_are_restricted_in_the_draft():
 def test_sensitive_name_matching():
     for name in ("email", "customer_email", "billingAddress", "ssn", "card_number", "api_key", "account_id"):
         assert is_sensitive_name(name)
+    # The 2026-11-16 amendment: date_of_birth and its spellings.
+    for name in ("dob", "date_of_birth", "birth_date", "birthDate", "dateOfBirth", "birthday", "birthdate", "BIRTH_DATE"):
+        assert is_sensitive_name(name), name
     for name in ("amount", "status", "created_at", "region", "order_total"):
         assert not is_sensitive_name(name)
 

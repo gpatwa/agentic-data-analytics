@@ -52,12 +52,11 @@ COMMENTS: dict[str, dict[str, str]] = {
 }
 
 # Columns that must never reach a model or an answer, and that the approved redaction rule (docs/AUTO_ONTOLOGY_DESIGN.md) flags by
-# name today.
-SENSITIVE_COLUMNS = {"ref_customers": ("email", "phone", "card_number")}
-# Personal columns the rule does NOT flag today, found while building this data: the name list matches "dob" but not
-# "date_of_birth", so the model would be shown its date range. The rule is an owner-approved gate, so this is recorded, not
-# changed or hidden (a test pins it; when the rule is extended, move the column up into SENSITIVE_COLUMNS).
-KNOWN_REDACTION_GAPS = {"ref_customers": ("date_of_birth",)}
+# name. date_of_birth was a gap in the rule until the owner's amendment of 2026-11-16.
+SENSITIVE_COLUMNS = {"ref_customers": ("email", "phone", "date_of_birth", "card_number")}
+# Personal columns the rule does NOT flag. Empty today. If a gap is found, list it here (a test pins that each one really is
+# unflagged) rather than renaming the column to hide it, and raise it with the owner, because the rule is an approved gate.
+KNOWN_REDACTION_GAPS: dict[str, tuple[str, ...]] = {"ref_customers": ()}
 
 
 @dataclass(frozen=True)
