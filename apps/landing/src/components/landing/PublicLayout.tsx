@@ -42,7 +42,7 @@ function PublicHeader() {
         <ul className="hidden md:flex items-center gap-1 text-sm">
           <li>
             <Link
-              to="/solutions/everyone"
+              to="/solutions/data"
               className="px-3 py-1.5 rounded-md text-fg-secondary hover:text-fg hover:bg-surface-muted transition"
             >
               Solutions
@@ -120,8 +120,6 @@ function PublicFooter() {
         <FooterColumn
           heading="Solutions"
           links={[
-            { label: 'For Finance', href: '/solutions/finance' },
-            { label: 'For RevOps', href: '/solutions/revops' },
             { label: 'For Data teams', href: '/solutions/data' },
             { label: 'For Security', href: '/solutions/security' },
           ]}

@@ -8,7 +8,7 @@ import './index.css';
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/welcome" replace /> },
   { path: '/welcome', element: <LandingPage /> },
-  { path: '/solutions', element: <Navigate to="/solutions/everyone" replace /> },
+  { path: '/solutions', element: <Navigate to="/solutions/data" replace /> },
   { path: '/solutions/:persona', element: <SolutionsPage /> },
   { path: '*', element: <Navigate to="/welcome" replace /> },
 ]);
