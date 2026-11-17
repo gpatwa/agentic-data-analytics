@@ -32,7 +32,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'What stops a wrong or unsafe answer?',
-    a: 'Certified semantic definitions, an intent check against your own terms, policy and purpose checks, small-group (cohort) suppression, a cost estimate before execution, and human review for costly or sensitive queries. Reviewers are people; automated assistants can only read and draft notes.',
+    a: 'Certified semantic definitions, an intent check against your own terms, policy and purpose checks, a configurable minimum group size, a cost estimate before execution, and human review for costly or sensitive queries. Reviewers are people; automated assistants can only read and draft notes.',
   },
   {
     q: 'Can I see how an answer was produced?',
@@ -40,7 +40,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Does Compass build the ontology automatically?',
-    a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is in an internal pilot on synthetic data, not shipped.',
+    a: 'Not yet. Today your data team certifies the metric definitions, which are kept in Git. In pilot, Compass can read dbt and OpenMetadata metadata and turn user feedback into proposed changes that a person reviews; it never edits a certified definition on its own. Drafting definitions automatically from your schema is in internal testing on synthetic data, not shipped.',
   },
   {
     q: 'Can Compass learn what our metrics mean from how people use it?',
@@ -84,7 +84,7 @@ const VALUE_PROPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Lock,
     title: 'Scoped to the asker',
-    body: 'Answers are tenant-isolated and purpose-bound, small cohorts are suppressed, and queries run through a read-only database role.',
+    body: 'Answers are tenant-isolated and purpose-bound, groups below a minimum size are not returned (10 on our pilot), and queries run through a read-only database role.',
   },
 ];
 
@@ -109,13 +109,10 @@ const HOW_IT_WORKS: { tag: string; title: string; body: string; icon: LucideIcon
   },
 ];
 
+// Only the pages whose every claim maps to something we can show (owner decision G13, 2026-11-17).
 const PERSONA_LINKS: { slug: string; label: string; sub: string }[] = [
-  { slug: 'finance', label: 'Finance', sub: 'Board-ready answers' },
-  { slug: 'revops', label: 'RevOps', sub: 'Pipeline & deal risk' },
-  { slug: 'data', label: 'Data teams', sub: 'Stop being the bottleneck' },
-  { slug: 'engineering', label: 'Engineering', sub: 'Ownership & incidents' },
-  { slug: 'security', label: 'Security', sub: 'Audit-ready answers' },
-  { slug: 'everyone', label: 'Every team', sub: 'No tool-hopping' },
+  { slug: 'data', label: 'Data teams', sub: 'Certified definitions, owned and versioned in Git' },
+  { slug: 'security', label: 'Security', sub: 'An evidence trail you can inspect' },
 ];
 
 export function LandingPage() {
@@ -173,6 +170,7 @@ export function LandingPage() {
       <Hero />
       <TrustStrip />
       <ValuePropsSection />
+      <ProofSection />
       <AnalyticsSection />
       <HowItWorksSection />
       <PersonasSection />
@@ -184,12 +182,38 @@ export function LandingPage() {
   );
 }
 
+function ProofSection() {
+  return (
+    <section aria-labelledby="proof-heading" className="py-12 sm:py-16 border-t border-border/40">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-xs uppercase tracking-widest text-fg-muted mb-3">Seen on the pilot</div>
+        <h2 id="proof-heading" className="text-2xl sm:text-3xl font-semibold tracking-tight leading-[1.1] max-w-2xl">
+          A refusal, not a guess.
+        </h2>
+        <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <li className="glass rounded-xl p-5">
+            <p className="text-sm text-fg-muted">We asked</p>
+            <p className="font-medium mt-1">&ldquo;Show me all orders.&rdquo;</p>
+            <p className="text-sm text-fg-secondary leading-relaxed mt-2">Compass refused instead of guessing.</p>
+          </li>
+          <li className="glass rounded-xl p-5">
+            <p className="text-sm text-fg-muted">We asked for a group that was too small</p>
+            <p className="font-medium mt-1">The pilot&rsquo;s minimum group size is 10.</p>
+            <p className="text-sm text-fg-secondary leading-relaxed mt-2">Compass refused to return it.</p>
+          </li>
+        </ul>
+        <p className="text-sm text-fg-muted mt-4">Observed on our pilot with sample data, November 2026. Not a customer result.</p>
+      </div>
+    </section>
+  );
+}
+
 function RoadmapSection() {
   const items: [string, string, string][] = [
     [
-      'Auto ontology',
-      'In pilot',
-      'AI drafts business definitions from your schema, a person certifies each one, and nothing runs until it is certified. Internal pilot on synthetic data only; not available to customers.',
+      'Drafted definitions',
+      'In internal testing',
+      'AI drafts business definitions from your schema, a person certifies each one, and nothing runs until it is certified. Internal testing on synthetic data only; not available to customers.',
     ],
     [
       'More warehouses',
@@ -296,13 +320,13 @@ function Hero() {
           Agentic analytics you can{' '}
           <span className="italic font-serif text-accent">trust.</span>
           <span className="block text-fg-secondary text-2xl sm:text-3xl md:text-4xl mt-3 md:mt-5 font-normal leading-snug">
-            Your team asks. Compass answers from definitions you&rsquo;ve certified, and shows the definitions and evidence behind every number.
+            The model never writes SQL. Compass answers from definitions you&rsquo;ve certified, and shows the definitions and evidence behind every number.
           </span>
         </h1>
         <p className="text-fg-secondary text-base sm:text-lg leading-relaxed mt-6 max-w-2xl">
-          The model never writes SQL. A deterministic compiler builds each query from
-          your certified metrics, under policy and budget checks, and a person reviews
-          anything risky. If Compass cannot answer safely, it says so.
+          A deterministic compiler builds each query from your certified metrics, under
+          policy and budget checks, and a person reviews anything risky. If Compass
+          cannot answer safely, it says so.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-md sm:max-w-none">
           <Button asChild size="lg" className="h-12 text-base">
@@ -437,15 +461,15 @@ function PersonasSection() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-xs uppercase tracking-widest text-fg-muted mb-3">
-          Made for every team
+          Where to start
         </div>
         <h2
           id="personas-heading"
           className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight leading-[1.1] max-w-3xl"
         >
-          Built for the teams who get asked.
+          For the people who own and guard the data.
         </h2>
-        <ul className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <ul className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {PERSONA_LINKS.map((p) => (
             <li key={p.slug}>
               <Link

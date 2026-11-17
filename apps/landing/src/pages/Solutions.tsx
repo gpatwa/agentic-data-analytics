@@ -2,12 +2,10 @@
 /**
  * /solutions/:persona — persona-targeted landing surfaces.
  *
- * Strategy (from "one product, layered surfaces" memo):
- *   ONE Compass product. Persona-targeted marketing surfaces here, plus
- *   in-product Skills (Q3) for runtime configuration.
+ * Persona-targeted pages. Only the pages whose claims can be shown are kept (owner decision G13).
  */
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { ArrowRight, Sparkles, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Sparkles, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { APP_URL, PILOT_MAILTO } from '@/config';
@@ -18,124 +16,48 @@ export interface SolutionsContent {
   heroHeadline: string;
   heroSubhead: string;
   wins: { title: string; description: string }[];
-  suggestedSkill: string;
-  quote?: { text: string; attribution: string };
 }
 
+// Only pages whose every claim maps to something we can show (owner decision G13, 2026-11-17). The Finance, RevOps, Engineering and
+// Every-team pages were removed until each of their claims maps to a test. Keep every sentence consistent with the homepage.
 export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
-  finance: {
-    persona: 'CFO & Finance',
-    heroEyebrow: 'Compass for Finance',
-    heroHeadline: 'Board-ready answers, with the evidence attached.',
-    heroSubhead:
-      'Revenue, margin, churn, forecast, and board metrics — answered against your warehouse and your finance glossary, with full audit trail.',
-    wins: [
-      {
-        title: 'Stop the 9pm scramble',
-        description:
-          'Ad-hoc CFO questions answered in seconds, not days. Definitions and evidence attached for sign-off.',
-      },
-      {
-        title: 'One definition of revenue',
-        description:
-          'Glossary and recognition rules applied automatically. No more "which dashboard is right?"',
-      },
-      {
-        title: 'Audit-ready by default',
-        description:
-          'Every number ships with the rows it came from, the user who asked, and the exact moment.',
-      },
-    ],
-    suggestedSkill: 'Finance Skill',
-  },
-  revops: {
-    persona: 'RevOps & Sales',
-    heroEyebrow: 'Compass for RevOps',
-    heroHeadline: 'Pipeline insight across CRM, warehouse, and product.',
-    heroSubhead:
-      'Quota performance, pipeline, and account health — answered from certified definitions over your warehouse data.',
-    wins: [
-      {
-        title: 'Deals at risk, in plain English',
-        description:
-          'Ask which accounts are slipping and get the number with its evidence, built from metrics your data team certified.',
-      },
-      {
-        title: 'Stop the spreadsheet pulls',
-        description:
-          'Quota attainment, ramp curves, and territory analysis — without a 3-hour SQL request.',
-      },
-      {
-        title: 'Govern the action',
-        description:
-          'Costly or sensitive queries wait for a named reviewer, and every decision is logged with the run.',
-      },
-    ],
-    suggestedSkill: 'RevOps Skill',
-  },
   data: {
     persona: 'Data leaders',
     heroEyebrow: 'Compass for Data Teams',
-    heroHeadline: 'Stop being the bottleneck for every metric question.',
+    heroHeadline: 'Definitions your team owns, certified in Git.',
     heroSubhead:
-      'Centralize definitions, expose them as the single source of truth, and let employees self-serve — without losing governance.',
+      'Compass answers only from the metric definitions your people certified, and shows the definitions and evidence behind every number.',
     wins: [
       {
-        title: 'One glossary, applied everywhere',
-        description:
-          'Define a metric once. Compass injects the definition into every answer that uses it.',
+        title: 'Certified definitions in Git',
+        description: 'Metric definitions are versioned in Git and certified by people on your team. Only certified definitions run.',
       },
-      {
-        title: 'Reduce repeated requests',
-        description:
-          'Stock questions ("what was Q3 revenue?") are now self-serve. Your team works on actually-new analysis.',
-      },
-      {
-        title: 'Lineage built in',
-        description:
-          'Every answer carries the certified definitions it used and an evidence record, so reviewers can trace it.',
-      },
-    ],
-    suggestedSkill: 'Semantic Layer Skill',
-  },
-  engineering: {
-    persona: 'Engineering',
-    heroEyebrow: 'Compass for Engineering',
-    heroHeadline: 'Trace ownership, lineage, and incidents in plain English.',
-    heroSubhead:
-      'Answer operational metric questions from certified definitions, with the definitions used and evidence attached.',
-    wins: [
       {
         title: 'Owners on every definition',
         description:
           'Each certified metric and dataset names its owner, so the question of who owns what has a recorded answer.',
       },
       {
-        title: 'Incident timelines',
+        title: 'AI drafts, your team certifies',
         description:
-          'Ask operational metric questions and get the answer with its definitions and evidence, not a screenshot.',
-      },
-      {
-        title: 'Reviewed before it runs',
-        description: 'Expensive queries pause for human approval, with the decision recorded.',
+          'In internal testing on synthetic data, Compass can draft definitions from a schema. Nothing runs until a person certifies it.',
       },
     ],
-    suggestedSkill: 'Engineering Skill',
   },
   security: {
     persona: 'Security & Compliance',
     heroEyebrow: 'Compass for Security',
-    heroHeadline: 'See who asked what, on which data, when — for every query.',
+    heroHeadline: 'See who asked what, on which data, when, for every query.',
     heroSubhead:
-      'Tenant scope, purpose-bound access, small-cohort suppression, and a tamper-evident evidence trail on every run.',
+      'Tenant scope, purpose-bound access, a configurable minimum group size, and a tamper-evident, hash-chained evidence trail on every run. Compass is pilot-stage and has not completed a SOC 2 audit.',
     wins: [
       {
-        title: 'Audit-ready answers',
+        title: 'An evidence trail you can inspect',
         description:
-          'Every run records who asked, the purpose, the definitions used, and the policy decisions.',
+          'Every run records who asked, the purpose, the definitions used, and the policy decisions. Result rows are not stored in the audit record.',
       },
       {
-        title: 'Permission-aware retrieval',
+        title: 'Checked before it runs',
         description:
           'Policy is checked before execution, and answer rows go only to the requester, not to reviewers or assistants.',
       },
@@ -145,51 +67,23 @@ export const PERSONA_CONTENT: Record<string, SolutionsContent> = {
           'Reviewers see the facts of the run before approving, and requesters cannot approve their own runs.',
       },
     ],
-    suggestedSkill: 'Security Skill',
-  },
-  everyone: {
-    persona: 'Every employee',
-    heroEyebrow: 'Compass for Every Team',
-    heroHeadline: 'Ask company questions without knowing where the answer lives.',
-    heroSubhead:
-      'Compass answers from certified definitions over your governed data — and returns answers anyone can verify.',
-    wins: [
-      {
-        title: 'No tool-hopping',
-        description:
-          'One place to ask, with one set of certified definitions behind every answer.',
-      },
-      {
-        title: 'Plain language in, plain English out',
-        description: 'No SQL required. The definitions behind the number are shown if you want to verify it.',
-      },
-      {
-        title: 'Built for trust',
-        description: 'Every answer ships with its definitions and evidence. If Compass cannot answer safely, it says so.',
-      },
-    ],
-    suggestedSkill: 'Starter Skills (curated)',
   },
 };
 
 const PERSONA_TONES: Record<string, { ring: string; bg: string; text: string }> = {
-  finance: { ring: 'ring-knowledge/30', bg: 'bg-knowledge/15', text: 'text-knowledge' },
-  revops: { ring: 'ring-data/30', bg: 'bg-data/15', text: 'text-data' },
   data: { ring: 'ring-accent/30', bg: 'bg-accent/15', text: 'text-accent' },
-  engineering: { ring: 'ring-governance/30', bg: 'bg-governance/15', text: 'text-governance' },
   security: { ring: 'ring-destructive/30', bg: 'bg-destructive/15', text: 'text-destructive' },
-  everyone: { ring: 'ring-fg-muted/30', bg: 'bg-fg-muted/15', text: 'text-fg-secondary' },
 };
 
 export function SolutionsPage() {
-  const { persona = 'everyone' } = useParams<{ persona: string }>();
+  const { persona = 'data' } = useParams<{ persona: string }>();
   const content = PERSONA_CONTENT[persona];
 
   if (!content) {
-    return <Navigate to="/solutions/everyone" replace />;
+    return <Navigate to="/solutions/data" replace />;  // a removed or unknown page goes to the first remaining one
   }
 
-  const tone = PERSONA_TONES[persona] ?? PERSONA_TONES.everyone;
+  const tone = PERSONA_TONES[persona] ?? PERSONA_TONES.data;
   const otherPersonas = Object.entries(PERSONA_CONTENT).filter(([k]) => k !== persona);
 
   return (
@@ -239,25 +133,6 @@ export function SolutionsPage() {
           </ul>
         </section>
 
-        {/* Suggested Skill */}
-        <section className="mt-12 glass-strong rounded-xl p-6 flex items-start gap-4">
-          <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', tone.bg, tone.text)}>
-            <Wrench className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <div className="text-xs uppercase tracking-widest text-fg-muted mb-1">
-              Recommended Skill
-            </div>
-            <h3 className="font-semibold text-base">{content.suggestedSkill}</h3>
-            <p className="text-sm text-fg-secondary mt-1.5 leading-relaxed">
-              Pre-configured glossary, connectors, prompts, and actions for {content.persona}. Ships with Skills marketplace in Q3.
-            </p>
-          </div>
-          <span className="text-xs px-2 py-1 rounded bg-governance/15 text-governance border border-governance/25 flex-shrink-0">
-            Q3
-          </span>
-        </section>
-
         {/* Other personas */}
         <section className="mt-16">
           <div className="text-xs uppercase tracking-widest text-fg-muted mb-4">
@@ -265,7 +140,7 @@ export function SolutionsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {otherPersonas.map(([key, p]) => {
-              const t = PERSONA_TONES[key] ?? PERSONA_TONES.everyone;
+              const t = PERSONA_TONES[key] ?? PERSONA_TONES.data;
               return (
                 <Link
                   key={key}
