@@ -101,10 +101,10 @@ Compass cannot control the customer's own warehouse configuration, group members
 ## Decisions for the owner (new; none is made here)
 
 1. **Where admin setup runs: DECIDED 2026-11-17, "Product-run, script as fallback"** (this superseded "Customer-side only", chosen earlier the same day). Recorded in the program file as `connect_mode_admin_setup_product_run`.
-2. **Model egress for customer data:** off by default with a per-customer opt-in, or not offered at first. Suggestion: not offered at first; Connect mode answers questions without drafting.
-3. **Default minimum group size:** on (10, as the pilot) or off. Suggestion: on.
-4. **Who reviews:** the independent security reviewer and the budget for a penetration test.
-5. **A first design partner's profile** (engine, size, data sensitivity) to scope the first build.
+2. **Model egress for customer data: DECIDED 2026-11-17, "Per-customer opt-in"** (off by default; a data processing agreement and a redaction review of the customer's real schema first). Program file `connect_mode_cm1_decisions`.
+3. **Default minimum group size: DECIDED 2026-11-17, "Off by default".** Residual risk stays recorded (T10): small groups can identify people and suppression alone does not stop differencing; the pilot demo stays at 10.
+4. **Who reviews: DECIDED 2026-11-17, "use specialize agent for review".** A specialist-agent review is advisory. It is **not** the independent human review or penetration test of acceptance criterion 12, which remains unmet; whether it satisfies the gate is the owner's call at the gate.
+5. **A first design partner's profile: DECIDED 2026-11-17, "Snowflake, mid-size, low-sensitivity data".** No partner is named or approached.
 
 Approving this document approves nothing. The security gate for Connect mode is separate and comes only after the build and the evidence above exist.
 
