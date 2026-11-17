@@ -1,6 +1,6 @@
 # Decision register (2026-11-16): panel recommendations, and what needs the owner
 
-Status: **advisory. Nothing here is a recorded human-gate approval.** On 2026-11-16 the owner asked for a separate Opus agent in a specialist role to make the pending decisions, and offered Fable 5.2 on low effort as an alternative. Four read-only agents answered independently: a Senior Data Architect, a Security and Governance Architect and a Product and Go-to-Market Lead (all Opus), and a Chief Architect second opinion (Fable 5.2, low effort, which read less of the repo). The assistant checked the technical claims below against the code before relying on them.
+Status: **the panel's text below is advisory; the owner decided all fifteen gates on 2026-11-17 (see "Owner decisions" at the end and the program file, `decision_register_gate_decisions`).** Until then nothing here was a recorded human-gate approval. On 2026-11-16 the owner asked for a separate Opus agent in a specialist role to make the pending decisions, and offered Fable 5.2 on low effort as an alternative. Four read-only agents answered independently: a Senior Data Architect, a Security and Governance Architect and a Product and Go-to-Market Lead (all Opus), and a Chief Architect second opinion (Fable 5.2, low effort, which read less of the repo). The assistant checked the technical claims below against the code before relying on them.
 
 **Delegation is not approval.** `CLAUDE.md` makes semantic certification, security, policy, thresholds, licensing, public wording and go/no-go the owner's gates, and says never to infer one. So:
 - **Part A** lists decisions that are not gates. The owner delegated them, so they are adopted as working decisions and are reversible.
@@ -88,3 +88,27 @@ P1 and P3 first, because they fix real exposures (a teardown that can destroy ob
 ## Not verified
 
 No buyer research, no vendor cost or trial terms, no Snowflake user-expiry support, and no contents of PRs #28 and #32 beyond local branches. Fable read less of the repository than the Opus agents and its picks 7, 23 and 24 rested on the assistant's description.
+
+## Owner decisions (2026-11-17)
+
+The owner chose "Go one by one" and answered each gate in turn. Answers are the options as selected; the full record is in the program file.
+
+| # | Decision | Owner's answer |
+|---|---|---|
+| G1 | Who certifies | Me, via reviewed PR |
+| G2 | Where the reference warehouse lives | Compass-owned demo accounts |
+| G3 | "Runs on" wording | **Wait until R5** (the panel's other option; the narrow-wording-now option was not chosen) |
+| G4 | PRs #28 and #32 | Close both, keep branches |
+| G5 | Admin sign-in | SSO, a key you control, export-SQL |
+| G6 | Connect mode | No approval now; write the threat model now |
+| G7 | Spending caps | Default, override can lower freely |
+| G8 | Consent record | Full list plus hash, never a credential |
+| G9 | Setup tool location | Separate entry point, same repo |
+| G10 | Spine and ladder | Ladder now; spine after R2 |
+| G11 | First buyer | Data or analytics leader |
+| G12 | Names | All three: lead word, check, card title |
+| G13 | Landing changes | All of it |
+| G14 | Milestone 4 demo | Hold |
+| G15 | Demo thresholds | Per-scene profiles; approve values at R3 |
+
+Still open for the owner: who runs the trademark and domain check (G12), creating the demo accounts and owning the billing (G2), and approving the actual demo threshold values at R3 (G15).
