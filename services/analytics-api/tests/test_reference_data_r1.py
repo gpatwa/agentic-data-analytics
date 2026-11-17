@@ -118,9 +118,14 @@ def test_duckdb_holds_exactly_the_generated_rows(duck):
     import hashlib
 
     for name, (_, digest) in PINNED.items():
+        # Timestamps are formatted by DuckDB itself: fetching a TIMESTAMPTZ as a Python datetime needs the optional pytz package,
+        # which CI does not have (found by CI on the first run).
+        select = ", ".join(
+            f"strftime({c.name}::TIMESTAMP, '%Y-%m-%dT%H:%M:%SZ')" if c.logical_type == "timestamp" else c.name for c in g.SCHEMAS[name]
+        )
         h = hashlib.sha256()
-        for row in duck.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall():
-            h.update(("\x1f".join(g._canonical(v) for v in row) + "\x1e").encode())
+        for row in duck.execute(f"SELECT {select} FROM {name} ORDER BY 1").fetchall():
+            h.update(("\x1f".join(v if isinstance(v, str) and c.logical_type == "timestamp" else g._canonical(v) for v, c in zip(row, g.SCHEMAS[name], strict=True)) + "\x1e").encode())
         assert h.hexdigest() == digest, f"{name} did not round-trip through DuckDB"
 
 
