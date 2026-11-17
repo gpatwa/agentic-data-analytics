@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { VisualizationSpec } from 'vega-embed';
 
 import { getHealth, runQuery } from './api';
+import { ConnectWorkspace } from './connect/ConnectWorkspace';
 import { GovernedWorkspace } from './governed/GovernedWorkspace';
 import type { AnalyticsQueryResponse, HealthResponse } from './types';
 
@@ -35,7 +36,7 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // The pilot serves only the governed (v2) API; VITE_ANALYTICS_DEFAULT_VIEW=governed opens it first.
-  const [view, setView] = useState<'workspace' | 'governed'>(
+  const [view, setView] = useState<'workspace' | 'governed' | 'connect'>(
     import.meta.env.VITE_ANALYTICS_DEFAULT_VIEW === 'governed' ? 'governed' : 'workspace',
   );
 
@@ -71,6 +72,7 @@ export function App() {
         <nav aria-label="Analytics navigation">
           <button className={view === 'workspace' ? 'nav-item active' : 'nav-item'} title="Workspace" onClick={() => setView('workspace')}><LayoutDashboard size={17} />Workspace</button>
           <button className={view === 'governed' ? 'nav-item active' : 'nav-item'} title="Governed analysis" onClick={() => setView('governed')}><CheckCircle2 size={17} />Governed</button>
+          <button className={view === 'connect' ? 'nav-item active' : 'nav-item'} title="Connect a warehouse" onClick={() => setView('connect')}><Database size={17} />Connect</button>
           <button className="nav-item" title="Query history"><History size={17} />History</button>
           <button className="nav-item" title="Data sources"><Database size={17} />Data sources</button>
         </nav>
@@ -89,7 +91,7 @@ export function App() {
           <button className="dataset-button"><Database size={15} />Olist commerce<ChevronDown size={14} /></button>
         </header>
 
-        {view === 'governed' ? <GovernedWorkspace /> : (<>
+        {view === 'connect' ? <ConnectWorkspace /> : view === 'governed' ? <GovernedWorkspace /> : (<>
         <section className="query-band" aria-label="Ask a data question">
           <div className="query-input">
             <Search size={19} />

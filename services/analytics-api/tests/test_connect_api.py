@@ -334,3 +334,19 @@ def test_only_managers_can_remove_access():
     client, *_ = make()
     setup = start(client).json()
     assert client.delete(f"/api/v2/connect/connections/{setup['connection_id']}", headers=auth("usr-a")).status_code == 403
+
+
+# ---- the web error catalogue stays in step with the API ------------------------------------------------------------
+
+
+def test_every_error_code_the_api_can_return_has_plain_words_in_the_web_app():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    copy = (root / "apps/analytics-web/src/connect/copy.ts").read_text()
+    documented = set(re.findall(r"^  (\w+): \{ title:", copy, re.M))
+    api = (root / "services/analytics-api/app/connect/api.py").read_text()
+    targets = (root / "services/analytics-api/app/connect/targets.py").read_text()
+    emitted = set(re.findall(r'HTTPException\(\d+, "(\w+)"', api)) | set(re.findall(r'TargetRejected\("(\w+)"\)', targets))
+    emitted |= {"connection_test_failed", "invalid_scope"}
+    assert emitted - documented == set(), f"no plain-words copy for: {sorted(emitted - documented)}"
