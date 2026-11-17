@@ -112,3 +112,5 @@ The owner chose "Go one by one" and answered each gate in turn. Answers are the 
 | G15 | Demo thresholds | Per-scene profiles; approve values at R3 |
 
 Still open for the owner: who runs the trademark and domain check (G12), creating the demo accounts and owning the billing (G2), and approving the actual demo threshold values at R3 (G15).
+
+**Added 2026-11-17:** the threat model (G6) raised five further decisions. The first is decided: **Connect-mode admin setup is customer-side only** (owner: "Customer-side only"; program file `connect_mode_admin_setup_location`). Still open: model egress for customer data, the default minimum group size, who reviews and the penetration-test budget, and a first design partner's profile.
