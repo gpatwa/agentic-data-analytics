@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from reference_stack.stack import build_stack
 from sqlalchemy import text
@@ -60,8 +62,19 @@ def test_no_rows_are_stored_in_the_durable_tables(tmp_path):
             for value in row
         )
     assert "SELECT" in dump  # the plan is there
+    # Match each result value only as a standalone token. A bare substring check was flaky: the dump holds random hex ids and
+    # hashes, and a short value such as "563" appears inside one by chance (seen on CI, 2026-11-16).
     for forbidden in ("1969", "1468", "563", "2024-03-01"):
-        assert forbidden not in dump
+        assert not re.search(rf"(?<![0-9A-Za-z]){re.escape(forbidden)}(?![0-9A-Za-z])", dump), forbidden
+
+
+def test_the_standalone_value_check_still_catches_a_stored_row_value_and_ignores_a_value_inside_an_id():
+    """The guard in the test above has teeth: a result value stored as its own token is found; the same digits inside a hash are not."""
+    pattern = r"(?<![0-9A-Za-z]){}(?![0-9A-Za-z])"
+    for stored in ("[563]", "revenue 563.0 ", '{"revenue": 563}', "x 563"):
+        assert re.search(pattern.format("563"), stored), stored
+    for inside_an_id in ("a1b2563c4d", "deadbeef563", "5630", "x1563"):
+        assert not re.search(pattern.format("563"), inside_an_id), inside_an_id
 
 
 def test_a_status_read_after_a_restart_never_runs_a_query_and_says_the_answer_is_unavailable(tmp_path):
