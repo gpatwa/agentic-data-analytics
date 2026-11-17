@@ -70,6 +70,12 @@ low-cardinality (at most 50 distinct values). Then: at most 5 values per column;
 rows (the pilot's cohort floor is 10); values are truncated to 40 characters; values matching email, phone, card, UUID or long
 digit patterns are replaced by a type placeholder. Numeric and date columns contribute ranges, not values.
 
+**Amendment (owner, 2026-11-16, "Yes, extend it").** The sensitive-name list also matches the tokens `birth`, `birthday` and
+`birthdate`, so `date_of_birth`, `birth_date`, `birthDate` and the like contribute no samples and no range. Found while building
+the reference data (docs/REFERENCE_DATA_DEMO_PLAN.md): the list had `dob` but not `date_of_birth`. Matching is by whole token, so a
+column such as `birth_rate` is also excluded (conservative on purpose); nothing else in the rule changed. Implemented in
+`app/ontology_draft/facts.py` and pinned by tests (the name test, an end-to-end profile test on a real DATE column).
+
 ## Evaluation (how we will know it works)
 
 - **Held-out check:** run the drafter on the `demo_sales_orders` schema and compare its draft to the hand-certified

@@ -231,6 +231,22 @@ def test_placeholders_are_deduplicated():
 # ----------------------------------------------------------------------------------------------------------------- profiling
 
 
+def test_a_date_of_birth_column_contributes_nothing_not_even_a_range():
+    """The 2026-11-16 amendment, seen end to end: a real DATE column named date_of_birth (or birthDate) is excluded from the profile."""
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as db:
+        db.execute(sa.text("CREATE TABLE people (id TEXT PRIMARY KEY, date_of_birth DATE, birthDate DATE, signup_date DATE, region TEXT)"))
+        db.execute(
+            sa.text("INSERT INTO people VALUES (:id, :d, :d, :s, :r)"),
+            [{"id": f"p{i:02d}", "d": f"19{50 + i % 40}-01-15", "s": f"2024-01-{(i % 28) + 1:02d}", "r": "north" if i % 2 else "south"} for i in range(40)],
+        )
+    cols = by_name(profile_engine(engine, introspect_engine(engine).facts), "people")
+    for name in ("date_of_birth", "birthDate"):
+        assert cols[name].sample_status == "sensitive_name", name
+        assert cols[name].samples == () and cols[name].min_value is None and cols[name].max_value is None
+    assert cols["signup_date"].min_value is not None and cols["signup_date"].sample_status != "sensitive_name"  # other dates still give ranges
+
+
 def by_name(profile, table):
     return {c.name: c for c in profile.table(table).columns}
 

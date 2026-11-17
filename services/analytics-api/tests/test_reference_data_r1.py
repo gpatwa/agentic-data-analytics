@@ -78,12 +78,12 @@ def test_there_is_exactly_one_deliberately_small_group_and_it_is_the_designed_on
     assert all(r[5] == "paid" for r in g.orders() if (r[2], r[4]) == g.SMALL_COHORT)
 
 
-def test_the_redaction_rule_flags_the_sensitive_columns_and_the_known_gap_is_pinned():
+def test_the_redaction_rule_flags_every_sensitive_column_and_any_known_gap_is_pinned():
+    assert set(g.SENSITIVE_COLUMNS["ref_customers"]) == {"email", "phone", "date_of_birth", "card_number"}
     for column in g.SENSITIVE_COLUMNS["ref_customers"]:
-        assert is_sensitive_name(column), column
+        assert is_sensitive_name(column), column  # date_of_birth joined them with the owner's amendment of 2026-11-16
+    assert g.KNOWN_REDACTION_GAPS["ref_customers"] == ()
     for column in g.KNOWN_REDACTION_GAPS["ref_customers"]:
-        # A documented gap in the approved rule ("dob" matches, "date_of_birth" does not). If this fails the rule was extended:
-        # move the column into SENSITIVE_COLUMNS and update scene 6.
         assert not is_sensitive_name(column), f"{column} is now flagged: move it to SENSITIVE_COLUMNS"
     names = {c.name for c in g.SCHEMAS["ref_customers"]}
     assert set(g.SENSITIVE_COLUMNS["ref_customers"]) | set(g.KNOWN_REDACTION_GAPS["ref_customers"]) <= names
@@ -242,7 +242,7 @@ def test_the_behaviour_scenes_agree_with_the_data():
     assert small["cohort_size"] == g.SMALL_COHORT_ROWS < small["min_cohort"] and small["only_small_group"] is True
     assert scenes.by_id(5).expected()["groups_it_would_return"] == 20_000
     six = scenes.by_id(6).expected()
-    assert set(six["excluded_from_model"]) == {"email", "phone", "card_number"} and six["known_gap_not_excluded_today"] == ("date_of_birth",)
+    assert set(six["excluded_from_model"]) == {"email", "phone", "date_of_birth", "card_number"} and six["known_gap_not_excluded_today"] == ()
 
 
 def test_no_scene_output_contains_a_canary_or_a_personal_value():

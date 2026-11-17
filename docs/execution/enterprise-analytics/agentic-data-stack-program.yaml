@@ -157,6 +157,11 @@ milestones:
       approved_at: 2026-11-14
       scope: "The sample-redaction rule in docs/AUTO_ONTOLOGY_DESIGN.md (section 'Redaction rule for samples'), exactly as written there: sensitive-name exclusion list, low-cardinality only (at most 50 distinct values), at most 5 values per column, each value in at least min_cohort (10) rows, 40-character truncation, type placeholders for email, phone, card, UUID and long-digit patterns, ranges for numeric and date columns, samples never persisted or logged, LLM egress only to the pilot's Azure OpenAI deployment."
       record: "Asked \"Approve the proposed sample-redaction rule?\" with options \"Approve as written\" and \"Change the rule\", the user answered \"Approve as written\" on 2026-11-14. Recorded in the user's words. This approves the rule only. It does not approve the design as a whole, evaluation thresholds, any live run against the pilot warehouse (that needs a separate go-ahead in the task that does it), or the semantic certification of any drafted contract."
+      amendments:
+        - amended_by: user
+          amended_at: 2026-11-16
+          change: "The sensitive-name list also matches the tokens birth, birthday and birthdate (so date_of_birth and similar are excluded, with no range either). Nothing else in the rule changed."
+          record: "Asked \"Extend the redaction rule to cover date_of_birth?\" with options \"Yes, extend it\" and \"Leave it for now\", the user answered \"Yes, extend it\" on 2026-11-16. Recorded in the user's words. The need was found while building the reference data: the rule's list matched dob but not date_of_birth. Implemented in services/analytics-api/app/ontology_draft/facts.py with tests. This widens the exclusion only; it approves no live run, threshold or certification."
       clarifications:
         - confirmed_by: user
           confirmed_at: 2026-11-14
