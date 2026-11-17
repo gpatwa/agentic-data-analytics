@@ -106,7 +106,16 @@ Code lives in `services/analytics-api/app/connect/`, tested by `tests/test_conne
 | 5 table allowlist per tenant | Built: the gateway for a connection is made from that record's allowed tables only, and refuses any other table. | `gateway.py` |
 | 9 consent, setup and teardown records | Built: statements shown are bound to a digest and execution refuses anything else; records carry the admin identity and never a token, key or statement body; a guard refuses secret-looking payloads. **Not yet wired to a worker or an API.** | `records.py` |
 
-Not started: the admin-token worker and Approve screen (T1), the onboarding screens, the federation check, multi-tenant isolation tests on real connections, the kill switch, offboarding with proof of deletion, and the independent review.
+**CM3 (admin-token worker and Approve step), local on a fake admin session, 129 tests across CM2 and CM3:**
+
+| Threat | What is built | Limits |
+|---|---|---|
+| T1 admin token in our process | `token.py`: a token that cannot be printed, formatted, pickled, copied or serialised, with a hard lifetime of at most 300 seconds, wiped when the run ends. `worker.py`: signs in once, runs, and wipes; the token is never stored, logged or put in a record, result or error (errors are reported by type only). Tests scan records, results, logs and every object the run touched for the token, on both a failing and a succeeding run. | Python cannot scrub a string from memory; the guarantee is that nothing keeps a reference. **Process-level isolation (one short-lived process or container per run) is a deployment property, not built.** |
+| T15, T22 approved statements | `approval.py`: the admin approves a digest of the exact statements, once, before a deadline, and only the signed-in admin can (the requester may differ). The run refuses anything that is not the approved list, and each setup runs once. | The UI that shows the list does not exist yet. |
+| T3 partial setup | Preflight refuses any existing name (nothing is adopted); a failure part-way drops only what this run created and reports anything it could not drop; the credential is deleted and the record removed on any failure or cancel; a 120-second deadline between statements. | A single statement is bounded only by the admin session's own timeouts. The preflight `SHOW` shapes and the rollback are **not verified on a live account**. |
+| T23 key custody | The private key goes straight into the tenant's secret store and is never held by the worker; deleted with a receipt on failure. | In-memory store only; a vault adapter is not built. |
+
+Still not started: the real sign-in (the connect function is injected; a Snowflake OAuth or SSO admin sign-in for Connect mode is unbuilt and unverified), the onboarding screens, Databricks, the federation check, multi-tenant isolation tests on real connections, the kill switch, offboarding with proof of deletion, and the independent review.
 
 ## Residual risks that remain even then
 
