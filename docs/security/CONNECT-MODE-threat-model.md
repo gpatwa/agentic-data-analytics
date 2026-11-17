@@ -94,6 +94,20 @@ Ratings are the author's judgment (impact and likelihood together), not a scored
 
 An abuse-case suite per row above (a tenant asks for another's table; a hostile hostname; a wildcard grant; a poisoned comment; a log scrape for a connection string), run first against fakes in CI, then against sandbox accounts with the owner's approval, then by an independent reviewer. The existing eight-check conformance suite becomes the connection test the admin sees.
 
+## Build status of the acceptance criteria (CM2, local code on fakes only)
+
+Code lives in `services/analytics-api/app/connect/`, tested by `tests/test_connect_foundations.py` (97 tests, fakes, no network, no account). None of it has run against a live customer warehouse, and none of it approves a security gate.
+
+| Criterion | Status | Where |
+|---|---|---|
+| 2 per-tenant connection store | Built locally (in-memory): every connection bound to one tenant; another tenant's lookup is indistinguishable from a missing one; a host is claimed by one tenant only; secrets by reference in a tenant-scoped store with versions and a deletion receipt. **A durable store and a real vault adapter are not built.** | `store.py` |
+| 3 connection-target controls | Built: vendor-domain allowlist, no IP literals, userinfo, ports, punycode or private addresses, exact account match, resolved addresses recorded and re-checked. **It does not pin the driver's own lookups; real pinning needs network egress controls.** | `targets.py` |
+| 4 grants generator and verification | Built for **Snowflake only**: `USAGE` and per-table `SELECT`, no wildcard, future, `ALL`, grant option or write; per-connection suffix so teardown drops only its own objects; `verify_grants` fails closed on anything extra. **Databricks is not built.** The network-policy statements are unverified live. | `grants.py` |
+| 5 table allowlist per tenant | Built: the gateway for a connection is made from that record's allowed tables only, and refuses any other table. | `gateway.py` |
+| 9 consent, setup and teardown records | Built: statements shown are bound to a digest and execution refuses anything else; records carry the admin identity and never a token, key or statement body; a guard refuses secret-looking payloads. **Not yet wired to a worker or an API.** | `records.py` |
+
+Not started: the admin-token worker and Approve screen (T1), the onboarding screens, the federation check, multi-tenant isolation tests on real connections, the kill switch, offboarding with proof of deletion, and the independent review.
+
 ## Residual risks that remain even then
 
 Compass cannot control the customer's own warehouse configuration, group memberships, network policy or other users with the same role; a name-based redaction rule will always miss some sensitive columns; suppression does not stop differencing; and a read-only identity can still read everything its grants allow. These must be stated to a customer, not engineered away.
