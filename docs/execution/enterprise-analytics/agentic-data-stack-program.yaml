@@ -226,12 +226,22 @@ milestones:
       follow_ups: "G4: close #28 and #32 without merging. G6: write the Connect-mode threat model (document only). G12: the owner names who runs the trademark and domain check; not yet named. G2: the owner creates the demo accounts and owns the billing; not yet done. G13: landing changes to be made in a reviewed pull request. G15: the owner approves the actual demo values at R3."
 
     connect_mode_admin_setup_location:
-      status: approved
+      status: superseded
+      superseded_by: connect_mode_admin_setup_product_run
+      superseded_on: 2026-11-17
       approved_by: user
       approved_at: 2026-11-17
       scope: "Where the admin setup for Connect mode (connecting a customer's own warehouse) runs. Decision 1 of docs/security/CONNECT-MODE-threat-model.md."
       record: "Asked \"Decide where Connect-mode admin setup would run?\" with options \"Customer-side only\" and \"Not yet\", the user answered \"Customer-side only\" on 2026-11-17. Recorded in the user's words. Meaning: in Connect mode a customer's admin runs the setup themselves (the exported SQL); Compass never holds or uses a customer admin credential, and the browser sign-in admin path stays for sandbox mode on the owner's own accounts only. This is a design decision that narrows the future build. It approves no build of Connect mode, no security gate, no live run and no customer connection; the security gate for Connect mode is still separate and still comes only after the build and the evidence listed in the threat model."
       follow_ups: "Open design problems this creates (recorded in the threat model): how the runtime credential reaches Compass without a pasted secret (Snowflake: Compass generates the key pair and puts the public key in the script; Databricks: the customer-created OAuth secret needs a delivery design), and signing the exported script."
+
+    connect_mode_admin_setup_product_run:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "Where and how the admin setup for Connect mode (connecting a customer's own warehouse) runs. Supersedes connect_mode_admin_setup_location. Decision 1 of docs/security/CONNECT-MODE-threat-model.md."
+      record: "Same day, after the user said 'agree on federation, connector should be in product design, no manual setup or scripts to run', asked \"For Connect mode, should the product run the admin setup itself after the admin signs in and approves, replacing your earlier 'Customer-side only' decision?\", the user answered \"Product-run, script as fallback (Recommended)\". Recorded in the user's words. Meaning: the default Connect-mode setup is run by the product after the customer's admin signs in through the vendor's own screen and approves a visible list of the exact actions; the admin token is held in memory only for that run and discarded; the exported SQL remains only as a fallback (accounts without sign-in support, security reviewers who want to read it). The runtime credential direction the user agreed is identity federation (short-lived tokens, nothing stored), with a stored key only as an interim; federation is not yet verified on either engine. This is a design decision. It approves no build, no security gate (the Connect-mode security gate stays separate and comes only after the build and the evidence in the threat model), no live run and no customer connection."
+      follow_ups: "Threat T1 (admin token in our process) returns for Connect mode and needs a design: an isolated short-lived per-run worker, no logging, an Approve screen listing the exact statements before anything runs, token discarded after. Federation on Snowflake and Databricks must be verified on the owner's sandbox accounts (each live step needs approval). Sign-in support varies by account (the owner's Snowflake account has no identity provider)."
 
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
