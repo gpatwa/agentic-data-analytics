@@ -225,6 +225,14 @@ milestones:
         - {id: G15, topic: "Demo thresholds", answer: "Per-scene profiles; approve values at R3 (Recommended)"}
       follow_ups: "G4: close #28 and #32 without merging. G6: write the Connect-mode threat model (document only). G12: the owner names who runs the trademark and domain check; not yet named. G2: the owner creates the demo accounts and owns the billing; not yet done. G13: landing changes to be made in a reviewed pull request. G15: the owner approves the actual demo values at R3."
 
+    connect_mode_admin_setup_location:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "Where the admin setup for Connect mode (connecting a customer's own warehouse) runs. Decision 1 of docs/security/CONNECT-MODE-threat-model.md."
+      record: "Asked \"Decide where Connect-mode admin setup would run?\" with options \"Customer-side only\" and \"Not yet\", the user answered \"Customer-side only\" on 2026-11-17. Recorded in the user's words. Meaning: in Connect mode a customer's admin runs the setup themselves (the exported SQL); Compass never holds or uses a customer admin credential, and the browser sign-in admin path stays for sandbox mode on the owner's own accounts only. This is a design decision that narrows the future build. It approves no build of Connect mode, no security gate, no live run and no customer connection; the security gate for Connect mode is still separate and still comes only after the build and the evidence listed in the threat model."
+      follow_ups: "Open design problems this creates (recorded in the threat model): how the runtime credential reaches Compass without a pasted secret (Snowflake: Compass generates the key pair and puts the public key in the script; Databricks: the customer-created OAuth secret needs a delivery design), and signing the exported script."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}

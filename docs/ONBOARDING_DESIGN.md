@@ -48,6 +48,8 @@ Seven screens. Each has one primary action.
 - *Type a password* (only if the owner approves it as a security decision; typed into a prompt, never stored).
 Never offered: paste a token, paste a password into a form, upload a long-lived key to us.
 
+**Decided 2026-11-17 (owner: "Customer-side only"):** in **Connect mode** (a customer's own warehouse) only *My admin will run it* is offered. Compass never holds or uses a customer admin credential, so the SSO and key sign-in methods above apply to **Sandbox mode** on the owner's own accounts. See `docs/security/CONNECT-MODE-threat-model.md`.
+
 **3. Review what will be created.** The consent page. Left: the exact list of objects and permissions for the chosen engine and mode, each with a one-line reason. Right: *Compass will never* (write to your data, copy your tables, store your admin login, run SQL written by a model) and *Spending cap* (the size of the warehouse or monitor). Below: *Export as SQL*, and one primary button, **Create and test**. No checkbox wall; the page is the consent, and it is saved as a record with the time and the signed-in person.
 
 **4. Setting up and testing.** A live list of the eight checks in plain words ("Your access is read-only", "We can read your table layout", "A governed query ran", "Results match what we expected", "A too-expensive query is refused", "A runaway query is stopped", "A running query can be cancelled", "Nothing sensitive was logged"). Each shows a spinner, a tick or a plain failure. The slowest steps say roughly how long they take. A cancel button stops and tears down.
