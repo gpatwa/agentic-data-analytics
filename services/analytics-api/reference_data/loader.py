@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 
 from reference_data import generator as g
@@ -32,21 +33,26 @@ def create_table_sql(dialect: str, table: str, schema: str | None = None) -> str
     return f"CREATE TABLE {schema + '.' if schema else ''}{name} ({columns})"
 
 
-def _duckdb_row(row: tuple) -> tuple:
-    """Timezone-aware Python datetimes become UTC text. DuckDB needs the optional pytz package to bind one, and without it retries a
-    failing import for every single value: CI took 68 minutes to load 25,000 rows that way. Text casts to TIMESTAMPTZ natively."""
-    return tuple(v.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S+00") if isinstance(v, datetime) else v for v in row)
+def _literal(value: Any) -> str:
+    """A SQL literal for one value. DuckDB gets plain SQL text and no bound parameters: converting each bound Python value costs a
+    failing optional-package import (numpy, pandas, pytz) on a clean CI image, which made loading 25,000 rows take over an hour."""
+    if isinstance(value, datetime):
+        return "'" + value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S+00") + "'"
+    if isinstance(value, (Decimal, int)):
+        return str(value)
+    return "'" + str(value).replace("'", "''") + "'"
 
 
-def load_duckdb(conn: Any) -> dict[str, int]:
-    """Create and fill the three tables in a DuckDB connection (timestamps in UTC)."""
+def load_duckdb(conn: Any, chunk: int = 500) -> dict[str, int]:
+    """Create and fill the three tables in a DuckDB connection (timestamps in UTC), from literal SQL in chunks."""
     conn.execute("SET TimeZone = 'UTC'")
     counts: dict[str, int] = {}
     for table in g.SCHEMAS:
         conn.execute(create_table_sql("duckdb", table))
         rows = g.table(table)
-        marks = ", ".join("?" for _ in g.SCHEMAS[table])
-        conn.executemany(f"INSERT INTO {table} VALUES ({marks})", [_duckdb_row(r) for r in rows])
+        for i in range(0, len(rows), chunk):
+            values = ", ".join("(" + ", ".join(_literal(v) for v in row) + ")" for row in rows[i : i + chunk])
+            conn.execute(f"INSERT INTO {table} VALUES {values}")
         counts[table] = len(rows)
     return counts
 

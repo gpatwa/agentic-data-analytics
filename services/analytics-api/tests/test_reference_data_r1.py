@@ -105,20 +105,21 @@ def duck():
     return conn
 
 
-def test_the_duckdb_loader_never_hands_duckdb_a_timezone_aware_datetime():
-    """CI found this: without pytz, DuckDB retries a failing import per tz-aware value (68 minutes for 25,000 rows)."""
-    seen = []
+def test_the_duckdb_loader_binds_no_parameters_because_each_one_costs_a_failing_import_on_a_clean_ci_image():
+    """CI found this twice: DuckDB converts every bound Python value, and without numpy, pandas or pytz that retried a failing
+    import per value (68 minutes for 25,000 rows, only after the rest of the suite had run). The loader sends literal SQL instead."""
+    calls = []
 
     class Recorder:
-        def execute(self, *_):
+        def execute(self, sql, *params):
+            calls.append((sql, params))
             return self
 
-        def executemany(self, _sql, rows):
-            seen.extend(v for row in rows for v in row)
-
     loader.load_duckdb(Recorder())
-    assert seen and not any(isinstance(v, datetime) for v in seen)
-    assert "2024-01-01 00:00:56+00" in {v for v in seen if isinstance(v, str) and v.startswith("2024-01-01 00:00:56")}
+    assert calls and all(params == () for _, params in calls)  # nothing bound, ever
+    inserts = [sql for sql, _ in calls if sql.startswith("INSERT")]
+    assert len(inserts) == 40 + 10 + 1 and "'2024-01-01 00:00:56+00'" in " ".join(inserts)
+    assert all("\n" not in sql and "datetime" not in sql for sql in inserts)
 
 
 def _month_region_sql(start, end):
@@ -132,18 +133,17 @@ def _month_region_sql(start, end):
 def test_duckdb_holds_exactly_the_generated_rows(duck):
     counts = {t: duck.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in g.SCHEMAS}
     assert counts == {"ref_orders": 20_000, "ref_customers": 5_000, "ref_ledger_notes": g.LEDGER_ROWS}
-    import hashlib
-
     for name, (_, digest) in PINNED.items():
-        # Timestamps are formatted by DuckDB itself: fetching a TIMESTAMPTZ as a Python datetime needs the optional pytz package,
-        # which CI does not have (found by CI on the first run).
-        select = ", ".join(
-            f"strftime({c.name}::TIMESTAMP, '%Y-%m-%dT%H:%M:%SZ')" if c.logical_type == "timestamp" else c.name for c in g.SCHEMAS[name]
+        # The canonical text of each row is built inside DuckDB and only one hash comes back: fetching 20,000 rows as Python
+        # objects costs a failing optional-package import per value on a clean CI image (see the loader test above).
+        cols = g.SCHEMAS[name]
+        pieces = ", ".join(
+            f"strftime({c.name}::TIMESTAMP, '%Y-%m-%dT%H:%M:%SZ')" if c.logical_type == "timestamp" else f"CAST({c.name} AS VARCHAR)" for c in cols
         )
-        h = hashlib.sha256()
-        for row in duck.execute(f"SELECT {select} FROM {name} ORDER BY 1").fetchall():
-            h.update(("\x1f".join(v if isinstance(v, str) and c.logical_type == "timestamp" else g._canonical(v) for v, c in zip(row, g.SCHEMAS[name], strict=True)) + "\x1e").encode())
-        assert h.hexdigest() == digest, f"{name} did not round-trip through DuckDB"
+        got = duck.execute(
+            f"SELECT sha256(string_agg(concat_ws(chr(31), {pieces}) || chr(30), '' ORDER BY {cols[0].name})) FROM {name}"
+        ).fetchone()[0]
+        assert got == digest, f"{name} did not round-trip through DuckDB"
 
 
 def test_the_oracle_equals_duckdb_for_the_headline_scene(duck):
