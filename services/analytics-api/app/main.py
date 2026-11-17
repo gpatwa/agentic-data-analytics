@@ -6,6 +6,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.api_v2 import V2Runtime, build_v2_router
 from app.config import settings, v1_enabled
+from app.connect.api import ConnectRuntime, build_connect_router
 from app.demo import build_demo_router
 from app.runtime.shadow import ShadowRuntime, query_with_shadow
 from app.service import AnalyticsService
@@ -77,6 +78,8 @@ v2_runtime = V2Runtime()
 shadow_runtime = ShadowRuntime()
 app.include_router(build_v2_router(v2_runtime, verify_api_key))
 app.include_router(build_demo_router(v2_runtime, verify_api_key, settings))
+connect_runtime = ConnectRuntime()  # inert (503) until a coordinator and identity verifier are configured
+app.include_router(build_connect_router(connect_runtime, verify_api_key))
 
 
 @app.get("/health", response_model=AnalyticsHealthResponse)
