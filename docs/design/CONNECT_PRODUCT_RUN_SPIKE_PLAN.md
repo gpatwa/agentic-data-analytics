@@ -45,6 +45,8 @@ G1 and G2 may be approved together, G3 always runs after G2 (and after a stop). 
 
 ## Draft statements for review (G0)
 
+**G0 was approved by the owner on 2026-11-17** (program file `connect_product_run_spike_g0`); it approves the plan and gates, not any live step. The exact generated statements, with every name, are in `docs/design/CONNECT_PRODUCT_RUN_SPIKE_STATEMENTS.md`, produced by `services/analytics-api/app/connect/spike/statements.py` and kept equal to it by a test. Read that file before approving G1; the draft below is the shorter summary.
+
 Syntax is from memory of Snowflake's reference and **may need correcting at review time**; any change is made visibly before G1. `<S>` is the run suffix.
 
 **Phase A, as `ACCOUNTADMIN` (G1):**
