@@ -194,6 +194,37 @@ milestones:
       record: "Asked \"Approve the live run on both sandboxes?\" with options \"Approve both\" and \"Snowflake only\", the user answered \"Approve both\" on 2026-11-15. Recorded in the user's words. This approves the sandbox runs only. It does not approve a public claim (\"Runs on Snowflake / Databricks (sandbox validated)\" is its own reviewed change), runtime selection by a tenant, a business contract on either engine, or customer use."
       evidence: "docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md, section Result. Snowflake 8 of 8 and Databricks 8 of 8 checks ok; both sandboxes verified removed. The Snowflake sandbox was set up from the owner's signed-in Snowsight because the account has no SSO provider; the automatic provisioning path is verified live for Databricks only."
 
+    databricks_oauth_m2m_sandbox_run:
+      status: run_once
+      approved_by: user
+      approved_at: 2026-11-16
+      scope: "One more sandbox validation run on the owner's Databricks workspace (dbc-b8672746-8e43, catalog dev), synthetic data only, to verify the OAuth M2M sign-in added by plan C2. Same limits as warehouse_s6_sandbox_validation."
+      record: "Asked \"Run OAuth M2M live on your Databricks sandbox?\" with options \"Approve the run\" and \"Not yet\", the user answered \"Approve the run\" on 2026-11-16. Recorded in the user's words. This approves that one run only."
+      evidence: "8 of 8 checks ok, 22 statements, OAuth M2M (the provisioner's default); teardown verified through the API: no service principal, no secret and no sandbox schema left. docs/WAREHOUSE_CONNECTOR_CAPABILITIES.md now says so."
+    decision_register_gate_decisions:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "The fifteen gate decisions G1 to G15 in docs/DECISION_REGISTER_2026-11-16.md, taken one by one."
+      record: "The owner asked a four-agent panel for recommendations (three Opus specialists and a Fable 5.2 low-effort second opinion), then chose \"Go one by one\" and answered each gate decision in turn. Each answer below is the option the user selected, in its own words; the panel's recommendation is advisory and approves nothing by itself. This approves these fifteen choices only. It does not approve any live run, account creation, certification of a specific contract (G1 says who certifies, and each contract is certified separately), public wording beyond G13, or any deploy."
+      decisions:
+        - {id: G1, topic: "Who certifies the reference definitions", answer: "Me, via reviewed PR (Recommended)"}
+        - {id: G2, topic: "Where the permanent reference warehouse lives", answer: "Compass-owned demo accounts (Recommended)"}
+        - {id: G3, topic: "Public wording about Snowflake and Databricks (the public demo stays PostgreSQL-only until R5 in every option)", answer: "Wait until R5"}
+        - {id: G4, topic: "Pull requests #28 and #32 (uncertified drafts)", answer: "Close both, keep branches (Recommended)"}
+        - {id: G5, topic: "Admin sign-in methods", answer: "SSO, a key you control, export-SQL (Recommended)"}
+        - {id: G6, topic: "Provisioning a customer's warehouse (Connect mode)", answer: "No approval now; write the threat model now (Recommended)"}
+        - {id: G7, topic: "Spending caps for setup", answer: "Default, override can lower freely (Recommended)"}
+        - {id: G8, topic: "Contents of the consent record", answer: "Full list plus hash, never a credential (Recommended)"}
+        - {id: G9, topic: "Where the setup tool lives", answer: "Separate entry point, same repo (Recommended)"}
+        - {id: G10, topic: "Narrative spine and claims ladder", answer: "Ladder now; spine after R2 (Recommended)"}
+        - {id: G11, topic: "First buyer", answer: "Data or analytics leader (Recommended)"}
+        - {id: G12, topic: "Names and the lead word", answer: "All three: lead word, check, card title (Recommended)"}
+        - {id: G13, topic: "Landing page changes", answer: "All of it (Recommended)"}
+        - {id: G14, topic: "Publish the milestone 4 demo", answer: "Hold (Recommended)"}
+        - {id: G15, topic: "Demo thresholds", answer: "Per-scene profiles; approve values at R3 (Recommended)"}
+      follow_ups: "G4: close #28 and #32 without merging. G6: write the Connect-mode threat model (document only). G12: the owner names who runs the trademark and domain check; not yet named. G2: the owner creates the demo accounts and owns the billing; not yet done. G13: landing changes to be made in a reviewed pull request. G15: the owner approves the actual demo values at R3."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}
