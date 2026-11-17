@@ -5,6 +5,11 @@
     SNOWFLAKE_SCHEMA=... SNOWFLAKE_ROLE=... \\
         python3 -m app.execution.warehouse_validation snowflake --allow-live --expect-target <account> --out report.md
 
+Flags added by the P1 safety review (docs/DECISION_REGISTER_2026-11-16.md): `--databricks-warehouse` is required for Databricks (no
+default warehouse); `--admin-role` sets the Snowflake admin role (default ACCOUNTADMIN); `--sweep` signs the admin in and removes tagged
+leftovers of an interrupted run, leaving anything not carrying the tool's tag alone. A run refuses with `name_taken` or
+`leftovers_found` before it creates anything if one of its names already exists.
+
 With `--provision` there is nothing to set up by hand: it signs an admin in through the browser, creates the sandbox and a
 read-only identity whose credential lives only in memory, runs the checks, and removes everything again in `finally`
 (`warehouse_provisioning.py`). `--expect-target` is then the Snowflake account or the Databricks workspace host:
@@ -152,12 +157,39 @@ def make_provisioner(args: argparse.Namespace) -> Any:
     if args.engine == "snowflake":
         if not args.admin_user:
             raise WarehouseConfigError("--admin-user is required for snowflake with --provision")
-        return SnowflakeProvisioner(connect_snowflake_admin(args.expect_target, args.admin_user), account=args.expect_target)
+        return SnowflakeProvisioner(
+            connect_snowflake_admin(args.expect_target, args.admin_user, role=args.admin_role), account=args.expect_target
+        )
+    if not args.databricks_warehouse:  # checked before any sign-in: there is no default warehouse (the first one listed could be production)
+        raise WarehouseConfigError("--databricks-warehouse is required for databricks (the SQL warehouse to use, by name)")
     client = connect_databricks_admin(args.expect_target)
     return DatabricksProvisioner(
         client, host=args.expect_target, warehouse_id=pick_warehouse(client, args.databricks_warehouse),
         catalog=args.databricks_catalog or DATABRICKS_CATALOG, auth=args.databricks_auth,
     )
+
+
+def _sweep(args: argparse.Namespace) -> int:
+    """Remove tagged leftovers of an interrupted run. Anything that exists but is not tagged is reported and left alone."""
+    try:
+        provisioner = make_provisioner(args)
+    except (WarehouseConfigError, WarehouseDriverMissing, ProvisioningError) as exc:
+        print(f"Not run. {getattr(exc, 'code', None) or exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print(f"Not run. admin sign-in failed: {type(exc).__name__}", file=sys.stderr)
+        return 2
+    try:
+        result = provisioner.sweep()
+    except ProvisioningError as exc:
+        print(f"Sweep stopped: {exc.code}", file=sys.stderr)
+        return 1
+    finally:
+        provisioner.close()
+    print("Removed: " + ("; ".join(result.dropped) or "nothing"))
+    if result.skipped:
+        print("Left alone (exists but is not ours): " + "; ".join(result.skipped), file=sys.stderr)
+    return 1 if result.skipped else 0
 
 
 def _provisioned(args: argparse.Namespace) -> int:
@@ -172,20 +204,26 @@ def _provisioned(args: argparse.Namespace) -> int:
     report = ValidationReport(args.engine)
     notes: list[str] = []
     teardown_ok = True
+    left_behind: tuple[str, ...] = ()
     try:
         try:
             provisioned = provisioner.setup()
             notes.append(f"setup ok, {provisioned.steps} steps")
             report = run_validation(spec_from_config(provisioned.config), max_statements=args.max_statements, max_cost_mib=args.max_cost_mib)
         except ProvisioningError as exc:
-            notes.append(f"setup failed: {exc.code}")
+            notes.append(f"setup failed: {exc.code}" + (f" ({'; '.join(exc.names)})" if exc.names else ""))
             report.provisioning_ok = False
+            if exc.code == "leftovers_found":
+                print("Leftovers of an interrupted run were found and nothing was changed. Clear them with --sweep, then run again.", file=sys.stderr)
+            elif exc.code == "name_taken":
+                print("An object with one of our names already exists and is not ours. Nothing was created or changed.", file=sys.stderr)
     finally:
         try:
             notes.append(f"teardown ok, {provisioner.teardown()} steps")
         except ProvisioningError as exc:
             teardown_ok = False
-            notes.append(f"TEARDOWN INCOMPLETE: {exc.code}")
+            left_behind = exc.names
+            notes.append(f"TEARDOWN INCOMPLETE: {exc.code}" + (f" (left: {'; '.join(exc.names)})" if exc.names else ""))
         finally:
             provisioner.close()
     report.notes = notes
@@ -195,7 +233,7 @@ def _provisioned(args: argparse.Namespace) -> int:
     ok = sum(1 for c in report.checks if c.ok)
     print(f"{args.engine}: {ok} of {len(report.checks) + len(report.not_run)} checks ok, {report.statements} statements. {notes[-1]}. Report: {args.out}")
     if not teardown_ok:
-        print("Teardown did not finish: remove the COMPASS_VALIDATION / compass_validation objects and the validation identity by hand.", file=sys.stderr)
+        print("Teardown did not finish. Left behind: " + ("; ".join(left_behind) or "unknown") + ". Run again with --sweep to remove tagged leftovers.", file=sys.stderr)
     return 0 if report.passed else 1
 
 
@@ -209,7 +247,9 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
     parser.add_argument("--databricks-warehouse", help="name of the SQL warehouse to use (with --provision); never edited")
     parser.add_argument("--databricks-auth", choices=("oauth_m2m", "token"), default="oauth_m2m", help="how the temporary identity signs in (with --provision)")
     parser.add_argument("--databricks-catalog", help="an existing catalog to put the sandbox schema in (with --provision); never created or dropped")
-    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--admin-role", default="ACCOUNTADMIN", help="Snowflake role for the admin sign-in (a resource monitor needs ACCOUNTADMIN)")
+    parser.add_argument("--sweep", action="store_true", help="remove tagged leftovers of an interrupted --provision run, then stop (no checks run)")
+    parser.add_argument("--out", type=Path, help="where the report is written (required unless --sweep)")
     parser.add_argument("--max-statements", type=int, default=30)
     parser.add_argument("--max-cost-mib", type=float, default=10.0)
     args = parser.parse_args(argv)
@@ -220,6 +260,11 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
         return 2
     if not 1 <= args.max_statements <= 100 or not args.max_cost_mib > 0:
         print("Not run. --max-statements must be 1 to 100 and --max-cost-mib positive.", file=sys.stderr)
+        return 2
+    if args.sweep:
+        return _sweep(args)
+    if not args.out:
+        print("Not run. --out is required.", file=sys.stderr)
         return 2
     if args.provision:
         return _provisioned(args)

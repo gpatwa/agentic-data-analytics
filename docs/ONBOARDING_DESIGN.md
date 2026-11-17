@@ -80,7 +80,9 @@ Every failure has the same shape: **what happened** (plain words), **why it usua
 | `no_timeout`, `finished` (cancel) | "A runaway query could not be stopped on this warehouse." | Do not proceed; contact support | Compass |
 | `check_hung`, `unexpected_timeout`, `statement_cap` | "A step took too long and was stopped." | Retry once; then contact support | Compass |
 | `teardown_incomplete:N` | "Setup was removed except N objects." **Lists them by name**, with the exact commands to remove them. | Run the commands, or click *Retry cleanup* | Admin |
-| A name already exists (planned check) | "An object with our name already exists and is not ours. We did not touch it." | Choose another name or remove it | Admin |
+| `name_taken` (built; unverified live) | "An object with one of our names already exists and is not ours. We did not create or change anything." **Lists the names.** | Choose another name, or remove it | Admin |
+| `leftovers_found` (built; unverified live) | "An earlier run left objects behind." **Lists them by name.** Nothing was changed. | Run the cleanup (`--sweep`), then try again | Admin |
+| `warehouse_name_required` | "Choose the SQL warehouse to use." There is no default: the first one listed could be production. | Pick one by name | Admin |
 
 ## Security and privacy design
 
