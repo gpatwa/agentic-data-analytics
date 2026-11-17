@@ -79,7 +79,7 @@ Each line ends with exactly what the owner would be approving.
 
 **P3: Landing page.** Verified: the Finance page says "Every number ships with the rows it came from" while the homepage says "Result rows are not stored in the audit record"; the RevOps page says "across CRM, warehouse, and product" (no CRM connector, no joins); "answered in seconds", "recognition rules applied automatically" and Engineering's "Trace ownership, lineage, and incidents" are unevidenced. The CI copy guard only searches the built homepage, so persona pages are not covered.
 
-**P4: Threat model for Connect mode** (a document, no build).
+**P4: Threat model for Connect mode** (a document, no build). *Written 2026-11-17 (owner: "do G6"): `docs/security/CONNECT-MODE-threat-model.md`, a draft that is not reviewed and approves nothing.*
 
 ## Suggested order
 
