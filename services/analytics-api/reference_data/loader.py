@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from reference_data import generator as g
@@ -31,6 +32,12 @@ def create_table_sql(dialect: str, table: str, schema: str | None = None) -> str
     return f"CREATE TABLE {schema + '.' if schema else ''}{name} ({columns})"
 
 
+def _duckdb_row(row: tuple) -> tuple:
+    """Timezone-aware Python datetimes become UTC text. DuckDB needs the optional pytz package to bind one, and without it retries a
+    failing import for every single value: CI took 68 minutes to load 25,000 rows that way. Text casts to TIMESTAMPTZ natively."""
+    return tuple(v.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S+00") if isinstance(v, datetime) else v for v in row)
+
+
 def load_duckdb(conn: Any) -> dict[str, int]:
     """Create and fill the three tables in a DuckDB connection (timestamps in UTC)."""
     conn.execute("SET TimeZone = 'UTC'")
@@ -39,7 +46,7 @@ def load_duckdb(conn: Any) -> dict[str, int]:
         conn.execute(create_table_sql("duckdb", table))
         rows = g.table(table)
         marks = ", ".join("?" for _ in g.SCHEMAS[table])
-        conn.executemany(f"INSERT INTO {table} VALUES ({marks})", rows)
+        conn.executemany(f"INSERT INTO {table} VALUES ({marks})", [_duckdb_row(r) for r in rows])
         counts[table] = len(rows)
     return counts
 

@@ -105,10 +105,27 @@ def duck():
     return conn
 
 
+def test_the_duckdb_loader_never_hands_duckdb_a_timezone_aware_datetime():
+    """CI found this: without pytz, DuckDB retries a failing import per tz-aware value (68 minutes for 25,000 rows)."""
+    seen = []
+
+    class Recorder:
+        def execute(self, *_):
+            return self
+
+        def executemany(self, _sql, rows):
+            seen.extend(v for row in rows for v in row)
+
+    loader.load_duckdb(Recorder())
+    assert seen and not any(isinstance(v, datetime) for v in seen)
+    assert "2024-01-01 00:00:56+00" in {v for v in seen if isinstance(v, str) and v.startswith("2024-01-01 00:00:56")}
+
+
 def _month_region_sql(start, end):
     return (
         "SELECT year(created_at) AS y, month(created_at) AS m, region, sum(amount) FROM ref_orders "
-        "WHERE status = 'paid' AND created_at >= ? AND created_at <= ? GROUP BY 1, 2, 3 ORDER BY 1, 2, 3", [start, end],
+        "WHERE status = 'paid' AND created_at >= ? AND created_at <= ? GROUP BY 1, 2, 3 ORDER BY 1, 2, 3",
+        [start.strftime("%Y-%m-%d %H:%M:%S+00"), end.strftime("%Y-%m-%d %H:%M:%S+00")],
     )
 
 
