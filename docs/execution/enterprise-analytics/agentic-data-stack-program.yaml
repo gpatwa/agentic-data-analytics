@@ -278,6 +278,14 @@ milestones:
         reviewer: "Asked who should do the independent security review and penetration test; the user answered \"use specialize agent for review\". Recorded as: a specialist-agent review is used for Connect mode. It is an advisory review, like the decision-register panel. It is not an independent human review and not a penetration test, and the threat model's acceptance criterion 12 (independent review and penetration test) is not met by it; whether it satisfies the security gate is the owner's call at the gate."
         first_design_partner: "Asked which first design partner should scope the first build; the user answered \"Snowflake, mid-size, low-sensitivity data (Recommended)\". Meaning: Snowflake first, a data team at a mid-size company, no regulated personal data to start. No partner is named or approached."
 
+    connect_mode_product_run_confirmed:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "Confirms connect_mode_admin_setup_product_run after the owner was shown a finding that a hosted sign-in still needs a one-time admin step. Design decision only."
+      record: "After being shown that a hosted product-run sign-in needs the customer to register Compass as an OAuth client first (Snowflake: ACCOUNTADMIN or CREATE INTEGRATION; Databricks: an account admin), and that the script path is therefore needed either way, the user was asked whether to keep product-run as the plan or make the script first-class, and answered \"Keep product-run\" on 2026-11-17. Recorded in the user's words. Meaning: product-run setup stays the intended default for Connect mode, with the exported script as the fallback; the script path built in CM4 stays as the working path until product-run exists. It approves no build gate, no security gate, no live run and no customer connection."
+      follow_ups: "Product-run needs, and does not yet have: a one-time client-registration step in the customer's account (an admin action, so a script or a vendor-side consent), a hosted OAuth sign-in (authorization-code flow with state and PKCE, token held in memory only), a way to avoid a pasted client secret (a public client type, unverified, or a secret handoff design), and a live check on the owner's sandbox accounts, each live step needing approval."
+
 tasks:
   ADS-001: {milestone: M0, status: review, depends_on: []}
   ADS-002: {milestone: M0, status: complete, depends_on: [ADS-001]}
