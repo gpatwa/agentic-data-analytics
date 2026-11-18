@@ -136,9 +136,10 @@ class ProductRunService:
         setup_users: Iterable[str],
         redirect_uri: str,
         resolver: Resolver = system_resolver,
+        allow_local_dev_redirect: bool = False,
     ) -> Registration:
         names = RegNames.for_registration(reg_suffix)
-        config = OAuthClientConfig(tenant_id, registration_id, host, client_id, names.setup_role, redirect_uri)
+        config = OAuthClientConfig(tenant_id, registration_id, host, client_id, names.setup_role, redirect_uri, allow_local_dev_redirect)
         suffix = next(s for s in VENDOR_SUFFIXES["snowflake"] if host.endswith(s))
         validate_target("snowflake", host, expected_account=host[: -len(suffix)], resolver=resolver)  # a public Snowflake address, no private range
         registration = Registration(tenant_id, registration_id, config, account_locator.upper(), ceiling, names, tuple(dict.fromkeys(setup_users)))

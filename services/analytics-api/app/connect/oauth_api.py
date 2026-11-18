@@ -11,6 +11,8 @@ Inert (503) until a flow and an identity verifier are configured. Not mounted in
 
 from __future__ import annotations
 
+import logging
+import re
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -22,6 +24,34 @@ from app.security import AuthenticationError, IdentityResolver, OIDCVerifier
 from packages.platform_contracts.security import AnalyticsIdentity
 
 MANAGER_GROUP = "connection-manager"  # the same group as app/connect/api.py (a test keeps them equal once both exist)
+_CALLBACK_QUERY = re.compile(r"(/api/v2/connect/oauth/callback\?)([^\s\"]*)")
+_SECRET_PARAMS = re.compile(r"(?<![A-Za-z0-9_])(code|state|error_description)=[^&\s\"]*")
+
+
+def redact_callback_query(text: str) -> str:
+    """Blank the values of `code`, `state` and `error_description` in the sign-in callback's address. Other text is untouched."""
+    return _CALLBACK_QUERY.sub(lambda m: m.group(1) + _SECRET_PARAMS.sub(lambda p: f"{p.group(1)}=[redacted]", m.group(2)), text)
+
+
+class CallbackQueryRedactor(logging.Filter):
+    """Keeps the single-use authorization code out of access logs. uvicorn logs the full request path, query included."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(redact_callback_query(a) if isinstance(a, str) else a for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = redact_callback_query(record.msg)
+        return True
+
+
+def install_log_redaction(names: tuple[str, ...] = ("uvicorn.access",)) -> None:
+    """Attach the redactor to the access logger(s), once."""
+    for name in names:
+        target = logging.getLogger(name)
+        if not any(isinstance(f, CallbackQueryRedactor) for f in target.filters):
+            target.addFilter(CallbackQueryRedactor())
+
+
 COOKIE_NAME = "compass_oauth_binding"
 COOKIE_PATH = "/api/v2/connect/oauth"
 ERROR_PATH = "/connect/oauth-error"
