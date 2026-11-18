@@ -74,3 +74,13 @@ Not verified: every Databricks behaviour in the tables above; the cost and time 
 D0 is approved with option A. The generator's statements depend on three facts that only a workspace can answer (who may create service principals and secrets, how grants can be delegated to a ceiling, and whether a public PKCE client with a local redirect works), so the recommended order is **D2 before D1**: draft a read-only spike plan with exact statements and a created-only teardown, show it for approval, run it, then build against what it showed.
 
 Candidate sandbox, **to confirm**: the workspace and catalog already used for the validation checks of 2026-11-15/16 (recorded in `docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md`). One thing to check first, because it could block the sign-in half of the design: whether that workspace's account has an **account console** where custom OAuth app connections can be created (a free or trial tier may not). If it does not, the spike covers the service-principal and grant questions only and the sign-in question stays open.
+
+## What the candidate workspace looks like (read-only look, 2026-11-18)
+
+With the owner signed in in Chrome, I looked at the validation workspace and changed nothing (no object created, no setting touched):
+
+- **SQL warehouses:** one, "Serverless Starter Warehouse", 2X-Small, serverless, created by the owner. That is the warehouse a spike would name; it is never edited.
+- **Account console: not available.** Opening the account console, or its app-connections settings page, only leads to a "Select a workspace" screen; there are no account administration pages. A custom OAuth app connection (the Databricks counterpart of Snowflake's security integration) is created in the account console, so **the sign-in half of option B cannot be tested on this workspace.** I did not read the edition name on the page; this is consistent with a free or starter tier, but that is an inference.
+- **What it does allow:** the earlier validation runs created and removed service principals, grants and OAuth M2M secrets here, so a spike on option A (service principals, Unity Catalog grants, `CAN_USE`, M2M) **can** run on it.
+
+Consequence for the plan: option A is the one that can be proven on this workspace; testing option B would need a workspace whose account has an account console (for example a paid or trial account the owner names). That is one more reason to keep A as the first step.
