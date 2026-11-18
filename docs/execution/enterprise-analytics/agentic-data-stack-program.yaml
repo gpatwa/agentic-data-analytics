@@ -291,6 +291,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate G3 (tear down and sweep) of docs/design/CONNECT_PRODUCT_RUN_E2E_PLAN.md only: the product's own removal of the one connection, then the registration teardown and the fixture teardown as ACCOUNTADMIN, revoking the setup role from the owner's user, the sweep, and stopping the local harness. Completes the end-to-end check's live steps."
       record: "The owner answered \"Approve G3\" on 2026-11-18. The product's removal deleted Compass's stored credential and returned DROP USER and DROP ROLE for the connection; those, then the generated registration teardown (setup role revoked from the owner's user, integration, network policy, setup role, warehouse, resource monitor) and the fixture database drop, all ran in the owner's signed-in Snowsight as ACCOUNTADMIN; each statement succeeded. The sweep (eight SHOW checks, including all network policies) returned zero rows each, so the account is as it was before G1. The local harness was stopped; its final report showed no leak and a verifying audit chain. Results: docs/design/CONNECT_PRODUCT_RUN_E2E_RESULTS.md."
+    connect_product_run_rollback_g0:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate G0 (review) of docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md only, with the plan's recommended defaults: R1 (an injected statement failure followed by a real rollback) and R2 (a decoy user with the planned user's name) are both included, the Compass address comes from CURRENT_IP_ADDRESS() only, the sign-in redirect is the local http://localhost one with the non-TLS flag, the sandbox goes in the same Snowflake account, a local web server may run on 127.0.0.1 for the duration, and the fault option may be built and run against the fake first. It does NOT approve any live step: G1 (register), G2 (run) and G3 (tear down and sweep) each need the owner's explicit approval."
+      record: "Asked \"Approve G0, the review of the rollback plan?\" with options \"Approve G0\" and \"Change the plan\"; the user answered \"Approve G0\" on 2026-11-18, without changing any listed decision, which is recorded as acceptance of their recommended defaults. The exact generated statements are published in docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_STATEMENTS.md for review before G1."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user

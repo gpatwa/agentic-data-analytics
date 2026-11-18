@@ -97,6 +97,7 @@ class Harness:
     handoff: TokenHandoff
     service: ProductRunService
     config: HarnessConfig
+    fault: OneShotFault | None = None
 
     def attach_logging(self) -> None:
         """Redact the callback's code from the access log, then watch every log record. Call this **after** the server has
@@ -117,10 +118,61 @@ class Harness:
             "audit_chain_verifies": self.chain.verify(),
             "audit_events": [{"type": e.event_type, "actor": e.actor_id} for e in self.chain.events],
             "connections": [{"id": r.connection_id, "status": r.status, "tables": list(r.allowed_tables)} for r in records],
+            "fault": None if self.fault is None else {"step": self.fault.step, "fired": self.fault.fired},
         }
 
     def audit_text(self) -> str:
         return json.dumps([e.model_dump(mode="json") for e in self.chain.events])
+
+
+SETUP_STATEMENTS = 8  # the per-connection statements the product runs, in order: role, user, key, then the grants
+
+
+class OneShotFault:
+    """Rollback check only (never product behaviour): make the Nth statement of the **next** setup raise, once, as a driver error would.
+    The statements before it run for real; the product's own rollback then runs for real."""
+
+    def __init__(self, step: int) -> None:
+        if not 1 <= step <= SETUP_STATEMENTS:
+            raise ValueError(f"the step must be 1 to {SETUP_STATEMENTS}")
+        self.step, self.fired, self._count = step, False, 0
+
+    def check(self, statement: str) -> None:
+        if self.fired:
+            return
+        if self._count == 0 and not statement.startswith("CREATE ROLE COMPASS_RO_"):
+            return  # the counter starts at the setup's first statement; the identity check and preflight come before it
+        self._count += 1
+        if self._count == self.step:
+            self.fired = True
+            raise RuntimeError("injected failure for the rollback check")
+
+
+class _FaultyCursor:
+    def __init__(self, inner: Any, fault: OneShotFault) -> None:
+        self._inner, self._fault = inner, fault
+
+    def execute(self, statement: str, *args: Any, **kwargs: Any) -> Any:
+        self._fault.check(statement)
+        return self._inner.execute(statement, *args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
+class _FaultyConnection:
+    def __init__(self, inner: Any, fault: OneShotFault) -> None:
+        self._inner, self._fault = inner, fault
+
+    def cursor(self, *args: Any, **kwargs: Any) -> _FaultyCursor:
+        return _FaultyCursor(self._inner.cursor(*args, **kwargs), self._fault)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
+def _with_fault(connect: Callable[[str], Any], fault: OneShotFault | None) -> Callable[[str], Any]:
+    return connect if fault is None else (lambda token: _FaultyConnection(connect(token), fault))
 
 
 def build_app(
@@ -131,6 +183,7 @@ def build_app(
     session_factory: Callable[[Any], Any] | None = None,
     resolver: Resolver = system_resolver,
     attach_logging: bool = True,
+    inject_failure_step: int | None = None,
 ) -> Harness:
     scanner = LeakScanner()
     store, vault, chain, gate = ConnectionStore(), TenantSecretStore(), AuditChain(), ApprovalGate()
@@ -151,10 +204,11 @@ def build_app(
         scanner.watch("oauth_access_token", result.token.reveal())
         return result
 
+    fault = OneShotFault(inject_failure_step) if inject_failure_step else None
     coordinator = SetupCoordinator(store, vault, chain, gate, key_pair=tracked_key_pair)
     service = ProductRunService(
         registrations, configs, coordinator, gate, handoff,
-        connect_factory=lambda host: snowflake_oauth_connect(host, connector=connector), key_pair=tracked_key_pair,
+        connect_factory=lambda host: _with_fault(snowflake_oauth_connect(host, connector=connector), fault), key_pair=tracked_key_pair,
     )
     real_register = service.register
 
@@ -191,7 +245,7 @@ def build_app(
         no_key,
     ))
 
-    harness = Harness(app, scanner, chain, store, vault, handoff, service, config)
+    harness = Harness(app, scanner, chain, store, vault, handoff, service, config, fault)
     if attach_logging:
         harness.attach_logging()
 
@@ -226,6 +280,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--egress", action="append", required=True, help="Compass's own public address, CIDR (repeatable)")
     parser.add_argument("--static-dir", default=None)
+    parser.add_argument("--inject-failure-on-step", type=int, default=None,
+                        help="rollback check only: make statement N (1 to 8) of the next setup raise, once; the rollback that follows is real")
     parser.add_argument("--report", default=None, help="write the final report here (names and outcomes only)")
     return parser.parse_args(argv)
 
@@ -235,18 +291,23 @@ def main(argv: list[str] | None = None) -> int:
     if not args.allow_live:
         print("refused: pass --allow-live (only after the owner approved the gate)", file=sys.stderr)
         return 2
+    if args.inject_failure_on_step is not None and not 1 <= args.inject_failure_on_step <= SETUP_STATEMENTS:
+        print(f"refused: --inject-failure-on-step must be 1 to {SETUP_STATEMENTS}", file=sys.stderr)
+        return 2
     if not _LOCATOR.match(args.expect_account) or not re.fullmatch(r"[0-9a-f]{8}", args.suffix) or not 1024 <= args.port <= 65535:
         print("refused: check --expect-account, --suffix and --port", file=sys.stderr)
         return 2
     root = Path(__file__).resolve().parents[5]
     static = Path(args.static_dir) if args.static_dir else root / "apps/analytics-web/dist"
     config = HarnessConfig(args.suffix, args.port, secrets.token_urlsafe(18), args.expect_account, tuple(args.egress), static if static.is_dir() else None)
-    harness = build_app(config, attach_logging=False)
+    harness = build_app(config, attach_logging=False, inject_failure_step=args.inject_failure_on_step)
     import uvicorn  # imported late: the guards above run without it
 
     server_config = uvicorn.Config(harness.app, host="127.0.0.1", port=config.port, log_level="info")  # configures uvicorn's logging
     harness.attach_logging()  # only now: uvicorn's setup would have removed the handlers
 
+    if args.inject_failure_on_step:
+        print(f"FAULT ARMED: statement {args.inject_failure_on_step} of the next setup will raise once (rollback check); the rollback is real", flush=True)
     print(f"product-run harness on http://localhost:{config.port} (127.0.0.1 only); UI access token for this run: {config.ui_token}", flush=True)
     try:
         uvicorn.Server(server_config).run()
