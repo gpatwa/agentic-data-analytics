@@ -194,6 +194,20 @@ def verify_registration(
     redirect_uri: str,
 ) -> RegistrationReport:
     """Compare `SHOW GRANTS TO ROLE <setup role>` and `DESCRIBE SECURITY INTEGRATION` with exactly what the script creates."""
+    grants = _verify_role_grants(role_rows, ceiling, names, account)
+    return _with_integration(grants, integration_rows, names, redirect_uri)
+
+
+def verify_setup_role_grants(
+    role_rows: Iterable[Mapping[str, object]], ceiling: ConnectScope, names: RegNames, *, account: str
+) -> RegistrationReport:
+    """The grants half of `verify_registration`, for a signed-in setup role that cannot describe the integration (it does not own it)."""
+    return RegistrationReport(*_verify_role_grants(role_rows, ceiling, names, account), ())
+
+
+def _verify_role_grants(
+    role_rows: Iterable[Mapping[str, object]], ceiling: ConnectScope, names: RegNames, account: str
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     acct = account.upper()
     expected: dict[tuple[str, str, tuple[str, ...]], bool] = {
         ("CREATE ROLE", "ACCOUNT", (acct,)): False,
@@ -217,6 +231,15 @@ def verify_registration(
         else:
             unexpected.append(_label(*key))
     missing = [_label(*key) for key in sorted(expected.keys() - seen)]
+    return tuple(missing), tuple(sorted(unexpected)), tuple(sorted(dangerous)), tuple(sorted(option))
+
+
+def _with_integration(
+    grants: tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]],
+    integration_rows: Iterable[Mapping[str, object]],
+    names: RegNames,
+    redirect_uri: str,
+) -> RegistrationReport:
     props = {str(r.get("property", "")).upper(): str(r.get("property_value", "")) for r in integration_rows}
     problems = []
 
@@ -237,7 +260,7 @@ def verify_registration(
     need("oauth_use_secondary_roles", props.get("OAUTH_USE_SECONDARY_ROLES", "NONE").upper() == "NONE")
     need("network_policy", props.get("NETWORK_POLICY", "").upper() == names.network_policy)
     need("enabled", _flag(props.get("ENABLED")) == "true")
-    return RegistrationReport(tuple(missing), tuple(sorted(unexpected)), tuple(sorted(dangerous)), tuple(sorted(option)), tuple(problems))
+    return RegistrationReport(*grants, tuple(problems))
 
 
 # ---- per connection, inside the ceiling -----------------------------------------------------------------------------

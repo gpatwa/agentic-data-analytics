@@ -92,6 +92,15 @@ class ApprovalGate:
             self._requests.pop(request_id, None)
             return request
 
+    def is_approved(self, request_id: str, *, admin_id: str) -> bool:
+        """True while the request is approved, unexpired and not yet taken. Never consumes it."""
+        with self._lock:
+            try:
+                self._live(request_id, admin_id)
+            except ApprovalError:
+                return False
+            return request_id in self._approved
+
     def cancel(self, request_id: str) -> None:
         with self._lock:
             self._requests.pop(request_id, None)

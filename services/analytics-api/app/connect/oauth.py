@@ -280,6 +280,12 @@ class TokenHandoff:
                 old.wipe()
             self._tokens[(tenant_id, setup_id)] = token
 
+    def holds(self, tenant_id: str, setup_id: str) -> bool:
+        """True while a usable token is waiting. Never consumes it and never reveals it."""
+        with self._lock:
+            token = self._tokens.get((tenant_id, setup_id))
+            return token is not None and token.usable
+
     def take(self, tenant_id: str, setup_id: str) -> AdminToken:
         with self._lock:
             token = self._tokens.pop((tenant_id, setup_id), None)

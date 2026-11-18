@@ -65,6 +65,7 @@ class PendingSetup:
     host: str
     account: str
     created_at: float = 0.0
+    preflight: tuple[str, ...] = ("role", "user", "warehouse", "monitor")  # product-run checks only the role and user
 
 
 @dataclass(frozen=True)
@@ -120,24 +121,53 @@ class SetupCoordinator:
         resolver: Resolver = system_resolver,
     ) -> PendingSetup:
         target = validate_target("snowflake", host, expected_account=account, resolver=resolver)
-        setup_id = self._ids()
-        connection_id, suffix = f"conn-{setup_id[:12]}", setup_id[:8]
+        setup_id = self.new_setup_id()
+        suffix = setup_id[:8]
         names = Names.for_connection(suffix)
         private_der, public_body = self._key_pair()
         script = generate_snowflake_setup(scope, suffix=suffix, public_key_body=public_body, credit_quota=credit_quota, allowed_networks=allowed_networks)
+        return self.begin_planned(
+            setup_id=setup_id, tenant_id=tenant_id, admin_id=admin_id, requested_by=requested_by, host=target.host,
+            account=target.account, scope=scope, names=names, script=script, private_der=private_der,
+        )
+
+    def new_setup_id(self) -> str:
+        return self._ids()
+
+    def begin_planned(
+        self,
+        *,
+        setup_id: str,
+        tenant_id: str,
+        admin_id: str,
+        requested_by: str,
+        host: str,
+        account: str,
+        scope: ConnectScope,
+        names: Names,
+        script: SetupScript,
+        private_der: bytes,
+        preflight: tuple[str, ...] = ("role", "user", "warehouse", "monitor"),
+    ) -> PendingSetup:
+        """Register a setup whose statements were planned elsewhere (the script path, or product-run inside a ceiling).
+
+        The private key goes straight into the tenant's secret store; the record starts pending; the consent is recorded and
+        the Approve request is presented. Any failure here deletes the credential again.
+        """
+        connection_id = f"conn-{setup_id[:12]}"
         secret_name = f"snowflake-key-{connection_id}"
         self._secrets.put(tenant_id, secret_name, base64.b64encode(private_der).decode("ascii"))
         del private_der
         try:
             record = ConnectionRecord(
-                tenant_id=tenant_id, connection_id=connection_id, engine="snowflake", host=target.host, account=target.account,
+                tenant_id=tenant_id, connection_id=connection_id, engine="snowflake", host=host, account=account,
                 user=names.user, role=names.role, warehouse=names.warehouse, database=scope.database,
                 default_schema=scope.schemas[0], allowed_tables=scope.allowed_tables, secret_name=secret_name, status="pending",
                 teardown=script.teardown,
             )
             self._store.add(record)
             recorder = SetupRecorder(self._chain, tenant_id=tenant_id, connection_id=connection_id, admin_id=admin_id)
-            recorder.consent_shown(script.statements, engine="snowflake", host=target.host)
+            recorder.consent_shown(script.statements, engine="snowflake", host=host)
             request = self._gate.present(script, admin_id=admin_id, requested_by=requested_by)
         except Exception:
             self._secrets.delete(tenant_id, secret_name)
@@ -145,7 +175,7 @@ class SetupCoordinator:
             raise
         self._recorders[setup_id] = recorder
         pending = PendingSetup(
-            setup_id, tenant_id, connection_id, admin_id, scope, names, script, request, secret_name, target.host, target.account, self._clock()
+            setup_id, tenant_id, connection_id, admin_id, scope, names, script, request, secret_name, host, account, self._clock(), preflight
         )
         self._pendings[setup_id] = pending
         return pending
@@ -222,7 +252,10 @@ class SetupCoordinator:
         connect: Callable[[str], Any],
         token: AdminToken,
         connection_test: Callable[[ConnectionRecord], tuple[bool, Iterable[str]]] | None = None,
+        identity_check: Callable[[Any], str | None] | None = None,
     ) -> SetupResult:
+        """`identity_check` runs right after sign-in and before anything is created: it returns a failure code (for example the
+        wrong account or role) or None. An exception from it is a stop too (fail closed)."""
         recorder = self._recorders.get(pending.setup_id)
         if recorder is None:
             raise ApprovalError("setup_not_pending")
@@ -247,8 +280,14 @@ class SetupCoordinator:
                     return self._fail(pending, recorder, f"admin_connect_failed:{type(exc).__name__}"[:60], conn, created)
                 finally:
                     del value
-                with_policy = any("NETWORK POLICY" in statement for statement in pending.script.statements)
-                if self._preflight(conn, pending.names, with_policy):
+                if identity_check is not None:
+                    refused = identity_check(conn)
+                    if refused:
+                        return self._fail(pending, recorder, refused, conn, created)
+                kinds = list(pending.preflight)
+                if any("NETWORK POLICY" in statement for statement in pending.script.statements) and "network policy" not in kinds:
+                    kinds.append("network policy")
+                if self._preflight(conn, pending.names, kinds):
                     return self._fail(pending, recorder, "name_taken", conn, created)
                 for statement in pending.script.statements:
                     if self._clock() - started > DEADLINE_SECONDS:
@@ -280,14 +319,14 @@ class SetupCoordinator:
 
     # -- internals -------------------------------------------------------------------------------------------------
 
-    def _preflight(self, conn: Any, names: Names, with_policy: bool) -> list[str]:
-        """Names that already exist. Exact match in Python: `SHOW ... LIKE` treats `_` as a wildcard."""
+    def _preflight(self, conn: Any, names: Names, kinds: Iterable[str]) -> list[str]:
+        """Names that already exist, for the kinds this setup will create. Exact match in Python: `SHOW ... LIKE` treats `_` as a wildcard."""
         taken = []
-        checks = [("role", f"SHOW ROLES LIKE '{names.role}'", names.role), ("user", f"SHOW USERS LIKE '{names.user}'", names.user),
-                  ("warehouse", f"SHOW WAREHOUSES LIKE '{names.warehouse}'", names.warehouse),
-                  ("monitor", f"SHOW RESOURCE MONITORS LIKE '{names.monitor}'", names.monitor)]
-        if with_policy:
-            checks.append(("network policy", "SHOW NETWORK POLICIES", names.network_policy))
+        every = {"role": (f"SHOW ROLES LIKE '{names.role}'", names.role), "user": (f"SHOW USERS LIKE '{names.user}'", names.user),
+                 "warehouse": (f"SHOW WAREHOUSES LIKE '{names.warehouse}'", names.warehouse),
+                 "monitor": (f"SHOW RESOURCE MONITORS LIKE '{names.monitor}'", names.monitor),
+                 "network policy": ("SHOW NETWORK POLICIES", names.network_policy)}
+        checks = [(kind, *every[kind]) for kind in kinds]
         for kind, show, name in checks:
             if any(str(row.get("name", "")).upper() == name for row in run_statement(conn, show, f"check_{kind.replace(' ', '_')}")):
                 taken.append(kind)
