@@ -502,3 +502,17 @@ def test_the_command_refuses_without_allow_live(tmp_path, capsys):
 def test_the_command_refuses_a_wrong_account_or_host(tmp_path, over, capsys):
     assert main([*_argv(tmp_path, **over), "--allow-live"]) == 2
     assert "refused" in capsys.readouterr().err
+
+
+def test_the_spike_code_does_not_import_the_sandbox_admin_tool():
+    from pathlib import Path
+
+    spike = Path(__file__).resolve().parents[1] / "app" / "connect" / "spike"
+    assert [p.name for p in spike.rglob("*.py") if "warehouse_provisioning" in p.read_text()] == []
+
+
+def test_the_spike_makes_its_own_key_pair():
+    from app.connect.spike.run_g2 import new_key_pair
+
+    private, public = new_key_pair()
+    assert len(private) > 1000 and len(public) > 300

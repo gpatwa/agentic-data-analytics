@@ -11,6 +11,7 @@ is left for G3. The report holds names, outcomes and error codes only.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import sys
 import time
@@ -255,6 +256,17 @@ class G2Runner:
         self.report.left_for_g3 = [f"{k} {self.names.svc_user if k == 'user' else self.names.ro_role}" for k in self._created]
 
 
+def new_key_pair() -> tuple[bytes, str]:
+    """A fresh 2048-bit RSA key: the private key as PKCS8 DER (memory only) and the public key body for Snowflake."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private = key.private_bytes(serialization.Encoding.DER, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    public = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    return private, base64.b64encode(public).decode("ascii")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--state", required=True)
@@ -281,8 +293,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     import snowflake.connector as sf  # type: ignore[import-not-found]  # noqa: I001 - after the guards on purpose
-
-    from app.execution.warehouse_provisioning import new_key_pair
 
     def connect_oauth(token: str) -> Any:
         return sf.connect(account=args.account, authenticator="oauth", token=token, login_timeout=60, network_timeout=60)
