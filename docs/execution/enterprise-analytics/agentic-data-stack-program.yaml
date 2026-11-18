@@ -297,6 +297,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate G0 (review) of docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md only, with the plan's recommended defaults: R1 (an injected statement failure followed by a real rollback) and R2 (a decoy user with the planned user's name) are both included, the Compass address comes from CURRENT_IP_ADDRESS() only, the sign-in redirect is the local http://localhost one with the non-TLS flag, the sandbox goes in the same Snowflake account, a local web server may run on 127.0.0.1 for the duration, and the fault option may be built and run against the fake first. It does NOT approve any live step: G1 (register), G2 (run) and G3 (tear down and sweep) each need the owner's explicit approval."
       record: "Asked \"Approve G0, the review of the rollback plan?\" with options \"Approve G0\" and \"Change the plan\"; the user answered \"Approve G0\" on 2026-11-18, without changing any listed decision, which is recorded as acceptance of their recommended defaults. The exact generated statements are published in docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_STATEMENTS.md for review before G1."
+    connect_product_run_rollback_g1:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate G1 (register) of docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md only: a read-only preflight that stops on anything unexpected, the synthetic fixture database, the product's generated registration script and its read-backs, run as ACCOUNTADMIN in the owner's Snowflake sandbox with a new run suffix, using the statements in docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_STATEMENTS.md. It does NOT approve G2 (run, with the fault and the decoy) or G3 (tear down and sweep); each needs the owner's explicit approval."
+      record: "Asked \"Approve G1, the register step?\" with options \"Approve G1\" and \"Not now\"; the user answered \"Approve G1\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
