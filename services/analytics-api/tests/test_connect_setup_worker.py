@@ -468,3 +468,41 @@ def test_cancel_removes_the_pending_setup_and_the_key():
     with pytest.raises(ApprovalError):
         gate.approve(pending.request.request_id, admin_id=pending.admin_id, digest=pending.request.digest)
     assert chain.events[-1].event_type == "connect.credential_deleted"
+
+
+# ---- the neutral admin helpers (the runtime API must not import the sandbox admin tool) -----------------------------
+
+
+def test_the_worker_does_not_import_the_sandbox_admin_tool():
+    from pathlib import Path
+
+    connect = Path(__file__).resolve().parents[1] / "app" / "connect"
+    assert [p.name for p in connect.rglob("*.py") if "warehouse_provisioning" in p.read_text()] == []
+
+
+def test_run_statement_returns_rows_as_dicts_and_reports_errors_by_type_and_step_only():
+    from app.connect.admin_sql import AdminSqlError, new_key_pair, run_statement
+
+    class Cursor:
+        description = [("Name",), ("Kind",)]
+
+        def execute(self, sql):
+            if "boom" in sql:
+                raise RuntimeError(f"driver detail {TOKEN}")
+
+        def fetchall(self):
+            return [("a", "b")]
+
+        def close(self):
+            pass
+
+    class Conn:
+        def cursor(self):
+            return Cursor()
+
+    assert run_statement(Conn(), "SHOW X", "step") == [{"name": "a", "kind": "b"}]
+    with pytest.raises(AdminSqlError) as caught:
+        run_statement(Conn(), "boom", "step_3")
+    assert caught.value.code == "step_3:RuntimeError" and TOKEN not in caught.value.code
+    private, public = new_key_pair()
+    assert len(private) > 1000 and len(public) > 300 and public.isascii()

@@ -21,6 +21,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.connect.admin_sql import AdminSqlError, new_key_pair, run_statement
 from app.connect.approval import ApprovalError, ApprovalGate, ApprovalRequest
 from app.connect.grants import (
     ConnectScope,
@@ -35,7 +36,6 @@ from app.connect.records import SetupRecorder
 from app.connect.store import ConnectionRecord, ConnectionStore, TenantSecretStore
 from app.connect.targets import Resolver, system_resolver, validate_target
 from app.connect.token import AdminToken
-from app.execution.warehouse_provisioning import ProvisioningError, _exec, new_key_pair
 from app.security.audit import AuditChain
 
 DEADLINE_SECONDS = 120.0
@@ -181,18 +181,18 @@ class SetupCoordinator:
                 for statement in pending.script.statements:
                     if self._clock() - started > DEADLINE_SECONDS:
                         return self._fail(pending, recorder, "deadline_exceeded", conn, created, steps)
-                    _exec(conn, statement, f"setup_step_{steps + 1}")
+                    run_statement(conn, statement, f"setup_step_{steps + 1}")
                     steps += 1
                     kind = _kind_of(statement)
                     if kind:
                         created.append(kind)
-                report = verify_grants(_exec(conn, f"SHOW GRANTS TO ROLE {pending.names.role}", "verify_role"), pending.scope, pending.names)
+                report = verify_grants(run_statement(conn, f"SHOW GRANTS TO ROLE {pending.names.role}", "verify_role"), pending.scope, pending.names)
                 if report.ok:
-                    report = verify_user_roles(_exec(conn, f"SHOW GRANTS TO USER {pending.names.user}", "verify_user"), pending.names)
+                    report = verify_user_roles(run_statement(conn, f"SHOW GRANTS TO USER {pending.names.user}", "verify_user"), pending.names)
                 if not report.ok:
                     return self._fail(pending, recorder, report.code or "grants_unverified", conn, created, steps)
                 recorder.executed(steps=steps, outcome="ok")
-            except ProvisioningError as exc:
+            except AdminSqlError as exc:
                 return self._fail(pending, recorder, exc.code, conn, created, steps)
             except Exception as exc:  # noqa: BLE001 - unknown failure: roll back, never leave a half setup. Type only.
                 return self._fail(pending, recorder, f"internal:{type(exc).__name__}"[:60], conn, created, steps)
@@ -217,7 +217,7 @@ class SetupCoordinator:
         if with_policy:
             checks.append(("network policy", "SHOW NETWORK POLICIES", names.network_policy))
         for kind, show, name in checks:
-            if any(str(row.get("name", "")).upper() == name for row in _exec(conn, show, f"check_{kind.replace(' ', '_')}")):
+            if any(str(row.get("name", "")).upper() == name for row in run_statement(conn, show, f"check_{kind.replace(' ', '_')}")):
                 taken.append(kind)
         return taken
 
@@ -229,9 +229,9 @@ class SetupCoordinator:
             if kind not in created:
                 continue
             try:
-                _exec(conn, drop, "rollback")
+                run_statement(conn, drop, "rollback")
                 dropped += 1
-            except ProvisioningError:
+            except AdminSqlError:
                 left.append(f"{kind} {drop.split()[-1]}")
         return left, dropped
 
