@@ -303,6 +303,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate G1 (register) of docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md only: a read-only preflight that stops on anything unexpected, the synthetic fixture database, the product's generated registration script and its read-backs, run as ACCOUNTADMIN in the owner's Snowflake sandbox with a new run suffix, using the statements in docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_STATEMENTS.md. It does NOT approve G2 (run, with the fault and the decoy) or G3 (tear down and sweep); each needs the owner's explicit approval."
       record: "Asked \"Approve G1, the register step?\" with options \"Approve G1\" and \"Not now\"; the user answered \"Approve G1\" on 2026-11-18."
+    connect_product_run_rollback_g2:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate G2 (run) of docs/design/CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md only, on the G1 registration (run suffix 6bf33fb2): the local harness on 127.0.0.1 started with the one-shot fault on step 8 (R1: seven real statements, an injected failure, a real rollback, then a read of Snowflake to confirm nothing is left), then R2 (a decoy user with the planned connection user's exact name, created as ACCOUNTADMIN after the exact statement is shown in chat, then a second run and a check that the decoy is untouched), with the leak scan. The owner signs in and clicks Allow on Snowflake's own page for each run. It does NOT approve G3 (tear down and sweep), which needs the owner's explicit approval."
+      record: "Asked \"Approve G2, the run with the fault and the decoy?\" with options \"Approve G2\" and \"Not now\"; the user answered \"Approve G2\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
