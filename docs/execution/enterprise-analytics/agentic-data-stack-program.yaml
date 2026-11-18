@@ -255,6 +255,18 @@ milestones:
       approved_at: 2026-11-17
       scope: "Gate G1 (build the sandbox) of docs/design/CONNECT_PRODUCT_RUN_SPIKE_PLAN.md, on the owner's own Snowflake account, synthetic data only. It approves G1 only. G2 (sign in and run) and G3 (tear down and sweep) each still need the owner's explicit approval."
       record: "Asked \"Approve G1, building the sandbox in your Snowflake?\" with options \"Approve G1\" and \"Not yet\"; the user answered \"Approve G1\" on 2026-11-17 and, when asked, supplied the account URL for Snowsight. Run the same day through Snowsight in the owner's signed-in Chrome with the generated, reviewed statements: a read-only preflight (zero objects under the COMPASS_SPIKE prefix), then Phase A (22 statements as three groups plus reads). Results are in docs/design/CONNECT_PRODUCT_RUN_SPIKE_RESULTS.md. The sandbox objects exist until G3 and the owner's user holds the delegated setup role until G3 revokes it."
+    connect_product_run_spike_g2:
+      status: approved_and_run
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "Gate G2 (sign in and run) of docs/design/CONNECT_PRODUCT_RUN_SPIKE_PLAN.md, on the owner's own Snowflake account, synthetic data only. It approves G2 only. G3 (tear down and sweep) still needs the owner's explicit approval."
+      record: "The owner answered \"Approve G2\" on 2026-11-17, \"Go\" when shown the script, and \"Done, I clicked Allow\" for the consent step; each sign-in and consent was done by the owner on Snowflake's own page and no password was handled by the tooling. A first attempt stopped before creating anything (a certificate-store failure in the script, fixed with tests); the retry was treated as inside the same G2 approval. Result: 32 of 32 steps behaved as expected, including 8 of 8 negative tests refused. Details and the limits of one run on one account are in docs/design/CONNECT_PRODUCT_RUN_SPIKE_RESULTS.md. Not tested: the refusal of an ACCOUNTADMIN sign-in (needs another owner sign-in) and a network policy attached to a created user (Q4). The sandbox, the setup role granted to the owner's user and the integration remain until G3."
+    connect_product_run_spike_g3:
+      status: approved_and_run
+      approved_by: user
+      approved_at: 2026-11-17
+      scope: "Gate G3 (tear down and sweep) of docs/design/CONNECT_PRODUCT_RUN_SPIKE_PLAN.md. Completes the spike's live steps."
+      record: "The owner answered \"Approve G3\" on 2026-11-17. The generated Phase D statements were run as ACCOUNTADMIN in the owner's signed-in Snowsight: the setup role revoked from the owner's user, and the integration, setup role, warehouse, resource monitor and sandbox database dropped. The sweep (six SHOW checks for the COMPASS_SPIKE prefix) returned zero rows each, so nothing from the spike remains. Only the owner's worksheet file compass_spike_g1.sql remains. The optional ACCOUNTADMIN sign-in refusal check was not run. Results: docs/design/CONNECT_PRODUCT_RUN_SPIKE_RESULTS.md."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
