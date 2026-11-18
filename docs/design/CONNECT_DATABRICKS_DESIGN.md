@@ -1,6 +1,6 @@
 # Connect mode for Databricks: a design to decide (2026-11-18)
 
-Status: **a plan for the owner to decide. Nothing here is built or run; no Databricks account or workspace was touched, and nothing here approves a live step.** It starts the Databricks connector for Connect mode (a customer's own warehouse). It builds on `CONNECT_PRODUCT_RUN_DESIGN.md` (Snowflake) and the Databricks pieces that already exist (below). Facts about Databricks come from vendor documentation read on 2026-11-18 and are **not verified on an account**.
+Status: **D0 (this review) was approved by the owner on 2026-11-18 with option A (program file `connect_databricks_d0`); the other three owner decisions below are still open. Nothing here is built or run; no Databricks account or workspace was touched, and nothing here approves a live step.** It starts the Databricks connector for Connect mode (a customer's own warehouse). It builds on `CONNECT_PRODUCT_RUN_DESIGN.md` (Snowflake) and the Databricks pieces that already exist (below). Facts about Databricks come from vendor documentation read on 2026-11-18 and are **not verified on an account**.
 
 ## Is there a standard framework?
 
@@ -56,7 +56,7 @@ So the **read path and the sandbox provisioning are largely built; what is missi
 | Gate | Content | Live? |
 |---|---|---|
 | D0 | Review and decide this document (option, setup-principal model, lifetimes). | no |
-| D1 | Build offline: registration script generator and verifier for Databricks, per-connection statements and rollback, the Connect-mode screen for Databricks, with tests on fakes. | no |
+| D1 | Build offline (**moved after D2**: the statements depend on what the spike shows, so building first would mean guessing grant and service-principal behaviour): registration script generator and verifier for Databricks, per-connection statements and rollback, the Connect-mode screen for Databricks, with tests on fakes. | no |
 | D2 | A read-only live spike on a **sandbox workspace the owner names**: questions 1 to 3, with a created-only teardown and a zero-row sweep. | yes, per step |
 | D3 | An end-to-end live check like the Snowflake one, then the rollback check. | yes, per step |
 
@@ -68,3 +68,9 @@ So the **read path and the sandbox provisioning are largely built; what is missi
 4. Token lifetime defaults.
 
 Not verified: every Databricks behaviour in the tables above; the cost and time of a spike; that PKCE is a setting rather than client behaviour.
+
+## After D0 (2026-11-18): order of work
+
+D0 is approved with option A. The generator's statements depend on three facts that only a workspace can answer (who may create service principals and secrets, how grants can be delegated to a ceiling, and whether a public PKCE client with a local redirect works), so the recommended order is **D2 before D1**: draft a read-only spike plan with exact statements and a created-only teardown, show it for approval, run it, then build against what it showed.
+
+Candidate sandbox, **to confirm**: the workspace and catalog already used for the validation checks of 2026-11-15/16 (recorded in `docs/WAREHOUSE_S6_LIVE_VALIDATION_PLAN.md`). One thing to check first, because it could block the sign-in half of the design: whether that workspace's account has an **account console** where custom OAuth app connections can be created (a free or trial tier may not). If it does not, the spike covers the service-principal and grant questions only and the sign-in question stays open.
