@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import ssl
 import threading
 import time
 import urllib.error
@@ -162,14 +163,25 @@ class TokenResult:
     token_type: str
 
 
+def _tls_context() -> ssl.SSLContext:
+    """Some Python builds have no usable default CA bundle (found live: the default context rejected Snowflake's chain)."""
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def _post(url: str, form: dict[str, str]) -> tuple[int, bytes]:
     request = urllib.request.Request(url, data=urllib.parse.urlencode(form).encode(), method="POST",
                                      headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - the URL is the account's https token endpoint
+        with urllib.request.urlopen(request, timeout=30, context=_tls_context()) as response:  # noqa: S310 - the account's https endpoint
             return response.status, response.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read()
+    except (urllib.error.URLError, OSError) as exc:  # a network or certificate failure is data, never an unrecorded crash
+        raise FlowError("token_endpoint_unreachable", type(exc).__name__) from None
 
 
 def exchange_code(

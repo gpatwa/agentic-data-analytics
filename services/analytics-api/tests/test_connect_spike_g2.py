@@ -419,6 +419,60 @@ def test_the_token_is_wiped_when_the_run_ends():
         holder["token"].reveal()
 
 
+def test_the_exchange_uses_the_certifi_bundle_and_reports_a_network_failure_as_data(monkeypatch):
+    import ssl
+
+    from app.connect.spike import oauth_flow
+
+    seen = {}
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"access_token": TOKEN, "expires_in": 600}).encode()
+
+    def fake_urlopen(request, timeout, context):
+        seen["context"] = context
+        return Response()
+
+    monkeypatch.setattr(oauth_flow.urllib.request, "urlopen", fake_urlopen)
+    assert oauth_flow._post("https://a.example/t", {"a": "b"})[0] == 200
+    assert isinstance(seen["context"], ssl.SSLContext) and seen["context"].verify_mode == ssl.CERT_REQUIRED
+
+    def broken(request, timeout, context):
+        raise urllib.error.URLError("[SSL: CERTIFICATE_VERIFY_FAILED] with detail that must not leak")
+
+    monkeypatch.setattr(oauth_flow.urllib.request, "urlopen", broken)
+    with pytest.raises(FlowError) as caught:
+        oauth_flow._post("https://a.example/t", {})
+    assert caught.value.code == "token_endpoint_unreachable" and caught.value.detail == "URLError"
+
+
+def test_a_network_failure_in_the_exchange_is_a_recorded_q6_step_not_an_unexpected_stop():
+    def exchange(*args):
+        raise FlowError("token_endpoint_unreachable", "URLError")
+
+    runner, account, _, calls, _ = build(exchange=exchange)
+    report = runner.run()
+    assert report["stopped"] == "token_exchange_failed" and calls["oauth"] == 0 and account.executed == []
+    assert report["steps"][0]["question"] == "Q6" and "token_endpoint_unreachable" in report["steps"][0]["detail"]
+
+
+def test_an_unexpected_exception_still_records_what_happened_before_it():
+    def exchange(*args):
+        raise ValueError("surprise")
+
+    runner, *_ = build(exchange=exchange)
+    assert runner.run()["stopped"] == "unexpected:ValueError"
+
+
 # ---- the command line guards ---------------------------------------------------------------------------------------
 
 
