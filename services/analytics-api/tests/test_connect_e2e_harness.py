@@ -179,6 +179,26 @@ class WithClient:
         await self.app(scope, receive, send)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_logging():
+    """These tests change global logging state (filters, handlers, levels). Put it back, and start from a known state: the full suite
+    once left `logging.disable(INFO)` and a disabled access logger behind, which made the scanner see nothing."""
+    names = ("", "uvicorn", "uvicorn.error", "uvicorn.access")
+    saved = {n: (list(logging.getLogger(n).filters), list(logging.getLogger(n).handlers), logging.getLogger(n).level, logging.getLogger(n).disabled) for n in names}
+    saved_disable = logging.root.manager.disable
+    logging.disable(logging.NOTSET)
+    for n in names:
+        logging.getLogger(n).disabled = False
+    yield
+    logging.disable(saved_disable)
+    for n, (filters, handlers, level, disabled) in saved.items():
+        target = logging.getLogger(n)
+        target.filters[:] = filters
+        target.handlers[:] = handlers
+        target.setLevel(level)
+        target.disabled = disabled
+
+
 def harness(tmp_path=None, **over):
     account = Account(locator=LOCATOR, setup_grants=grant_rows(st.registration(SUFFIX, OWNER, 8765, EGRESS).statements, LOCATOR))
     account.allowed = set(st.ceiling(SUFFIX).allowed_tables)
@@ -364,9 +384,24 @@ def test_without_the_filter_the_scanner_would_catch_the_code_in_the_access_log()
 
 
 def test_the_real_app_installs_the_redaction():
-    from app import main  # noqa: F401 - importing the app is what installs it
+    # a fresh interpreter: inside the suite `app.main` is already imported, and other tests change the logger's filters
+    import subprocess
+    import sys
 
-    assert any(f.__class__.__name__ == "CallbackQueryRedactor" for f in logging.getLogger("uvicorn.access").filters)
+    code = ("import logging; import app.main; "
+            "print(any(f.__class__.__name__ == 'CallbackQueryRedactor' for f in logging.getLogger('uvicorn.access').filters))")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120, cwd=Path(__file__).resolve().parents[1])  # noqa: S603
+    assert out.stdout.strip().splitlines()[-1] == "True", out.stderr[-500:]
+
+
+def test_attaching_the_scanner_survives_a_global_logging_switch_and_a_disabled_logger():
+    """The full-suite failure: with logging globally disabled the scanner saw nothing and would have reported a clean run."""
+    logging.disable(logging.INFO)
+    logging.getLogger("uvicorn.access").disabled = True
+    built, client, account, driver = harness()
+    built.scanner.watch("authorization_code", CODE)
+    logging.getLogger("uvicorn.access").info("GET /x?code=%s", CODE)
+    assert [f.secret for f in built.scanner.findings] == ["authorization_code"]
 
 
 # ---- the session helper the connection test uses ---------------------------------------------------------------------------------
@@ -501,3 +536,12 @@ def test_main_attaches_logging_after_the_server_has_configured_its_own_and_write
     assert "UI access token for this run:" in out and "127.0.0.1 only" in out
     written = json.loads(report.read_text())
     assert written["leaks"]["clean"] is True and written["audit_text_clean"] is True and written["audit_chain_verifies"] is True
+
+
+def test_the_screens_first_calls_work_against_the_harness():
+    """The live run's first click found a 404 here: the screens ask for capabilities and the connection list before anything else."""
+    built, client, account, driver = harness()
+    caps = client.get("/api/v2/connect/capabilities", headers=auth())
+    assert caps.status_code == 200 and caps.json()["can_manage"] is True
+    assert client.get("/api/v2/connect/connections", headers=auth()).status_code == 200
+    assert client.get("/api/v2/connect/capabilities").status_code == 401

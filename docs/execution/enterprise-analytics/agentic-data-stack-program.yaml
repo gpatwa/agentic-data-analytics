@@ -273,6 +273,18 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate G0 (review) of docs/design/CONNECT_PRODUCT_RUN_E2E_PLAN.md only, with the plan's recommended defaults: the Compass address comes from CURRENT_IP_ADDRESS() only (no third-party IP-echo service), the sign-in redirect is the local http://localhost one with the non-TLS flag (the https redirect stays unverified), the sandbox goes in the same Snowflake account, a local web server may run on 127.0.0.1 for the duration, and the harness may be built and run against fakes first. It does NOT approve any live step: G1 (register), G2 (run the product) and G3 (tear down and sweep) each need the owner's explicit approval in the task that runs them."
       record: "Asked \"Approve G0, the review of the end-to-end plan?\" with options \"Approve G0\" and \"Change the plan\"; the user answered \"Approve G0\" on 2026-11-18, without changing any of the five listed decisions, which is recorded as acceptance of their recommended defaults. The exact generated statements are published in docs/design/CONNECT_PRODUCT_RUN_E2E_STATEMENTS.md for review before G1."
+    connect_product_run_e2e_g1:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate G1 (register) of docs/design/CONNECT_PRODUCT_RUN_E2E_PLAN.md only: a read-only preflight, the synthetic fixture database, and the product's own generated registration script (with the one declared local-redirect deviation), run as ACCOUNTADMIN in the owner's signed-in Snowsight on the owner's own Snowflake account, followed by read-backs fed to the product's verifier. It does NOT approve G2 (run the product) or G3 (tear down and sweep); each needs the owner's explicit approval."
+      record: "The owner answered \"Approve G1\" on 2026-11-18. Results: docs/design/CONNECT_PRODUCT_RUN_E2E_RESULTS.md. The registration objects and the synthetic fixture remain in the account until G3."
+    connect_product_run_e2e_g2:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate G2 (run the product) of docs/design/CONNECT_PRODUCT_RUN_E2E_PLAN.md only: start the local harness on 127.0.0.1 against the owner's own Snowflake account, drive the product's web UI (register, plan, approve, sign in, run), the owner signs in and clicks Allow on Snowflake's own page, then the negative checks (widen the setup role's grants and attempt a connection; optionally a wrong-address network policy; optionally look at an ACCOUNTADMIN-scope sign-in without clicking), and the leak scan. Synthetic data only. It does NOT approve G3 (tear down and sweep), which needs its own approval; the stop rules in the plan apply."
+      record: "The owner answered \"Approve G2\" on 2026-11-18, after G1 passed (docs/design/CONNECT_PRODUCT_RUN_E2E_RESULTS.md)."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user

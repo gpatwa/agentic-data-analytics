@@ -30,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.connect.admin_sql import new_key_pair
+from app.connect.api import ConnectRuntime, build_connect_router
 from app.connect.approval import ApprovalGate
 from app.connect.e2e import statements as st
 from app.connect.e2e.leak import LeakScanner, ScanningLogHandler
@@ -101,8 +102,10 @@ class Harness:
         """Redact the callback's code from the access log, then watch every log record. Call this **after** the server has
         configured its own logging: uvicorn's setup removes handlers from its loggers, which would blind the scanner."""
         install_log_redaction(("uvicorn.access",))
+        logging.disable(logging.NOTSET)  # a scanner that is told nothing reports "clean": never let a global switch mute it
         for name in ("", "uvicorn", "uvicorn.error", "uvicorn.access"):
             target = logging.getLogger(name)
+            target.disabled = False
             if not any(isinstance(h, ScanningLogHandler) and h.scanner is self.scanner for h in target.handlers):
                 target.addHandler(ScanningLogHandler(self.scanner))
             target.setLevel(logging.DEBUG)
@@ -172,6 +175,13 @@ def build_app(
     app = FastAPI(title="product-run end-to-end harness", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(_ScanningMiddleware, scanner=scanner)
     app.include_router(build_oauth_router(OAuthRuntime(flow=flow, verifier=verifier, cookie_secure=False), no_key))
+    # The screens ask the script-path router for capabilities and the connection list before anything else; the live run found
+    # the harness did not mount it (404), so the product-run screens could not open.
+    app.include_router(build_connect_router(
+        ConnectRuntime(coordinator=coordinator, store=store, verifier=verifier, allowed_networks=config.egress,
+                       session_factory=session_factory or (lambda record: snowflake_session_for(record, vault, connector=connector))),
+        no_key,
+    ))
     app.include_router(build_product_run_router(
         ProductRunRuntime(
             service=service, coordinator=coordinator, verifier=verifier, redirect_uri=local, egress_networks=config.egress, dns=resolver,
