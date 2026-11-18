@@ -7,7 +7,7 @@ Plan: `CONNECT_PRODUCT_RUN_ROLLBACK_CHECK_PLAN.md`. Statements: `CONNECT_PRODUCT
 | G0 Review | approved 2026-11-18 |
 | G1 Register | **done 2026-11-18** (below); run suffix `6bf33fb2` |
 | G2 Run (R1 injected failure, R2 decoy) | **done 2026-11-18** (below); the harness was stopped afterwards |
-| G3 Tear down and sweep | not approved, not run. **The registration, the fixture and the decoy user are still in the account until G3 runs.** |
+| G3 Tear down and sweep | **done 2026-11-18** (below); nothing from the check remains in the account |
 
 ## G1: what ran
 
@@ -56,4 +56,18 @@ The local harness (`127.0.0.1` only, a throwaway token, real Snowflake sessions)
 
 ## Not shown
 
-A rollback after a real mid-run Snowflake failure (name collision that the preflight cannot see), a rollback that itself fails, a killed process, and everything the end-to-end check listed as unshown. The decoy user, the registration and the fixture remain until G3.
+A rollback after a real mid-run Snowflake failure (name collision that the preflight cannot see), a rollback that itself fails, a killed process, and everything the end-to-end check listed as unshown. The decoy user, the registration and the fixture were removed in G3 (below).
+
+## G3: tear down and sweep
+
+1. **The product's own removal.** Neither connection needed it: R1's role and user were already dropped by the rollback, R2 created nothing, both connections are `removed` and both service credentials were deleted. The harness had already been stopped (its final report: no secret findings, audit chain verifies).
+2. **The decoy.** Re-read immediately before the drop: the user's comment equalled the decoy comment, no key, no password. Dropped by its exact name only.
+3. **Registration and fixture, as `ACCOUNTADMIN`, in the generated order:** the setup role revoked from the owner's user, the integration, the network policy, the setup role, the warehouse, the resource monitor, the fixture database. Created-only, by generated names; the lockout stop rule passed; every statement succeeded (the run stops at the first error and the last statement reported success).
+4. **Sweep:** the eight `SHOW` checks (database, setup roles, connection roles, service users, warehouses, resource monitors, integrations, and **all** network policies) each returned zero rows. The account had no network policy before G1 and has none now.
+5. **Local clean-up:** the Snowsight worksheet used was emptied (it had held the owner's address and user name); the scratch files holding the address and the throwaway token were deleted. Snowflake's own query history still holds the statements that were run.
+
+## Summary
+
+On one Snowflake account (the owner's, synthetic data, local non-TLS redirect, stubbed identity verifier), the rollback **works for an injected failure part-way through a run**: the setup role, with no `MANAGE GRANTS`, dropped exactly the user and role the run had created, nothing was left, and the audit and the screen said so. A user that already had a planned connection's name was refused by the preflight and left untouched. No secret reached a log, response or audit event, and teardown left no trace.
+
+What this does **not** make true: a rollback after a real Snowflake error part-way through (the failure was injected, and the name collision was caught by the preflight first), a rollback that itself fails, a killed process, and everything the end-to-end check listed as unshown (`https` redirect, a real identity provider, durable stores and a vault, process isolation, Databricks, scale, independent review). Product decisions that fell out of the two checks: the approval lifetime (5 minutes today), keeping the person's session across the return from Snowflake, and the screen's wording for a non-Snowflake driver error.
