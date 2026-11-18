@@ -19,6 +19,7 @@ import type { VisualizationSpec } from 'vega-embed';
 
 import { getHealth, runQuery } from './api';
 import { ConnectWorkspace } from './connect/ConnectWorkspace';
+import { isConnectReturn } from './connect/productRunFlow';
 import { GovernedWorkspace } from './governed/GovernedWorkspace';
 import type { AnalyticsQueryResponse, HealthResponse } from './types';
 
@@ -36,8 +37,13 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // The pilot serves only the governed (v2) API; VITE_ANALYTICS_DEFAULT_VIEW=governed opens it first.
-  const [view, setView] = useState<'workspace' | 'governed' | 'connect'>(
-    import.meta.env.VITE_ANALYTICS_DEFAULT_VIEW === 'governed' ? 'governed' : 'workspace',
+  // Coming back from Snowflake's sign-in lands on /connect/review/<id>: open the Connect view there, not the default one.
+  const [view, setView] = useState<'workspace' | 'governed' | 'connect'>(() =>
+    isConnectReturn(window.location.pathname, window.location.search)
+      ? 'connect'
+      : import.meta.env.VITE_ANALYTICS_DEFAULT_VIEW === 'governed'
+        ? 'governed'
+        : 'workspace',
   );
 
   useEffect(() => {

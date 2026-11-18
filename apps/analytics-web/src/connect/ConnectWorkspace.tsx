@@ -3,19 +3,13 @@ import { useState } from 'react';
 import { ConnectError, cancelSetup, getCapabilities, listConnections, removeAccess, startSetup, verifySetup } from './api';
 import { accountFromHost, parseTables, scriptFilename, scriptText, teardownText, validateDetails } from './flow';
 import type { Capabilities, ConnectionView, RemovalView, SetupView, VerifyView } from './types';
+import { save } from './download';
+import { parseReturn } from './productRunFlow';
+import { ProductRunWorkspace } from './ProductRunWorkspace';
 import { ChecksPanel, ConnectedPage, DetailsForm, ErrorNotice, ReviewPage, StagePanel } from './views';
 
 const BASE_URL = import.meta.env.VITE_ANALYTICS_API_URL ?? '';
 const API_KEY = import.meta.env.VITE_ANALYTICS_API_KEY ?? '';
-
-function save(filename: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 export function ConnectWorkspace() {
   const [token, setToken] = useState('');
@@ -31,6 +25,8 @@ export function ConnectWorkspace() {
   const [removal, setRemoval] = useState<{ id: string; view: RemovalView } | null>(null);
   const [errorCode, setErrorCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const returned = typeof window === 'undefined' ? null : parseReturn(window.location.pathname, window.location.search);
+  const [mode, setMode] = useState<'script' | 'product-run'>(returned ? 'product-run' : 'script');
   const cfg = { baseUrl: BASE_URL, token, apiKey: API_KEY || undefined };
 
   async function guard(work: () => Promise<void>) {
@@ -92,7 +88,11 @@ export function ConnectWorkspace() {
 
   return (
     <div className="gv cn">
-      <StagePanel capabilities={capabilities} />
+      <nav className="cn-modes" aria-label="How to connect">
+        <button className={mode === 'script' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('script')}>Admin runs a script (available now)</button>
+        <button className={mode === 'product-run' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('product-run')}>Register once (internal testing)</button>
+      </nav>
+      {mode === 'script' && <StagePanel capabilities={capabilities} />}
       <section className="gv-card" aria-label="Sign in">
         <div className="gv-form">
           <label>Access token<input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></label>
@@ -100,7 +100,8 @@ export function ConnectWorkspace() {
         </div>
       </section>
       {errorCode && <ErrorNotice code={errorCode} />}
-      {connections.map((connection) => (
+      {mode === 'product-run' && <ProductRunWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} returned={returned} />}
+      {mode === 'script' && connections.map((connection) => (
         <ConnectedPage
           key={connection.connection_id}
           connection={connection}
@@ -113,7 +114,7 @@ export function ConnectWorkspace() {
           onDownloadTeardown={() => undefined}
         />
       ))}
-      {removal && removedConnection && (
+      {mode === 'script' && removal && removedConnection && (
         <ConnectedPage
           connection={removedConnection}
           confirming={false}
@@ -125,7 +126,7 @@ export function ConnectWorkspace() {
           onDownloadTeardown={() => save(`compass-connect-removal-${removal.view.teardown_digest.slice(0, 8)}.sql`, teardownText(removal.view.teardown, removal.view.teardown_digest, removedConnection.host))}
         />
       )}
-      {capabilities && !setup && (
+      {mode === 'script' && capabilities && !setup && (
         <DetailsForm
           host={host}
           database={database}
@@ -137,7 +138,7 @@ export function ConnectWorkspace() {
           onSubmit={review}
         />
       )}
-      {setup && (
+      {mode === 'script' && setup && (
         <ReviewPage
           setup={setup}
           busy={busy}
@@ -147,7 +148,7 @@ export function ConnectWorkspace() {
           onCancel={() => void cancel()}
         />
       )}
-      {result && <ChecksPanel result={result} />}
+      {mode === 'script' && result && <ChecksPanel result={result} />}
     </div>
   );
 }

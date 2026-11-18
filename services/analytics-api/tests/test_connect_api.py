@@ -151,7 +151,7 @@ def test_capabilities_are_honest_about_stage_and_method():
     assert snowflake["engine"] == "snowflake" and "internal testing" in snowflake["stage"]
     assert "security review" in snowflake["stage"]
     assert snowflake["setup_methods"] == ["script"]
-    assert snowflake["product_run_setup"] == {"available": False, "reason": "admin_sign_in_not_built"}
+    assert snowflake["product_run_setup"] == {"available": False, "reason": "needs_registration_and_deployment_config"}
     assert [e["engine"] for e in body["engines"]] == ["snowflake"]  # Databricks is not offered
 
 

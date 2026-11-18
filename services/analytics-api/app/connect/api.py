@@ -143,7 +143,7 @@ def build_connect_router(runtime: ConnectRuntime, api_key_dependency) -> APIRout
                     "engine": "snowflake",
                     "stage": "Connect mode is in internal testing. It has not had a security review and has not run against a customer account.",
                     "setup_methods": ["script"],
-                    "product_run_setup": {"available": False, "reason": "admin_sign_in_not_built"},
+                    "product_run_setup": {"available": False, "reason": "needs_registration_and_deployment_config"},
                     "credential": {"kind": "key_pair", "note": "Created by Compass; only the public half goes in the script."},
                 },
             ],
