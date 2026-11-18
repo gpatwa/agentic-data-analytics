@@ -1,6 +1,6 @@
-# Product-run spike: results (G1 and G2 done, 2026-11-17)
+# Product-run spike: results (G1, G2 and G3 done, 2026-11-17)
 
-Status: **G1 and G2 are done; G3 (tear down and sweep) has not run and needs the owner's explicit approval.** These are observations from **one run on one account** (the owner's own Snowflake account, synthetic data only), not general claims. No credential, client id or account identifier is recorded here. The questions are numbered as in `docs/design/CONNECT_PRODUCT_RUN_SPIKE_PLAN.md`.
+Status: **all three live gates are done (G1 build, G2 sign in and run, G3 tear down and sweep).** G3 was approved by the owner and run the same day. These are observations from **one run on one account** (the owner's own Snowflake account, synthetic data only), not general claims. No credential, client id or account identifier is recorded here. The questions are numbered as in `docs/design/CONNECT_PRODUCT_RUN_SPIKE_PLAN.md`.
 
 **G2 in one line:** with a public OAuth client, PKCE and no client secret, a delegated setup role with only account-level `CREATE ROLE` and `CREATE USER` plus a grant-option ceiling created a role and a service user, granted within the ceiling, was **refused on all eight negative tests**, and its service user passed the Connect-mode checks; **32 of 32 steps behaved as expected, and the setup role's teardown removed everything it created.** One earlier attempt failed before creating anything (below).
 
@@ -33,9 +33,9 @@ A deviation to disclose: the three `INSERT` statements ran before the spike ware
 | Q10 | End to end | **Yes.** The service user connected with its key and role; `DESCRIBE TABLE` and `SELECT COUNT(*)` worked on both ceiling tables; `SELECT` on the outside table and an `INSERT` were refused (errno 2003 and 3001); the setup role then dropped the user and role and a check found neither | |
 | Q11 | CM2 to CM4 shapes never run live | **Yes.** As the service user itself, `SHOW GRANTS TO ROLE` returned 5 rows and the Connect-mode `verify_grants` **accepted them**; `DESCRIBE TABLE` through the driver returned the columns | The user-level `SHOW GRANTS` check; tag comments through `SHOW` |
 
-## What exists in the account now (until G3)
+## G3: tear down and sweep
 
-The sandbox database, the resource monitor, the X-Small warehouse (suspended), the delegated setup role, the custom OAuth integration, **the setup role granted to the owner's user**, and the owner's browser sign-in session on the account URL. The role and user that product-run created were dropped by the setup role. G3 removes everything else and revokes the grant. The warehouse is suspended and the monitor caps spending at 1 credit.
+The generated Phase D statements were run as `ACCOUNTADMIN` in the Snowsight worksheet: the setup role was revoked from the owner's user, and the OAuth integration, the setup role, the warehouse, the resource monitor and the sandbox database were dropped (the statements for objects that never existed, the negative-test names, were no-ops, as the last result said). Every statement succeeded. The **sweep then re-ran the six preflight checks** (databases, roles, users, warehouses, resource monitors, integrations under the `COMPASS_SPIKE` prefix): **zero rows each**. **Nothing from the spike remains in the account**, and the owner's user no longer holds the setup role. The one thing left is the worksheet file `compass_spike_g1.sql` in the owner's Snowsight workspace, which the owner may delete; it now holds only a read-only `SHOW` statement. The cost of G1 to G3 was not measured; the monitor capped it at 1 credit.
 
 ## What this means for the design (a reading, not a decision)
 
