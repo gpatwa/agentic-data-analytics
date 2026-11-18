@@ -1,0 +1,179 @@
+"""The exact statements of the product-run live end-to-end check, generated, not hand-typed.
+
+The registration script is the product's own (`generate_registration`), with the one declared sandbox deviation: a local
+`http://localhost` sign-in redirect and the non-TLS flag that goes with it. Nothing here grants `MANAGE GRANTS`, reads a client
+secret, or can lock the owner out: `assert_no_lockout` is the stop rule that refuses any statement that would change the
+account's or a user's network policy. Not verified against a live account: `CREATE NETWORK POLICY`, `NETWORK_POLICY` on the
+integration, `ALTER NETWORK POLICY`, and `CURRENT_IP_ADDRESS()` as the Compass address.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable
+
+from app.connect.grants import ConnectScope
+from app.connect.grants import _quote as quote
+from app.connect.registration import RegistrationScript, RegNames, generate_registration
+
+TAG = "compass-connect"
+PREFIXES = ("COMPASS_REG_", "COMPASS_RO_", "COMPASS_SVC_", "COMPASS_E2E_")
+SCHEMA = "DATA"
+INSIDE = ("orders", "customers")
+OUTSIDE = "payroll_outside"
+CALLBACK_PATH = "/api/v2/connect/oauth/callback"
+_SUFFIX = re.compile(r"^[0-9a-f]{8}$")
+
+
+class LockoutRisk(ValueError):
+    """A statement would change an account's or a user's network policy, which could lock someone out. Never run."""
+
+
+def fixture_db(suffix: str) -> str:
+    if not _SUFFIX.match(suffix or ""):
+        raise ValueError("the run suffix must be 8 lower-case hex characters")
+    return f"COMPASS_E2E_DB_{suffix.upper()}"
+
+
+def ceiling(suffix: str) -> ConnectScope:
+    return ConnectScope(fixture_db(suffix), tuple((SCHEMA, t) for t in INSIDE))
+
+
+def redirect(port: int) -> str:
+    return f"http://localhost:{port}{CALLBACK_PATH}"
+
+
+def _table(suffix: str, name: str) -> str:
+    return f"{fixture_db(suffix)}.{SCHEMA}.{quote(name)}"
+
+
+SWEEP = (
+    "SHOW DATABASES LIKE 'COMPASS_E2E%'",
+    "SHOW ROLES LIKE 'COMPASS_REG%'",
+    "SHOW ROLES LIKE 'COMPASS_RO%'",
+    "SHOW USERS LIKE 'COMPASS_SVC%'",
+    "SHOW WAREHOUSES LIKE 'COMPASS_REG%'",
+    "SHOW RESOURCE MONITORS LIKE 'COMPASS_REG%'",
+    "SHOW INTEGRATIONS LIKE 'COMPASS_REG%'",
+    "SHOW NETWORK POLICIES",
+)
+
+
+def preflight() -> tuple[str, ...]:
+    """Read only. The run stops if anything under the prefixes exists that this run did not create."""
+    return ("SELECT CURRENT_ACCOUNT() AS account_locator, CURRENT_USER() AS user_name, CURRENT_ROLE() AS role_name, CURRENT_IP_ADDRESS() AS client_ip", *SWEEP)
+
+
+def fixture(suffix: str) -> tuple[str, ...]:
+    """The sandbox data: two tables inside the ceiling and one outside it, invented values only."""
+    db = fixture_db(suffix)
+    return (
+        f"CREATE DATABASE {db} COMMENT = '{TAG}'",
+        f"CREATE SCHEMA {db}.{SCHEMA}",
+        f'CREATE TABLE {_table(suffix, "orders")} ("id" NUMBER, "amount" NUMBER(12, 2))',
+        f'CREATE TABLE {_table(suffix, "customers")} ("id" NUMBER, "region" VARCHAR)',
+        f'CREATE TABLE {_table(suffix, OUTSIDE)} ("id" NUMBER, "salary" NUMBER)',
+        f"INSERT INTO {_table(suffix, 'orders')} SELECT SEQ4(), (SEQ4() + 1) * 7 FROM TABLE(GENERATOR(ROWCOUNT => 30))",
+        f"INSERT INTO {_table(suffix, 'customers')} SELECT SEQ4(), IFF(MOD(SEQ4(), 2) = 0, 'EMEA', 'AMER') FROM TABLE(GENERATOR(ROWCOUNT => 30))",
+        f"INSERT INTO {_table(suffix, OUTSIDE)} SELECT SEQ4(), 1000 + SEQ4() FROM TABLE(GENERATOR(ROWCOUNT => 30))",
+    )
+
+
+def registration(suffix: str, owner_user: str, port: int, egress: Iterable[str]) -> RegistrationScript:
+    """The product's registration script for the fixture ceiling, with the sandbox-only local redirect."""
+    return generate_registration(ceiling(suffix), suffix=suffix, redirect_uri=redirect(port), egress_networks=list(egress), setup_users=[owner_user],
+                                 credit_quota=1, allow_local_dev_redirect=True)
+
+
+def read_backs(suffix: str) -> tuple[str, ...]:
+    """Read only: what the verifier needs after the registration script ran."""
+    names = RegNames.for_registration(suffix)
+    return (
+        f"DESCRIBE SECURITY INTEGRATION {names.integration}",
+        f"SHOW GRANTS TO ROLE {names.setup_role}",
+        f"DESCRIBE NETWORK POLICY {names.network_policy}",
+        "SELECT CURRENT_ACCOUNT() AS account_locator",
+    )
+
+
+def widen(suffix: str) -> tuple[str, str]:
+    """(do, undo): give the setup role one table outside the ceiling. The product must then refuse with `registration_changed`."""
+    role = RegNames.for_registration(suffix).setup_role
+    table = _table(suffix, OUTSIDE)
+    return f"GRANT SELECT ON TABLE {table} TO ROLE {role}", f"REVOKE SELECT ON TABLE {table} FROM ROLE {role}"
+
+
+def wrong_address(suffix: str, egress: Iterable[str]) -> tuple[str, str]:
+    """(do, undo): point the integration's policy at an address that is not ours, then restore it. Optional (E2 part 2)."""
+    policy = RegNames.for_registration(suffix).network_policy
+    listed = ", ".join(f"'{x}'" for x in egress)
+    return f"ALTER NETWORK POLICY {policy} SET ALLOWED_IP_LIST = ('192.0.2.1/32')", f"ALTER NETWORK POLICY {policy} SET ALLOWED_IP_LIST = ({listed})"
+
+
+def teardown(suffix: str, owner_user: str, egress: Iterable[str], port: int) -> tuple[str, ...]:
+    """G3, as ACCOUNTADMIN: the registration's own teardown, then the fixture. The connection's removal statements come from the
+    product at run time (its DROP USER and DROP ROLE) and are run first."""
+    script = registration(suffix, owner_user, port, egress)
+    return (*script.teardown, f"DROP DATABASE IF EXISTS {fixture_db(suffix)}", *SWEEP)
+
+
+_FORBIDDEN = (
+    re.compile(r"\bALTER\s+ACCOUNT\b", re.I),
+    re.compile(r"\bALTER\s+USER\b", re.I),
+    re.compile(r"\bSET\s+NETWORK_POLICY\b", re.I),
+    re.compile(r"\bUNSET\s+NETWORK_POLICY\b", re.I),
+    re.compile(r"\bMANAGE\s+GRANTS\b", re.I),
+    re.compile(r"\bSHOW_OAUTH_CLIENT_SECRETS\b", re.I),
+)
+
+
+def assert_no_lockout(statements: Iterable[str]) -> None:
+    """The stop rule. `NETWORK_POLICY = <name>` inside CREATE SECURITY INTEGRATION and `ALTER NETWORK POLICY COMPASS_REG_NET_...`
+    are allowed; anything that changes the account's or a user's policy is not."""
+    for index, statement in enumerate(statements):
+        if any(pattern.search(statement) for pattern in _FORBIDDEN):
+            raise LockoutRisk(f"statement {index} is not allowed in this check")
+        if re.search(r"\bALTER\s+NETWORK\s+POLICY\b", statement, re.I) and not re.search(r"\bALTER\s+NETWORK\s+POLICY\s+COMPASS_REG_NET_[0-9A-F]{8}\s+SET\s+ALLOWED_IP_LIST\b", statement):
+            raise LockoutRisk(f"statement {index} alters a network policy that is not ours")
+
+
+def everything(suffix: str, owner_user: str, port: int, egress: Iterable[str]) -> tuple[str, ...]:
+    egress = list(egress)
+    script = registration(suffix, owner_user, port, egress)
+    do, undo = widen(suffix)
+    bad, good = wrong_address(suffix, egress)
+    return (*preflight(), *fixture(suffix), *script.statements, *read_backs(suffix), do, undo, bad, good, *teardown(suffix, owner_user, egress, port))
+
+
+def render_markdown(suffix: str = "a1b2c3d4", owner_user: str = "<YOUR_SNOWFLAKE_USER>", port: int = 8765, egress: tuple[str, ...] = ("35.238.115.103/32",)) -> str:
+    """The reviewable text of every statement. A test keeps `docs/design/CONNECT_PRODUCT_RUN_E2E_STATEMENTS.md` equal to this."""
+
+    def block(title: str, lines: Iterable[str]) -> str:
+        return f"### {title}\n\n```sql\n" + "\n".join(f"{line};" for line in lines) + "\n```\n"
+
+    script = registration(suffix, owner_user, port, egress)
+    do, undo = widen(suffix)
+    bad, good = wrong_address(suffix, egress)
+    return "\n".join([
+        "# Product-run end-to-end check: the exact statements (generated)\n",
+        "Generated by `services/analytics-api/app/connect/e2e/statements.py`; a test keeps this file equal to the generator. "
+        f"`{suffix}` stands for the fresh 8-hex run suffix chosen at run time, `{owner_user}` for your Snowflake user (read from `CURRENT_USER()` "
+        f"in the preflight), `{port}` for the local callback port and `{egress[0]}` for Compass's own public address (read from "
+        "`CURRENT_IP_ADDRESS()` in the preflight; both IPv4 and IPv6 are added if they differ). Nothing here has been run. "
+        "See `docs/design/CONNECT_PRODUCT_RUN_E2E_PLAN.md`.\n",
+        "**The registration script is the product's own** (`generate_registration`) with one declared sandbox deviation: the sign-in comes back "
+        "to `http://localhost` and the integration sets `OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE`. The product's verifier is told about the "
+        "deviation and must still pass. The network policy is attached **only to the OAuth integration**; no statement here changes the "
+        "account's or any user's network policy (a stop rule refuses one). Not verified against a live account: `CREATE NETWORK POLICY`, "
+        "`NETWORK_POLICY` on the integration, `ALTER NETWORK POLICY`, and `CURRENT_IP_ADDRESS()` as the Compass address.\n",
+        block("Preflight (read only, G1)", preflight()),
+        block("Fixture: the sandbox data (G1, as ACCOUNTADMIN)", fixture(suffix)),
+        block("The product's registration script (G1, as ACCOUNTADMIN)", script.statements),
+        "### What the admin is told for that script\n\n" + "\n".join(f"- {line}" for line in script.summary) + "\n",
+        block("Read-backs for the verifier (G1, read only)", read_backs(suffix)),
+        block("Negative check E5: widen the setup role, attempt a connection, undo (G2, as ACCOUNTADMIN)", (do, undo)),
+        block("Optional check E2 part 2: a wrong address for the policy, attempt a sign-in, restore (G2, as ACCOUNTADMIN)", (bad, good)),
+        "### The product's own removal statements for the connection\n\nThese are produced by the product at run time (`DROP USER` and "
+        "`DROP ROLE` for the connection's read-only user and role), shown to you before they run, and run first at G3.\n",
+        block("Teardown and sweep (G3, as ACCOUNTADMIN)", teardown(suffix, owner_user, egress, port)),
+    ])

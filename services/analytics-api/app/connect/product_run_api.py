@@ -40,6 +40,8 @@ class ProductRunRuntime:
     egress_networks: tuple[str, ...] = ()  # Compass's own public addresses, put in the registration script (not user-supplied)
     session_factory: Callable[[Any], Any] | None = None  # opens a session as the new service user, for the connection test
     dns: Resolver = field(default=system_resolver)
+    allow_local_dev_redirect: bool = False  # sandbox only: lets the sign-in return to http://localhost; never settable from a request
+    suffix_factory: Callable[[], str] = field(default=lambda: secrets.token_hex(4))  # a test can pin it so a reviewed script is the one that runs
 
 
 class TableRef(BaseModel):
@@ -171,9 +173,10 @@ def build_product_run_router(runtime: ProductRunRuntime, api_key_dependency) -> 
             raise HTTPException(503, "registration_not_configured")
         try:
             ceiling = ConnectScope(body.database, tuple((t.schema_name, t.table) for t in body.tables))
-            suffix = secrets.token_hex(4)
+            suffix = runtime.suffix_factory()
             script = generate_registration(ceiling, suffix=suffix, redirect_uri=runtime.redirect_uri, egress_networks=runtime.egress_networks,
-                                           setup_users=body.setup_users, credit_quota=body.credit_quota)
+                                           setup_users=body.setup_users, credit_quota=body.credit_quota,
+                                           allow_local_dev_redirect=runtime.allow_local_dev_redirect)
         except (ScopeError, ValueError) as exc:
             raise HTTPException(422, "invalid_registration") from exc
         return ScriptView(reg_suffix=suffix, summary=list(script.summary), statements=list(script.statements),
@@ -188,7 +191,7 @@ def build_product_run_router(runtime: ProductRunRuntime, api_key_dependency) -> 
             registration = runtime.service.register(
                 tenant_id=who.tenant_id, registration_id=body.registration_id, reg_suffix=body.reg_suffix, host=body.host, client_id=body.client_id,
                 account_locator=body.account_locator, ceiling=ceiling, setup_users=body.setup_users, redirect_uri=runtime.redirect_uri,
-                resolver=runtime.dns,
+                resolver=runtime.dns, allow_local_dev_redirect=runtime.allow_local_dev_redirect,
             )
         except TargetRejected as exc:
             raise HTTPException(422, exc.code) from exc

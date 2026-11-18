@@ -21,7 +21,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import ipaddress
 import json
 import re
 import secrets
@@ -34,6 +33,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
+from app.connect.redirects import validate_redirect_uri
 from app.connect.targets import VENDOR_SUFFIXES
 from app.connect.token import MAX_TTL_SECONDS, AdminToken
 
@@ -135,24 +135,6 @@ def exchange_code(
 # ---- what a customer's registration tells us ----------------------------------------------------------------------
 
 
-def _https_url(uri: str) -> str:
-    """One plain https URL: a hostname (not an IP), the default port, a path, no query, fragment or credentials."""
-    if not isinstance(uri, str) or not uri or len(uri) > 200 or any(c in uri for c in " '\"`\\\n\r\t;"):
-        raise ValueError("invalid redirect")
-    parsed = urllib.parse.urlparse(uri)
-    host = parsed.hostname or ""
-    try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        is_ip = False
-    else:
-        is_ip = True
-    if (is_ip or parsed.scheme != "https" or "." not in host or parsed.port is not None or parsed.username or parsed.password
-            or parsed.query or parsed.fragment or not parsed.path.startswith("/") or ".." in parsed.path):
-        raise ValueError("the redirect must be a plain https URL with a hostname and a path, no port, query or fragment")
-    return uri
-
-
 @dataclass(frozen=True)
 class OAuthClientConfig:
     """One customer's registration: where to sign in, which client, which role. The client id is not a secret."""
@@ -163,6 +145,7 @@ class OAuthClientConfig:
     client_id: str
     setup_role: str
     redirect_uri: str
+    allow_local_dev_redirect: bool = False  # sandbox only; see app/connect/redirects.py
 
     def __post_init__(self) -> None:
         if not self.tenant_id or not _ID.match(self.registration_id):
@@ -176,7 +159,7 @@ class OAuthClientConfig:
             raise ValueError("invalid client id")
         if not _ROLE.match(self.setup_role):
             raise ValueError("invalid setup role")
-        _https_url(self.redirect_uri)
+        validate_redirect_uri(self.redirect_uri, allow_local_dev=self.allow_local_dev_redirect)
 
     @property
     def authorize_endpoint(self) -> str:

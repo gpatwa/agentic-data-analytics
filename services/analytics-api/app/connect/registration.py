@@ -14,9 +14,7 @@ The setup role holds `SELECT` on the ceiling tables, so it **can read them** whi
 
 from __future__ import annotations
 
-import ipaddress
 import re
-import urllib.parse
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
@@ -33,6 +31,7 @@ from app.connect.grants import (
     digest_statements,
     verify_grants,
 )
+from app.connect.redirects import is_local_dev_redirect, validate_redirect_uri
 
 _SUFFIX = re.compile(r"^[0-9a-f]{8}$")
 ACCESS_TOKEN_SECONDS = 600
@@ -74,22 +73,12 @@ class RegistrationScript:
     digest: str
 
 
-def validate_redirect(uri: str) -> str:
-    """One fixed https callback: a hostname (no IP), the default port, a plain path, no query, fragment or credentials."""
-    if not isinstance(uri, str) or not uri or len(uri) > 200 or any(c in uri for c in " '\"`\\\n\r\t;"):
-        raise ScopeError("invalid redirect")
-    parsed = urllib.parse.urlparse(uri)
-    host = parsed.hostname or ""
+def validate_redirect(uri: str, *, allow_local_dev: bool = False) -> str:
+    """One fixed https callback (see `app/connect/redirects.py`; `allow_local_dev` is the sandbox-only switch, off by default)."""
     try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        pass
-    else:
-        raise ScopeError("the redirect must use a hostname, not an IP address")
-    if (parsed.scheme != "https" or not host or "." not in host or parsed.port is not None or parsed.username or parsed.password
-            or parsed.query or parsed.fragment or not parsed.path.startswith("/") or ".." in parsed.path or uri != uri.strip()):
-        raise ScopeError("the redirect must be a plain https URL with a hostname, a path, and no port, query or fragment")
-    return uri
+        return validate_redirect_uri(uri, allow_local_dev=allow_local_dev)
+    except ValueError as exc:
+        raise ScopeError(str(exc)) from None
 
 
 def generate_registration(
@@ -100,9 +89,11 @@ def generate_registration(
     egress_networks: Iterable[str],
     setup_users: Iterable[str],
     credit_quota: int = 1,
+    allow_local_dev_redirect: bool = False,
 ) -> RegistrationScript:
     names = RegNames.for_registration(suffix)
-    redirect = validate_redirect(redirect_uri)
+    redirect = validate_redirect(redirect_uri, allow_local_dev=allow_local_dev_redirect)
+    non_tls = "OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE " if is_local_dev_redirect(redirect) else ""
     networks = _networks(egress_networks)
     if not networks:
         raise ScopeError("at least one Compass egress network is required")
@@ -128,7 +119,7 @@ def generate_registration(
         f"GRANT USAGE ON WAREHOUSE {n.warehouse} TO ROLE {role} WITH GRANT OPTION",
         *(f"GRANT ROLE {role} TO USER {u}" for u in quoted_users),
         f"CREATE SECURITY INTEGRATION {n.integration} TYPE = OAUTH ENABLED = TRUE OAUTH_CLIENT = CUSTOM "
-        f"OAUTH_CLIENT_TYPE = 'PUBLIC' OAUTH_REDIRECT_URI = '{redirect}' OAUTH_ENFORCE_PKCE = TRUE "
+        f"OAUTH_CLIENT_TYPE = 'PUBLIC' OAUTH_REDIRECT_URI = '{redirect}' {non_tls}OAUTH_ENFORCE_PKCE = TRUE "
         f"OAUTH_ISSUE_REFRESH_TOKENS = FALSE OAUTH_ACCESS_TOKEN_VALIDITY = {ACCESS_TOKEN_SECONDS} "
         f"NETWORK_POLICY = {n.network_policy} {COMMENT}",  # NETWORK_POLICY and the https redirect: not verified live
         f"DESCRIBE SECURITY INTEGRATION {n.integration}",  # shows the client id, which is not a secret; the admin gives it to Compass
@@ -151,6 +142,7 @@ def generate_registration(
         f"Allows the setup role to be used by {len(users)} user(s) you name, and the sign-in only from {len(networks)} Compass network address(es).",
         f"Adds a small warehouse capped at {credit_quota} credit(s) that suspends after 60 seconds; every connection Compass sets up uses it.",
         "To remove all of this later, run the removal script. After the last statement runs, give Compass the client id it shows (not a secret).",
+        *(("Sandbox only: the sign-in comes back to an address on the developer's own machine over plain http. A real deployment never does this.",) if non_tls else ()),
     )
     return RegistrationScript(statements, teardown, summary, digest_statements(statements))
 
@@ -192,10 +184,11 @@ def verify_registration(
     *,
     account: str,
     redirect_uri: str,
+    allow_local_dev_redirect: bool = False,
 ) -> RegistrationReport:
     """Compare `SHOW GRANTS TO ROLE <setup role>` and `DESCRIBE SECURITY INTEGRATION` with exactly what the script creates."""
     grants = _verify_role_grants(role_rows, ceiling, names, account)
-    return _with_integration(grants, integration_rows, names, redirect_uri)
+    return _with_integration(grants, integration_rows, names, redirect_uri, allow_local_dev_redirect and is_local_dev_redirect(redirect_uri))
 
 
 def verify_setup_role_grants(
@@ -239,6 +232,7 @@ def _with_integration(
     integration_rows: Iterable[Mapping[str, object]],
     names: RegNames,
     redirect_uri: str,
+    local_dev: bool = False,
 ) -> RegistrationReport:
     props = {str(r.get("property", "")).upper(): str(r.get("property_value", "")) for r in integration_rows}
     problems = []
@@ -253,7 +247,7 @@ def _with_integration(
     need("oauth_access_token_validity", props.get("OAUTH_ACCESS_TOKEN_VALIDITY", "").isdigit() and int(props["OAUTH_ACCESS_TOKEN_VALIDITY"]) <= ACCESS_TOKEN_SECONDS)
     need("oauth_redirect_uri", props.get("OAUTH_REDIRECT_URI") == redirect_uri)
     need("oauth_alternate_redirect_uris", not props.get("OAUTH_ALTERNATE_REDIRECT_URIS", "").strip("[] "))
-    need("oauth_allow_non_tls_redirect_uri", _flag(props.get("OAUTH_ALLOW_NON_TLS_REDIRECT_URI", "false")) == "false")
+    need("oauth_allow_non_tls_redirect_uri", _flag(props.get("OAUTH_ALLOW_NON_TLS_REDIRECT_URI", "false")) == ("true" if local_dev else "false"))
     need("blocked_roles_list", REQUIRED_BLOCKED <= {r.strip().upper() for r in props.get("BLOCKED_ROLES_LIST", "").split(",")})
     need("pre_authorized_roles_list", not props.get("PRE_AUTHORIZED_ROLES_LIST", "").strip("[] "))
     need("allowed_roles_list", not props.get("ALLOWED_ROLES_LIST", "").strip("[] "))
