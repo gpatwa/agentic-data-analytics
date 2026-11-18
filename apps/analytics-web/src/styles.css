@@ -161,3 +161,10 @@ tbody tr:hover { background: #f8faf7; }
 .cn-checks { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
 .cn-confirm { border: 1px solid #e8b4b0; border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
 .cn-error { margin: 0; }
+.cn-modes { display: flex; gap: 8px; flex-wrap: wrap; }
+.cn-stepper { display: flex; gap: 8px; list-style: none; padding: 0; margin: 8px 0 12px; flex-wrap: wrap; }
+.cn-stepper li { padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line, #cfd4da); color: #6b7280; }
+.cn-stepper li[data-state='done'] { background: #e3f4ea; color: #145a32; border-color: #bfe3cc; }
+.cn-stepper li[data-state='current'] { background: #e9f1eb; color: #225f37; font-weight: 650; border-color: #225f37; }
+.cn-tables { display: grid; gap: 6px; border: 1px solid var(--line, #cfd4da); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+.cn-tables legend { font-size: 13px; padding: 0 4px; }

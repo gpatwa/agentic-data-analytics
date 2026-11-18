@@ -6,9 +6,10 @@ export class ConnectError extends Error {
   }
 }
 
-async function call<T>(cfg: ConnectConfig, method: string, path: string, body?: unknown): Promise<T> {
+export async function call<T>(cfg: ConnectConfig, method: string, path: string, body?: unknown, credentials?: RequestCredentials): Promise<T> {
   const response = await fetch(`${cfg.baseUrl}/api/v2/connect${path}`, {
     method,
+    credentials,
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${cfg.token}`,

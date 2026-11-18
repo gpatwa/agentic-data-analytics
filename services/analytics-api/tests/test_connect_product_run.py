@@ -488,10 +488,44 @@ class Verifier:
             raise AuthenticationError("bad") from exc
 
 
-def make_app(configured=True, redirect=REDIRECT, **kw):
+class Stream:
+    def __init__(self, columns, rows):
+        self.columns, self._rows = tuple(columns), list(rows)
+
+    def fetchmany(self, size):
+        out, self._rows = self._rows[:size], self._rows[size:]
+        return out
+
+    def close(self):
+        pass
+
+
+class ServiceSession:
+    """A session as the new read-only service user: it sees its own grants and can describe its tables."""
+
+    def __init__(self, account, describe=True):
+        self.a, self.describe = account, describe
+
+    def prepare(self, *, timeout_seconds):
+        pass
+
+    def execute(self, sql, parameters):
+        if sql.startswith("SHOW GRANTS TO ROLE"):
+            rows = self.a.role_grants.get(sql.split()[-1], [])
+            return Stream(("privilege", "granted_on", "name", "grant_option"), [(r["privilege"], r["granted_on"], r["name"], r["grant_option"]) for r in rows])
+        if sql.startswith("DESCRIBE TABLE"):
+            return Stream(("name",), [("ID",)] if self.describe else [])
+        raise AssertionError(sql)
+
+    def close(self):
+        pass
+
+
+def make_app(configured=True, redirect=REDIRECT, egress=("35.238.115.103/32",), tested=False, describe=True, **kw):
     service, account, coordinator, handoff, store, secrets, chain, clock, seen, configs = build(**kw)
     runtime = ProductRunRuntime(service=service if configured else None, coordinator=coordinator if configured else None,
-                                verifier=Verifier() if configured else None, redirect_uri=redirect, dns=PUBLIC)
+                                verifier=Verifier() if configured else None, redirect_uri=redirect, dns=PUBLIC, egress_networks=egress,
+                                session_factory=(lambda record: ServiceSession(account, describe)) if tested else None)
 
     async def no_key():
         return None
@@ -530,7 +564,8 @@ def test_registering_needs_a_configured_redirect_and_a_public_host_and_does_not_
     assert client.post(P + "/registrations", json=REGISTER, headers=auth()).json()["detail"] == "redirect_not_configured"
     client, *_ = make_app()
     created = client.post(P + "/registrations", json=REGISTER, headers=auth())
-    assert created.status_code == 201 and set(created.json()) == {"registration_id", "host", "setup_role", "database", "ceiling_tables", "setup_user_count"}
+    assert created.status_code == 201 and set(created.json()) == {"registration_id", "host", "setup_role", "database", "ceiling_tables", "ceiling", "setup_user_count"}
+    assert {(t["schema"], t["table"]) for t in created.json()["ceiling"]} == set(CEILING.tables)  # exact names, so a plan can use them
     assert "client-id" not in created.text and client.post(P + "/registrations", json=REGISTER, headers=auth()).json()["detail"] == "registration_id_taken"
     assert client.post(P + "/registrations", json={**REGISTER, "registration_id": "reg-00000002", "host": "evil.example"}, headers=auth()).status_code == 422
     assert client.post(P + "/registrations", json={**REGISTER, "registration_id": "reg-00000003", "reg_suffix": "ZZZZZZZZ"}, headers=auth()).json()["detail"] == "invalid_registration"
@@ -618,3 +653,96 @@ def test_the_main_app_mounts_the_sign_in_and_product_run_endpoints_inert():
     assert client.get(P + "/registrations").status_code == 503
     assert client.post("/api/v2/connect/oauth/start", json={"registration_id": REG, "setup_id": "setup-0000000001"}).status_code == 503
     assert client.get("/api/v2/connect/oauth/callback?state=x", follow_redirects=False).status_code == 503
+
+
+# ---- the registration script endpoint and the connection test at the end of a run ---------------------------------------
+
+
+def test_the_registration_script_is_drafted_from_the_deployments_own_redirect_and_addresses_and_stores_nothing():
+    client, service, *_ = make_app()
+    body = {"database": "ANALYTICS", "tables": [{"schema": "PUBLIC", "table": "ORDERS"}], "setup_users": ["ADMIN_USER"], "credit_quota": 2}
+    response = client.post(P + "/registration-script", json=body, headers=auth())
+    out = response.json()
+    assert response.status_code == 200 and re.fullmatch(r"[0-9a-f]{8}", out["reg_suffix"]) and len(out["digest"]) == 64
+    text = "\n".join(out["statements"])
+    assert f"OAUTH_REDIRECT_URI = '{REDIRECT}'" in text and "ALLOWED_IP_LIST = ('35.238.115.103/32')" in text and "CREDIT_QUOTA = 2" in text
+    assert any("can read those tables as well" in line for line in out["summary"]) and out["teardown"][-1].startswith("DROP RESOURCE MONITOR")
+    assert service.registrations("ta") == []  # drafting registers nothing
+    again = client.post(P + "/registration-script", json=body, headers=auth()).json()
+    assert again["reg_suffix"] != out["reg_suffix"]  # a fresh suffix each time
+
+
+def test_the_registration_script_ignores_anything_the_caller_says_about_the_redirect_or_addresses():
+    client, *_ = make_app()
+    body = {"database": "A", "tables": [{"schema": "S", "table": "T"}], "setup_users": ["U"], "redirect_uri": "https://evil.example/cb", "egress_networks": ["1.2.3.4/32"]}
+    out = client.post(P + "/registration-script", json=body, headers=auth()).json()
+    text = "\n".join(out["statements"])
+    assert "evil.example" not in text and "1.2.3.4" not in text and REDIRECT in text
+
+
+def test_the_registration_script_needs_a_configured_deployment_and_a_manager_and_valid_input():
+    client, *_ = make_app(egress=())
+    ok_body = {"database": "A", "tables": [{"schema": "S", "table": "T"}], "setup_users": ["U"]}
+    assert client.post(P + "/registration-script", json=ok_body, headers=auth()).json()["detail"] == "registration_not_configured"
+    client, *_ = make_app(redirect=None)
+    assert client.post(P + "/registration-script", json=ok_body, headers=auth()).status_code == 503
+    client, *_ = make_app()
+    assert client.post(P + "/registration-script", json=ok_body, headers=auth("usr")).status_code == 403
+    assert client.post(P + "/registration-script", json={**ok_body, "tables": [{"schema": "S", "table": "*"}]}, headers=auth()).json()["detail"] == "invalid_registration"
+    assert client.post(P + "/registration-script", json={**ok_body, "credit_quota": 0}, headers=auth()).status_code == 422
+    assert client.post(P + "/registration-script", json=ok_body).status_code == 401
+
+
+def _run_over_http(client, handoff, clock):
+    client.post(P + "/registrations", json=REGISTER, headers=auth())
+    body = client.post(P + "/setups", json=PLAN, headers=auth()).json()
+    client.post(f"{P}/setups/{body['setup_id']}/approve", json={"digest": body["digest"]}, headers=auth())
+    handoff.put("ta", body["setup_id"], token(clock))
+    return client.post(f"{P}/setups/{body['setup_id']}/run", headers=auth()).json()
+
+
+def test_a_run_with_a_connection_test_activates_the_connection():
+    client, service, handoff, clock, *_ = make_app(tested=True)
+    result = _run_over_http(client, handoff, clock)
+    assert result["ok"] is True and result["connection_status"] == "active" and result["failed_checks"] == []
+
+
+def test_a_failed_connection_test_suspends_the_connection_and_names_the_check():
+    client, service, handoff, clock, *_ = make_app(tested=True, describe=False)
+    result = _run_over_http(client, handoff, clock)
+    assert result["ok"] is False and result["code"] == "connection_test_failed" and result["connection_status"] == "suspended"
+    assert result["failed_checks"] == ["metadata_read"]
+
+
+def test_without_a_session_factory_the_connection_stays_pending_and_says_so():
+    client, service, handoff, clock, *_ = make_app()
+    result = _run_over_http(client, handoff, clock)
+    assert result["ok"] is True and result["connection_status"] == "pending"
+
+
+def test_a_failed_run_reports_a_removed_connection():
+    client, service, handoff, clock, *_ = make_app(account=Account(locator="ZZ99999"))
+    result = _run_over_http(client, handoff, clock)
+    assert result["ok"] is False and result["code"] == "wrong_account" and result["connection_status"] == "removed"
+
+
+def test_every_code_the_product_run_path_can_return_has_plain_words_in_the_web_app_and_the_callback_lists_agree():
+    from pathlib import Path
+
+    from app.connect.oauth import CALLBACK_ERROR_CODES
+
+    root = Path(__file__).resolve().parents[3]
+    connect = root / "services/analytics-api/app/connect"
+    web = root / "apps/analytics-web/src/connect"
+    documented = set(re.findall(r"^  (\w+): \{ title:", (web / "copy.ts").read_text(), re.M))
+    read = lambda name: (connect / name).read_text()  # noqa: E731
+    emitted = set()
+    for name in ("product_run_api.py", "oauth_api.py"):
+        emitted |= set(re.findall(r'HTTPException\(\d+, "(\w+)"', read(name)))
+    emitted |= set(re.findall(r'ApprovalError\("(\w+)"\)', read("approval.py") + read("product_run.py") + read("worker.py")))
+    emitted |= set(re.findall(r'return "(\w+)"', read("product_run.py")))  # the identity check's codes
+    emitted |= set(re.findall(r'_fail\([^"\n]*"([a-z_]+)"', read("worker.py")))  # the worker's own stop codes
+    emitted |= set(CALLBACK_ERROR_CODES) | {"sign_in_required", "sign_in_expired", "setup_step", "admin_connect_failed", "connection_test_failed"}
+    assert emitted - documented == set(), f"no plain-words copy for: {sorted(emitted - documented)}"
+    ts_codes = set(re.findall(r"'(\w+)'", re.search(r"CALLBACK_CODES = \[(.*?)\] as const", (web / "productRunFlow.ts").read_text(), re.S).group(1)))
+    assert ts_codes == set(CALLBACK_ERROR_CODES)

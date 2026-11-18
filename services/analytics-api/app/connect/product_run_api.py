@@ -8,17 +8,21 @@ not found. Inert (503) until a service and an identity verifier are configured. 
 
 from __future__ import annotations
 
+import secrets
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.connect.approval import ApprovalError
+from app.connect.checks import grants_connection_test
 from app.connect.grants import ConnectScope, ScopeError
 from app.connect.oauth import TokenHandoffError
 from app.connect.oauth_api import MANAGER_GROUP
 from app.connect.product_run import ProductRunService, Registration, RegistrationConflict, RegistrationNotFound
-from app.connect.registration import OutsideCeiling
+from app.connect.registration import OutsideCeiling, generate_registration
 from app.connect.store import ConnectionConflict
 from app.connect.targets import Resolver, TargetRejected, system_resolver
 from app.connect.worker import PendingSetup, SetupCoordinator, SetupNotFound
@@ -33,6 +37,8 @@ class ProductRunRuntime:
     verifier: OIDCVerifier | None = None
     resolver: IdentityResolver | None = None
     redirect_uri: str | None = None  # the one fixed https callback of this deployment; never taken from a request
+    egress_networks: tuple[str, ...] = ()  # Compass's own public addresses, put in the registration script (not user-supplied)
+    session_factory: Callable[[Any], Any] | None = None  # opens a session as the new service user, for the connection test
     dns: Resolver = field(default=system_resolver)
 
 
@@ -52,6 +58,21 @@ class RegisterBody(BaseModel):
     setup_users: list[str] = Field(min_length=1, max_length=10)
 
 
+class ScriptBody(BaseModel):
+    database: str = Field(min_length=1, max_length=255)
+    tables: list[TableRef] = Field(min_length=1, max_length=50)
+    setup_users: list[str] = Field(min_length=1, max_length=10)
+    credit_quota: int = Field(default=1, ge=1, le=100)
+
+
+class ScriptView(BaseModel):
+    reg_suffix: str
+    summary: list[str]
+    statements: list[str]
+    teardown: list[str]
+    digest: str
+
+
 class SetupBody(BaseModel):
     registration_id: str = Field(min_length=8, max_length=64)
     tables: list[TableRef] = Field(min_length=1, max_length=50)
@@ -61,12 +82,19 @@ class DigestBody(BaseModel):
     digest: str = Field(min_length=64, max_length=64)
 
 
+class TableOut(BaseModel):
+    model_config = {"populate_by_name": True}
+    schema_name: str = Field(alias="schema")
+    table: str
+
+
 class RegistrationView(BaseModel):
     registration_id: str
     host: str
     setup_role: str
     database: str
-    ceiling_tables: list[str]
+    ceiling_tables: list[str]  # lower-case qualified names, for display
+    ceiling: list[TableOut]  # the exact names a connection may be planned from
     setup_user_count: int
 
 
@@ -89,12 +117,15 @@ class RunView(BaseModel):
     created: list[str]
     leftovers: list[str]
     connection_id: str
+    connection_status: str
+    failed_checks: list[str]
 
 
 def _registration_view(r: Registration) -> RegistrationView:
     return RegistrationView(
         registration_id=r.registration_id, host=r.config.host, setup_role=r.names.setup_role, database=r.ceiling.database,
         ceiling_tables=list(r.ceiling.allowed_tables), setup_user_count=len(r.setup_users),
+        ceiling=[TableOut(schema=s, table=t) for s, t in sorted(r.ceiling.tables)],
     )
 
 
@@ -131,6 +162,22 @@ def build_product_run_router(runtime: ProductRunRuntime, api_key_dependency) -> 
             status=status, approved=approved, signed_in=signed_in, summary=list(pending.script.summary),
             statements=list(pending.script.statements), teardown=list(pending.script.teardown), digest=pending.script.digest,
         )
+
+    @router.post("/registration-script", response_model=ScriptView)
+    def registration_script(body: ScriptBody, who: AnalyticsIdentity = Depends(manager)) -> ScriptView:
+        """Draft the one-time script the customer's admin runs. Nothing is stored; the redirect and Compass's addresses are the
+        deployment's, never the caller's. The returned suffix is echoed back at registration."""
+        if not runtime.redirect_uri or not runtime.egress_networks:
+            raise HTTPException(503, "registration_not_configured")
+        try:
+            ceiling = ConnectScope(body.database, tuple((t.schema_name, t.table) for t in body.tables))
+            suffix = secrets.token_hex(4)
+            script = generate_registration(ceiling, suffix=suffix, redirect_uri=runtime.redirect_uri, egress_networks=runtime.egress_networks,
+                                           setup_users=body.setup_users, credit_quota=body.credit_quota)
+        except (ScopeError, ValueError) as exc:
+            raise HTTPException(422, "invalid_registration") from exc
+        return ScriptView(reg_suffix=suffix, summary=list(script.summary), statements=list(script.statements),
+                          teardown=list(script.teardown), digest=script.digest)
 
     @router.post("/registrations", response_model=RegistrationView, status_code=201)
     def register(body: RegisterBody, who: AnalyticsIdentity = Depends(manager)) -> RegistrationView:
@@ -190,14 +237,17 @@ def build_product_run_router(runtime: ProductRunRuntime, api_key_dependency) -> 
     def run(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> RunView:
         pending = pending_for(who, setup_id)
         try:
-            result = runtime.service.run(pending)
+            test = grants_connection_test(runtime.session_factory, pending) if runtime.session_factory else None
+            result = runtime.service.run(pending, connection_test=test)
         except RegistrationNotFound:
             raise HTTPException(404, "registration_not_found") from None
         except ApprovalError as exc:
             raise HTTPException(409, exc.code) from exc
         except TokenHandoffError as exc:
             raise HTTPException(409, "sign_in_required" if exc.code == "no_token" else "sign_in_expired") from exc
-        return RunView(ok=result.ok, code=result.code, created=list(result.created), leftovers=list(result.leftovers), connection_id=result.connection_id)
+        status = ("active" if test else "pending") if result.ok else ("suspended" if result.code == "connection_test_failed" else "removed")
+        return RunView(ok=result.ok, code=result.code, created=list(result.created), leftovers=list(result.leftovers),
+                       connection_id=result.connection_id, connection_status=status, failed_checks=list(result.failed_checks))
 
     @router.post("/setups/{setup_id}/cancel", status_code=204, response_model=None)
     def cancel(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> None:

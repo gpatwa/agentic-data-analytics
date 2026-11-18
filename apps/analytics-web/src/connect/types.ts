@@ -79,3 +79,66 @@ export interface ConnectConfig {
   token: string;
   apiKey?: string;
 }
+
+// ---- product-run (CM5d): mirrors app/connect/product_run_api.py --------------------------------------------------------
+
+export interface ScriptInput {
+  database: string;
+  tables: TableRef[];
+  setup_users: string[];
+  credit_quota: number;
+}
+
+export interface ScriptView {
+  reg_suffix: string;
+  summary: string[];
+  statements: string[];
+  teardown: string[];
+  digest: string;
+}
+
+export interface RegisterInput {
+  registration_id: string;
+  reg_suffix: string;
+  host: string;
+  client_id: string;
+  account_locator: string;
+  database: string;
+  tables: TableRef[];
+  setup_users: string[];
+}
+
+export interface RegistrationView {
+  registration_id: string;
+  host: string;
+  setup_role: string;
+  database: string;
+  ceiling_tables: string[]; // lower-case qualified names, for display
+  ceiling: TableRef[]; // the exact names a connection may be planned from
+  setup_user_count: number;
+}
+
+export type ProductSetupStatus = 'awaiting_approval' | 'awaiting_sign_in' | 'ready_to_run';
+
+export interface ProductSetupView {
+  setup_id: string;
+  connection_id: string;
+  registration_id: string;
+  status: ProductSetupStatus;
+  approved: boolean;
+  signed_in: boolean;
+  summary: string[];
+  statements: string[];
+  teardown: string[];
+  digest: string;
+}
+
+export interface RunView {
+  ok: boolean;
+  code: string | null;
+  created: string[];
+  leftovers: string[];
+  connection_id: string;
+  connection_status: 'active' | 'pending' | 'suspended' | 'removed';
+  failed_checks: string[];
+}

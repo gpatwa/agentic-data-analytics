@@ -134,7 +134,9 @@ Code lives in `services/analytics-api/app/connect/`, tested by `tests/test_conne
 
 **CM5a to CM5c (product-run), local on fakes:** the registration script, verifier and teardown (`registration.py`), the hosted OAuth sign-in (`oauth.py`, `oauth_api.py`) and the product-run service and endpoints (`product_run.py`, `product_run_api.py`, mounted inert); rows T24 to T29 above. The product-run spike (docs/design/CONNECT_PRODUCT_RUN_SPIKE_RESULTS.md) verified the key behaviours on one account.
 
-Still not started: the review page screen for registration and approval (CM5d), a live end-to-end run of the whole product-run chain, Databricks, the federation check, a durable store and a vault adapter, multi-tenant isolation tests on real connections, the kill switch, a scheduled re-verification, process-level isolation of the worker, and the independent review.
+**CM5d (screens for registration and approval), local:** the registration review shows what the admin is told, including that the setup role can read the ceiling tables (T28); the approval screen shows the exact statements and digest; the result says connected only when the connection test passed. Clicked through once in the real app against a stubbed API; not against a real backend.
+
+Still not started: a live end-to-end run of the whole product-run chain, Databricks, the federation check, a durable store and a vault adapter, multi-tenant isolation tests on real connections, the kill switch, a scheduled re-verification, process-level isolation of the worker, and the independent review.
 
 ## Residual risks that remain even then
 
