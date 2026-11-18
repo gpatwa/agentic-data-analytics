@@ -7,7 +7,7 @@ Plan: `CONNECT_PRODUCT_RUN_E2E_PLAN.md`. Statements: `CONNECT_PRODUCT_RUN_E2E_ST
 | G0 Review | approved 2026-11-18 |
 | G1 Register | **done 2026-11-18** (below) |
 | G2 Run the product | **done 2026-11-18** (below); the two optional checks were not run |
-| G3 Tear down and sweep | not yet approved, not run. **The registration objects, the synthetic fixture and anything G2 created are still in the account** until G3 |
+| G3 Tear down and sweep | **done 2026-11-18** (below); nothing from the check remains in the account |
 
 ## G1: what ran
 
@@ -61,4 +61,17 @@ The local harness (`app/connect/e2e/harness.py`, `127.0.0.1` only, a throwaway s
 
 ## Still not shown
 
-An `https` redirect on a real deployment, a real identity provider, durable stores and a vault, process isolation, a second account or edition, Databricks, a rollback after a failure part-way through a run, a governed question over the new connection, the independent human review. The registration objects, the fixture and the first connection's role and user remain in the account until G3.
+An `https` redirect on a real deployment, a real identity provider, durable stores and a vault, process isolation, a second account or edition, Databricks, a rollback after a failure part-way through a run, a governed question over the new connection, the independent human review. The registration objects, the fixture and the first connection's role and user were removed in G3 (below).
+
+## G3: tear down and sweep
+
+1. **The product's own removal** of the one connection: Compass's stored credential was deleted at once and the product returned `DROP USER` and `DROP ROLE` for the connection (digest recorded in the audit chain). The two other plans (the refused run and the plan whose approval expired) had created nothing in Snowflake.
+2. **Run as `ACCOUNTADMIN`**, in order: the connection's user and role, the setup role revoked from the owner's user, the integration, the network policy, the setup role, the warehouse, the resource monitor, the fixture database. Created-only, by generated names; the lockout stop rule passed. Every statement succeeded (the run stops at the first error, and the last statement reported success).
+3. **Sweep:** the eight `SHOW` checks (database, setup roles, connection roles, service users, warehouses, resource monitors, integrations, and **all** network policies) each returned zero rows. The account had no network policy before G1 and has none now.
+4. **Harness stopped**; its final report: no secret findings, audit chain verifies. The private keys lived only in its memory and are gone. The throwaway access token and the notes holding the owner's address and the client id were deleted from the scratch folder.
+
+## Summary
+
+On one Snowflake account (the owner's, synthetic data, a local non-TLS redirect, a stubbed identity verifier), the product-run path **works end to end and its main safety control held**: the generated registration script runs and verifies; the hosted sign-in works with Snowflake's real redirect; a run created exactly the approved read-only role and a key-only service user and passed its connection test; a widened setup role was refused with nothing created; no secret reached a log, response or audit event; and teardown left no trace.
+
+What this does **not** make true: it is not deployed, not reviewed by an independent human, not run against a customer's account or data, and the `https` redirect, a real identity provider, durable storage and a vault, process isolation, Databricks and scale are untouched. The two optional checks were not run. Two product decisions fall out of it: the approval lifetime (5 minutes today) and keeping the person's session across the return from Snowflake.
