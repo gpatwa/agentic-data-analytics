@@ -33,7 +33,6 @@ class SetupRecorder:
         self._watched: list[str] = []
         self._shown: str | None = None
         self._approved: str | None = None
-        self._count = 0
 
     def watch(self, *values: str) -> None:
         """Register secret values (an admin token) that must never appear in any record. Cleared by `close`."""
@@ -59,8 +58,7 @@ class SetupRecorder:
 
     def _emit(self, event_type: str, payload: dict[str, Any]) -> None:
         self._scan(payload)
-        self._count += 1
-        self._chain.append(f"{self._connection}:{self._count}", event_type, self._tenant, self._admin, payload)
+        self._chain.append(f"{self._connection}:{len(self._chain.events) + 1}", event_type, self._tenant, self._admin, payload)
 
     def consent_shown(self, statements: Sequence[str], *, engine: str, host: str) -> str:
         digest = digest_statements(statements)
@@ -90,6 +88,13 @@ class SetupRecorder:
 
     def torn_down(self, *, dropped: int) -> None:
         self._emit("connect.torn_down", {"dropped": dropped})
+
+    def script_run_reported(self) -> None:
+        """The admin says they ran the script. A claim, not a fact: the connection test is what checks it."""
+        self._emit("connect.script_run_reported", {})
+
+    def access_removed(self, *, teardown_digest: str) -> None:
+        self._emit("connect.access_removed", {"teardown_digest": teardown_digest})
 
     def credential_deleted(self, receipt: DeletionReceipt) -> None:
         self._emit("connect.credential_deleted", {"ref": receipt.secret_name, "deleted_at": receipt.deleted_at.isoformat()})

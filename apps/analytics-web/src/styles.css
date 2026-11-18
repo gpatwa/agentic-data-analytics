@@ -147,3 +147,17 @@ tbody tr:hover { background: #f8faf7; }
 
 .gv-demo { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: rgba(99, 102, 241, 0.12); font-size: 13px; }
 .gv-demo button { margin-left: 6px; }
+.cn { display: grid; gap: 14px; }
+.cn-stage-note { background: rgba(214, 158, 46, 0.14); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.cn-engines { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.cn-small, .cn small { color: #6b7280; font-size: 12px; }
+.cn-form { display: grid; gap: 10px; max-width: 560px; }
+.cn-form label { display: grid; gap: 4px; font-size: 13px; }
+.cn-form input, .cn-form textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line, #cfd4da); border-radius: 6px; }
+.cn-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.cn-columns h3 { font-size: 13px; margin: 8px 0 4px; }
+.cn-script pre { max-height: 280px; overflow: auto; background: rgba(127, 127, 127, 0.1); padding: 10px; border-radius: 6px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cn-steps { margin: 10px 0; padding-left: 20px; font-size: 13px; display: grid; gap: 4px; }
+.cn-checks { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.cn-confirm { border: 1px solid #e8b4b0; border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+.cn-error { margin: 0; }

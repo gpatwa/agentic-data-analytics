@@ -39,6 +39,7 @@ from app.connect.token import AdminToken
 from app.security.audit import AuditChain
 
 DEADLINE_SECONDS = 120.0
+SCRIPT_WINDOW_SECONDS = 24 * 3600.0  # how long an admin has to run the script before the setup lapses
 
 _CREATES = (
     ("CREATE ROLE ", "role"),
@@ -63,6 +64,7 @@ class PendingSetup:
     secret_name: str
     host: str
     account: str
+    created_at: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,10 @@ def _kind_of(statement: str) -> str | None:
     return next((kind for prefix, kind in _CREATES if statement.startswith(prefix)), None)
 
 
+class SetupNotFound(KeyError):
+    """Absent, expired, or another tenant's: deliberately indistinguishable."""
+
+
 class SetupCoordinator:
     def __init__(
         self,
@@ -96,6 +102,7 @@ class SetupCoordinator:
         self._store, self._secrets, self._chain, self._gate = store, secrets, chain, gate
         self._clock, self._key_pair, self._ids = clock, key_pair, id_source
         self._recorders: dict[str, SetupRecorder] = {}
+        self._pendings: dict[str, PendingSetup] = {}
 
     # -- phase 1 ---------------------------------------------------------------------------------------------------
 
@@ -126,6 +133,7 @@ class SetupCoordinator:
                 tenant_id=tenant_id, connection_id=connection_id, engine="snowflake", host=target.host, account=target.account,
                 user=names.user, role=names.role, warehouse=names.warehouse, database=scope.database,
                 default_schema=scope.schemas[0], allowed_tables=scope.allowed_tables, secret_name=secret_name, status="pending",
+                teardown=script.teardown,
             )
             self._store.add(record)
             recorder = SetupRecorder(self._chain, tenant_id=tenant_id, connection_id=connection_id, admin_id=admin_id)
@@ -136,11 +144,74 @@ class SetupCoordinator:
             self._discard_record(tenant_id, connection_id)
             raise
         self._recorders[setup_id] = recorder
-        return PendingSetup(setup_id, tenant_id, connection_id, admin_id, scope, names, script, request, secret_name, target.host, target.account)
+        pending = PendingSetup(
+            setup_id, tenant_id, connection_id, admin_id, scope, names, script, request, secret_name, target.host, target.account, self._clock()
+        )
+        self._pendings[setup_id] = pending
+        return pending
+
+    def get_pending(self, tenant_id: str, setup_id: str) -> PendingSetup:
+        """A setup under the caller's tenant; another tenant's id behaves like a missing one. Lapsed setups are cleaned up."""
+        pending = self._pendings.get(setup_id)
+        if pending is None or pending.tenant_id != tenant_id:
+            raise SetupNotFound("setup not found")
+        if self._clock() - pending.created_at > SCRIPT_WINDOW_SECONDS:
+            self.cancel(pending)
+            raise SetupNotFound("setup not found")
+        return pending
 
     def cancel(self, pending: PendingSetup) -> None:
         self._gate.cancel(pending.request.request_id)
+        self._pendings.pop(pending.setup_id, None)
         self._cleanup(pending, self._recorders.pop(pending.setup_id, None))
+
+    def verify_script_run(
+        self, pending: PendingSetup, *, connection_test: Callable[[ConnectionRecord], tuple[bool, Iterable[str]]]
+    ) -> SetupResult:
+        """The fallback path: the admin ran the script themselves. Compass connects with its own key and tests.
+
+        A failed test leaves the setup pending so the admin can fix and retry; a pass activates the connection.
+        """
+        pending = self.get_pending(pending.tenant_id, pending.setup_id)
+        recorder = self._recorders.get(pending.setup_id)
+        if recorder is None:
+            raise SetupNotFound("setup not found")
+        recorder.script_run_reported()
+        teardown_digest = digest_statements(pending.script.teardown)
+        try:
+            ok, failed = connection_test(self._store.get(pending.tenant_id, pending.connection_id))
+            failed = tuple(sorted(failed))
+        except Exception as exc:  # noqa: BLE001 - the type only
+            ok, failed = False, (f"test_error:{type(exc).__name__}",)
+        recorder.verified(ok=bool(ok), failed_checks=failed)
+        if not ok:
+            return SetupResult(False, "connection_test_failed", 0, (), (), pending.connection_id, teardown_digest, failed)
+        self._store.set_status(pending.tenant_id, pending.connection_id, "active")
+        self._gate.cancel(pending.request.request_id)
+        self._pendings.pop(pending.setup_id, None)
+        self._recorders.pop(pending.setup_id, None)
+        recorder.close()
+        return SetupResult(True, None, 0, (), (), pending.connection_id, teardown_digest)
+
+    def remove_access(self, tenant_id: str, connection_id: str, *, actor_id: str) -> tuple[tuple[str, ...], str]:
+        """End Compass's access now: delete the credential and mark the connection removed. Returns the statements the
+        customer runs to remove the objects (Compass holds no admin credential on this path) and their digest."""
+        record = self._store.get(tenant_id, connection_id)
+        digest = digest_statements(record.teardown)
+        recorder = SetupRecorder(self._chain, tenant_id=tenant_id, connection_id=connection_id, admin_id=actor_id)
+        try:
+            if record.secret_name:
+                recorder.credential_deleted(self._secrets.delete(tenant_id, record.secret_name))
+        except KeyError:
+            pass
+        self._store.set_status(tenant_id, connection_id, "removed")
+        recorder.access_removed(teardown_digest=digest)
+        for setup_id, pending in list(self._pendings.items()):
+            if pending.connection_id == connection_id:
+                self._gate.cancel(pending.request.request_id)
+                self._pendings.pop(setup_id, None)
+                self._recorders.pop(setup_id, None)
+        return record.teardown, digest
 
     # -- phase 2 ---------------------------------------------------------------------------------------------------
 
@@ -165,6 +236,7 @@ class SetupCoordinator:
             approval = self._gate.take(pending.request.request_id, admin_id=pending.admin_id)
             # From here every outcome ends the setup: it succeeds, or it rolls back and deletes the credential.
             del self._recorders[pending.setup_id]
+            self._pendings.pop(pending.setup_id, None)
             try:
                 recorder.approved(approval.digest)
                 recorder.require_approved(pending.script.statements)

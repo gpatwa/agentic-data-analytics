@@ -40,6 +40,7 @@ class ConnectionRecord:
     allowed_tables: tuple[str, ...]  # exact lower-case qualified names the gateway will allow, nothing else
     auth_method: str = "key_pair"
     secret_name: str | None = None  # a reference into the tenant's secret store, never a value
+    teardown: tuple[str, ...] = ()  # the statements that remove what setup created; object names only, no secrets
     status: str = "pending"
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
