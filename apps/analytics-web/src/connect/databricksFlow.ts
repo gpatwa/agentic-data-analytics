@@ -70,3 +70,14 @@ export const dbxScriptFilename = (view: DbxScriptView) => `compass-databricks-${
 
 /** Whether the grants still carry the placeholder, that is the application id has not been given yet. */
 export const needsApplicationId = (view: DbxScriptView) => view.steps.some((step) => step.text.includes('<APPLICATION_ID>'));
+
+/** Plain words for when a connection's secret stops working. */
+export function expiryText(status: string, days: number | null): string {
+  if (status === 'suspended') return 'Paused: Compass could not read the tables. Give it a new secret.';
+  if (days === null) return 'Secret expiry unknown.';
+  if (days < 0) return 'The secret has expired. Give Compass a new one.';
+  if (days <= 14) return `The secret ends in ${days} day${days === 1 ? '' : 's'}. Give Compass a new one before then.`;
+  return `The secret is good for ${days} more days.`;
+}
+
+export const validateSecret = (secret: string): string[] => (secret.length < 16 || /\s/.test(secret) ? ['Paste the whole OAuth secret, with no spaces'] : []);

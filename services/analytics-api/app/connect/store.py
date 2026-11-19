@@ -42,6 +42,7 @@ class ConnectionRecord:
     secret_name: str | None = None  # a reference into the tenant's secret store, never a value
     teardown: tuple[str, ...] = ()  # the statements that remove what setup created; object names only, no secrets
     http_path: str = ""  # Databricks only: the SQL warehouse's HTTP path (not a secret)
+    secret_expires_at: datetime | None = None  # when the stored secret stops working, if known (Databricks OAuth secrets expire)
     status: str = "pending"
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -88,6 +89,13 @@ class ConnectionStore:
     def list(self, tenant_id: str) -> list[ConnectionRecord]:
         return [r for r in self._records.values() if r.tenant_id == tenant_id]
 
+    def update(self, record: ConnectionRecord) -> ConnectionRecord:
+        """Replace a record the caller's tenant owns. The tenant and id cannot change."""
+        with self._lock:
+            self.get(record.tenant_id, record.connection_id)
+            self._records[record.connection_id] = record
+            return record
+
     def set_status(self, tenant_id: str, connection_id: str, status: str) -> ConnectionRecord:
         if status not in STATUSES:
             raise ValueError("unknown status")
@@ -133,6 +141,13 @@ class TenantSecretStore:
 
     def exists(self, tenant_id: str, name: str) -> bool:
         return (tenant_id, name) in self._values
+
+    def version(self, tenant_id: str, name: str) -> int:
+        """Changes whenever the value is replaced; anything built from the value (a cached gateway) is stale when it changes."""
+        try:
+            return self._values[(tenant_id, name)][1]
+        except KeyError as exc:
+            raise KeyError("secret was not found") from exc
 
     def delete(self, tenant_id: str, name: str) -> DeletionReceipt:
         with self._lock:

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, needsApplicationId, validateCredentials, validateDbxDetails } from './databricksFlow';
+import { dbxRemovalText, dbxScriptText, expiryText, needsApplicationId, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 
 const ok = { host: 'dbc-1234abcd-5678.cloud.databricks.com', catalog: 'sales', warehouse: 'Starter', tablesText: 'data.orders\ndata.customers' };
 const view = (placeholder: boolean): DbxScriptView => ({
@@ -53,4 +53,26 @@ test('the workspace clears the secret from page state before the request is made
   const sent = source.indexOf('completeDatabricks(cfg');
   assert.ok(cleared > 0 && sent > cleared, 'setSecret("") must come before the request');
   assert.ok(!/localStorage|sessionStorage|console\./.test(source), 'no storage or logging in the screen');
+});
+
+test('expiry is said in plain words, and a paused connection says what to do', () => {
+  assert.match(expiryText('active', 90), /good for 90 more days/);
+  assert.match(expiryText('active', 14), /ends in 14 days/);
+  assert.match(expiryText('active', 1), /ends in 1 day\./);
+  assert.match(expiryText('active', -2), /expired/);
+  assert.match(expiryText('suspended', 80), /Paused.*new secret/);
+  assert.match(expiryText('active', null), /unknown/);
+});
+
+test('a new secret is checked before it is sent, and the problem never repeats it', () => {
+  assert.deepEqual(validateSecret('a-long-enough-secret-value'), []);
+  assert.equal(validateSecret('short').length, 1);
+  assert.ok(!validateSecret('has a space inside').join(' ').includes('has a space'));
+});
+
+test('rotation clears the new secret from page state before the request is made', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(`${process.cwd()}/src/connect/DatabricksWorkspace.tsx`, 'utf8');
+  const fn = source.slice(source.indexOf('const submitRotation'));
+  assert.ok(fn.indexOf("setRotateSecret('')") > 0 && fn.indexOf('rotateDbxSecret(cfg') > fn.indexOf("setRotateSecret('')"));
 });

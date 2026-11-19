@@ -49,3 +49,29 @@ export const scriptWithId = (cfg: ConnectConfig, id: string, applicationId: stri
 export const completeDatabricks = (cfg: ConnectConfig, id: string, input: DbxCompleteInput) =>
   call<DbxResult>(cfg, 'POST', `${BASE}/setups/${encodeURIComponent(id)}/credentials`, input);
 export const cancelDatabricks = (cfg: ConnectConfig, id: string) => call<void>(cfg, 'POST', `${BASE}/setups/${encodeURIComponent(id)}/cancel`);
+
+export interface DbxConnection {
+  connection_id: string;
+  host: string;
+  catalog: string;
+  tables: string[];
+  status: string;
+  expires_at: string | null;
+  expires_in_days: number | null;
+  needs_rotation: boolean;
+}
+
+export interface DbxRemoval {
+  connection_id: string;
+  status: string;
+  credential_deleted: boolean;
+  teardown: string[];
+  note: string;
+}
+
+export const listDbxConnections = (cfg: ConnectConfig) => call<DbxConnection[]>(cfg, 'GET', `${BASE}/connections`);
+/** The new secret travels in this one request body and is never returned. */
+export const rotateDbxSecret = (cfg: ConnectConfig, id: string, secret: string) =>
+  call<DbxResult>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/secret`, { client_secret: secret });
+export const checkDbxConnection = (cfg: ConnectConfig, id: string) => call<DbxResult>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/check`);
+export const removeDbxConnection = (cfg: ConnectConfig, id: string) => call<DbxRemoval>(cfg, 'DELETE', `${BASE}/connections/${encodeURIComponent(id)}`);
