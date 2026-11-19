@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     ANALYTICS_V2_ENABLED: bool = False
     ANALYTICS_V2_CONTRACTS: str = ""  # comma-separated certified contracts, id@version, one per analytics tenant
     ANALYTICS_MIGRATE_ON_START: bool = True
+    # ---- Connect mode on Databricks (a customer's own warehouse; off by default) ----
+    ANALYTICS_CONNECT_DATABRICKS_ENABLED: bool = False
+    ANALYTICS_CONNECT_REGISTRY_ROOT: str = ""  # one folder per analytics tenant (<root>/<tenant_id>/contracts), each holding that tenant's certified contract
+    ANALYTICS_CONNECT_KEY_VAULT_URL: str | None = None  # custody for the per-connection secret; without it an in-memory stand-in (dev only)
     # ---- public demo mode (anonymous, sample-only tenant; off by default) ----
     ANALYTICS_DEMO_ENABLED: bool = False
     ANALYTICS_DEMO_TENANT: str = "tenant-demo"
