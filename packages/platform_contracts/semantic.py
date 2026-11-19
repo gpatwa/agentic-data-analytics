@@ -8,9 +8,48 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_serializer, model_validator
+
+from packages.platform_contracts.semantic_terms import (
+    MAX_SYNONYMS,
+    contains_phrase,
+    normalize_term,
+    synonym_problem,
+)
 
 SEMANTIC_CONTRACT_VERSION = "v1"
+
+
+def _check_synonyms(values: list[str]) -> list[str]:
+    if len(values) > MAX_SYNONYMS:
+        raise ValueError("synonym_count")
+    problem = next((p for p in map(synonym_problem, values) if p), None)
+    if problem:
+        raise ValueError(problem)
+    keys = [normalize_term(v) for v in values]
+    if len(keys) != len(set(keys)):
+        raise ValueError("synonym_duplicate")
+    return values
+
+
+class _Worded(BaseModel):
+    """Optional certified business words. Empty by default, and left out of a dump when empty, so a contract without them hashes as before."""
+
+    synonyms: list[str] = Field(default_factory=list)
+
+    @field_validator("synonyms")
+    @classmethod
+    def _synonyms(cls, value: list[str]) -> list[str]:
+        return _check_synonyms(value)
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_words(self, handler):
+        data = handler(self)
+        if not data.get("synonyms", True):
+            data.pop("synonyms", None)
+        if "display_name" in data and data["display_name"] is None:
+            data.pop("display_name")
+        return data
 
 
 class SemanticOwner(BaseModel):
@@ -20,7 +59,7 @@ class SemanticOwner(BaseModel):
     contact_reference: str | None = Field(default=None, max_length=512)
 
 
-class SemanticDataset(BaseModel):
+class SemanticDataset(_Worded):
     id: str = Field(min_length=1, max_length=255)
     display_name: str = Field(min_length=1, max_length=255)
     source_asset_id: str = Field(min_length=1, max_length=512)
@@ -29,7 +68,7 @@ class SemanticDataset(BaseModel):
     owner_ids: list[str] = Field(min_length=1)
 
 
-class SemanticField(BaseModel):
+class SemanticField(_Worded):
     id: str = Field(min_length=1, max_length=255)
     dataset_id: str = Field(min_length=1, max_length=255)
     physical_name: str = Field(min_length=1, max_length=255)
@@ -49,8 +88,9 @@ class SemanticEntity(BaseModel):
     owner_ids: list[str] = Field(min_length=1)
 
 
-class SemanticDimension(BaseModel):
+class SemanticDimension(_Worded):
     id: str = Field(min_length=1, max_length=255)
+    display_name: str | None = Field(default=None, min_length=1, max_length=255)
     dataset_id: str = Field(min_length=1, max_length=255)
     field_id: str = Field(min_length=1, max_length=255)
     entity_id: str | None = Field(default=None, max_length=255)
@@ -58,8 +98,9 @@ class SemanticDimension(BaseModel):
     owner_ids: list[str] = Field(min_length=1)
 
 
-class SemanticMetric(BaseModel):
+class SemanticMetric(_Worded):
     id: str = Field(min_length=1, max_length=255)
+    display_name: str | None = Field(default=None, min_length=1, max_length=255)
     dataset_id: str = Field(min_length=1, max_length=255)
     aggregation: Literal["sum", "average", "count", "count_distinct", "min", "max", "ratio"]
     measure_field_id: str | None = Field(default=None, max_length=255)
@@ -203,12 +244,43 @@ class SemanticContract(BaseModel):
         for semantic_filter in self.filters:
             _require_references("filter dataset", [semantic_filter.dataset_id], dataset_ids)
             _require_fields_for_dataset("filter", [semantic_filter.field_id], field_ids, self.fields, semantic_filter.dataset_id)
+        _check_term_rules(self)
         target_ids = dataset_ids | field_ids | entity_ids | dimension_ids | metric_ids
         for policy in self.policies:
             _require_references("policy target", policy.target_ids, target_ids)
             _require_references("policy filter", policy.required_filter_ids, filter_ids)
             _require_references("policy owner", policy.owner_ids, owner_ids)
         return self
+
+
+def _check_term_rules(contract: "SemanticContract") -> None:
+    """Rules across objects: a business word must name one thing in a kind, and must not be a whole-word part of another thing's name.
+
+    Only explicit words (a display name or a synonym) are checked against the other objects' names. The ids of existing contracts
+    already overlap in places (a `revenue` metric beside `revenue_per_order`), and that is left as certified.
+    """
+    kinds: dict[str, list[tuple[str, list[tuple[str, bool]]]]] = {}
+    for kind, items in (("dataset", contract.datasets), ("metric", contract.metrics), ("dimension", contract.dimensions), ("field", contract.fields)):
+        rows = []
+        for item in items:
+            terms = [(normalize_term(item.id), False)]
+            if kind in ("metric", "dimension") and item.display_name:  # a dataset's display name predates this rule and stays as certified
+                terms.append((normalize_term(item.display_name), True))
+            terms += [(normalize_term(v), True) for v in item.synonyms]
+            rows.append((item.id, [t for t in terms if t[0]]))
+        kinds[kind] = rows
+    all_ids = {normalize_term(i) for rows in kinds.values() for i, _ in rows}
+    for kind, rows in kinds.items():
+        for index, (item_id, terms) in enumerate(rows):
+            own_id = normalize_term(item_id)
+            for term, explicit in terms:
+                if explicit and term != own_id and term in all_ids - {own_id}:
+                    raise ValueError("synonym_is_another_id")
+            for other_id, other_terms in rows[index + 1 :]:
+                for term, explicit in terms:
+                    for other, other_explicit in other_terms:
+                        if (explicit or other_explicit) and (contains_phrase(term, other) or contains_phrase(other, term)):
+                            raise ValueError("synonym_overlaps_another_term")
 
 
 class SemanticRegistryDocument(BaseModel):

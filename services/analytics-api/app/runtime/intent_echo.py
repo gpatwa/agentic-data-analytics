@@ -18,27 +18,12 @@ import re
 
 from packages.platform_contracts.analytics_intent import AnalyticalIntent
 from packages.platform_contracts.ontology import OntologySnapshot
+from packages.platform_contracts.semantic_terms import TIME_WORDS
+from packages.platform_contracts.semantic_terms import stem as _stem
+from packages.platform_contracts.semantic_terms import tokens as _tokens
 
-TIME_WORDS = frozenset(
-    "time date day days daily week weeks weekly month months monthly quarter quarters quarterly year years yearly annual annually hour hourly".split()
-)
 SKIP = frozenset("a an the each every all any order orders".split())
 GROUPING = re.compile(r"(?=\b(?:by|per|across|for each|each)\s+([a-z0-9]+(?:\s+[a-z0-9]+)?))")
-
-
-def _tokens(text: str) -> list[str]:
-    return re.findall(r"[a-z0-9]+", text.casefold())
-
-
-def _stem(token: str) -> str:
-    """A light plural fold: statuses -> status, categories -> category, orders -> order; status and process stay as they are."""
-    if len(token) > 4 and token.endswith("ies"):
-        return token[:-3] + "y"
-    if len(token) > 4 and token.endswith(("ses", "xes", "ches", "shes")):
-        return token[:-2]
-    if len(token) > 3 and token.endswith("s") and not token.endswith(("ss", "us", "is")):
-        return token[:-1]
-    return token
 
 
 def _terms(ontology: OntologySnapshot) -> dict[str, set[str]]:
