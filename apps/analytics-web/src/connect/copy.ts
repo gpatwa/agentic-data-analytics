@@ -24,6 +24,11 @@ export const ERROR_COPY: Record<string, ErrorCopy> = {
   setup_not_found: { title: 'That setup is no longer open.', action: 'Setups lapse after 24 hours. Start again; nothing was changed in your warehouse.' },
   connection_not_found: { title: 'That connection no longer exists.', action: 'Refresh the page.' },
   connection_test_not_configured: { title: 'The connection test is not switched on here.', action: 'Ask the person who runs this deployment.' },
+  // Databricks (admin pre-creates the principal)
+  invalid_application_id: { title: 'That is not a service principal application id.', action: 'Copy the application id (a UUID) that the script step printed.' },
+  invalid_http_path: { title: 'That is not a SQL warehouse HTTP path.', action: 'Copy it from the warehouse\'s Connection details; it looks like /sql/1.0/warehouses/abc123.' },
+  invalid_secret: { title: 'That secret cannot be used.', action: 'Paste the OAuth secret exactly as Databricks showed it, with no spaces. Nothing was stored.' },
+  invalid_request: { title: 'Some details were missing.', action: 'Fill in all three fields. Nothing was stored.' },
   // Registration, sign-in and product-run setup
   registration_not_found: { title: 'That registration does not exist.', action: 'Register Compass first, or pick one from the list.' },
   registration_id_taken: { title: 'That registration name is already used.', action: 'Choose a different registration name.' },

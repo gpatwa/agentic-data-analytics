@@ -7,6 +7,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.api_v2 import V2Runtime, build_v2_router
 from app.config import settings, v1_enabled
 from app.connect.api import ConnectRuntime, build_connect_router
+from app.connect.databricks_api import DatabricksRuntime, build_databricks_router
 from app.connect.oauth_api import OAuthRuntime, build_oauth_router, install_log_redaction
 from app.connect.product_run_api import ProductRunRuntime, build_product_run_router
 from app.demo import build_demo_router
@@ -87,6 +88,8 @@ app.include_router(build_oauth_router(oauth_runtime, verify_api_key))
 install_log_redaction()  # the callback's single-use code must never reach an access log
 product_run_runtime = ProductRunRuntime()  # inert (503) until a service and an identity verifier are configured
 app.include_router(build_product_run_router(product_run_runtime, verify_api_key))
+databricks_runtime = DatabricksRuntime()  # inert (503) until a service and an identity verifier are configured
+app.include_router(build_databricks_router(databricks_runtime, verify_api_key))
 
 
 @app.get("/health", response_model=AnalyticsHealthResponse)

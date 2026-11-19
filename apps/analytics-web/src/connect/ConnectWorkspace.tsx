@@ -5,6 +5,7 @@ import { accountFromHost, parseTables, scriptFilename, scriptText, teardownText,
 import type { Capabilities, ConnectionView, RemovalView, SetupView, VerifyView } from './types';
 import { save } from './download';
 import { parseReturn } from './productRunFlow';
+import { DatabricksWorkspace } from './DatabricksWorkspace';
 import { ProductRunWorkspace } from './ProductRunWorkspace';
 import { ChecksPanel, ConnectedPage, DetailsForm, ErrorNotice, ReviewPage, StagePanel } from './views';
 
@@ -26,7 +27,7 @@ export function ConnectWorkspace() {
   const [errorCode, setErrorCode] = useState('');
   const [busy, setBusy] = useState(false);
   const returned = typeof window === 'undefined' ? null : parseReturn(window.location.pathname, window.location.search);
-  const [mode, setMode] = useState<'script' | 'product-run'>(returned ? 'product-run' : 'script');
+  const [mode, setMode] = useState<'script' | 'product-run' | 'databricks'>(returned ? 'product-run' : 'script');
   const cfg = { baseUrl: BASE_URL, token, apiKey: API_KEY || undefined };
 
   async function guard(work: () => Promise<void>) {
@@ -91,6 +92,7 @@ export function ConnectWorkspace() {
       <nav className="cn-modes" aria-label="How to connect">
         <button className={mode === 'script' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('script')}>Admin runs a script (available now)</button>
         <button className={mode === 'product-run' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('product-run')}>Register once (internal testing)</button>
+        <button className={mode === 'databricks' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('databricks')}>Databricks (internal testing)</button>
       </nav>
       {mode === 'script' && <StagePanel capabilities={capabilities} />}
       <section className="gv-card" aria-label="Sign in">
@@ -101,6 +103,7 @@ export function ConnectWorkspace() {
       </section>
       {errorCode && <ErrorNotice code={errorCode} />}
       {mode === 'product-run' && <ProductRunWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} returned={returned} />}
+      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} />}
       {mode === 'script' && connections.map((connection) => (
         <ConnectedPage
           key={connection.connection_id}
