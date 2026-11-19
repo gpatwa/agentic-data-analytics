@@ -327,6 +327,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate D2-0 (review) of docs/design/CONNECT_DATABRICKS_SPIKE_PLAN.md only, as written: the seven workspace-only questions, a sandbox catalog with a schema inside an existing catalog as the fallback, the existing Serverless Starter Warehouse chosen by name and never edited, secrets in memory only, created-only teardown and sweep. The offline build of the spike driver and its generated statements may proceed. It approves NO live step: D2-1, D2-2 and D2-3 need the owner's explicit approval, which the owner asked to be requested once for all of them, with the exact generated statements shown first."
       record: "Asked \"Approve D2-0, the spike plan?\" with options \"Approve D2-0\" and \"Change the plan\"; the user answered \"Approve D2-0\" on 2026-11-18, then asked that all remaining approvals be requested once."
+    connect_databricks_setup_direction:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Design decision only, after docs/design/CONNECT_DATABRICKS_SPIKE_RESULTS.md: for Databricks Connect mode the admin runs a script that pre-creates the per-connection service principal, its secret, the path grants and the warehouse access; Compass then only passes on SELECT within the ceiling. Compass does NOT hold an admin-level credential. It approves no build and no live step."
+      record: "Asked \"Which setup direction for Databricks?\" with options \"Admin pre-creates script\" and \"Discuss options\"; the user answered \"Admin pre-creates script\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
