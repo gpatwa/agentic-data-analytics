@@ -1,0 +1,4 @@
+{
+  "_instructions": "YOURS to fill in before K3 (docs/design/INTENT_COVERAGE_CHECK_PLAN.md). Write 20 questions the way a colleague would actually ask them about the sandbox orders (metrics: order_count, order_amount_sum; one dimension: amount). Do NOT look at the coverage report first and do not tune anything to them. For each: 'question' (free text), 'metric' (order_count or order_amount_sum: the metric a correct reading would use), 'expect' ('answer' if the question asks only for that metric with no extra condition; 'refuse' if it adds a condition, a second metric, a time period, a filter, a sort or a limit the contract cannot apply). Leave 'cases' empty to skip. Nothing here is certified or executed.",
+  "cases": []
+}

@@ -381,6 +381,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "S0 (review) of docs/design/SEMANTIC_SYNONYMS_DESIGN.md with its six recommended answers: synonyms as optional fields on the certified contract; the section 2 rules (shape, shared normaliser, uniqueness within a kind, no whole-word overlap with another term, no collision with ids or reserved words); the drafter proposing at most 5 per metric or dimension from names and screened comments only; the phrasing corpus and report (S3) before any synonym is certified for the sandbox; suggestion from refusals, other languages and per-user terms out of scope; and S6 (ask the requester to confirm instead of refusing, humans only) with the risk figure measured first. It approves the OFFLINE builds S1 to S3 only. It does NOT approve S4 (certifying any synonym, the owner's own act), S5 (a live re-check) or the S6 build, which waits for the S1 to S3 results."
       record: "Asked \"Approve S0, including decision 6?\" with options \"Approve S0\" and \"Change something\"; the user answered \"Approve S0\" on 2026-11-19."
+    intent_coverage_k0:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-19
+      scope: "K0 (review) of docs/design/INTENT_COVERAGE_CHECK_PLAN.md with its five recommended answers: a lexical coverage check after the echo check that can only be stricter; the first release is option A (refuse, naming the unaccounted words to the requester) with option B (confirm, with S6) to follow; domain words belong in certified synonyms and the neutral list stays generic and small; the owner writes a 20-question hold-out before K3 and K3 waits for those numbers; certifying synonyms (S4) waits for K3. It approves the OFFLINE builds K1 and K2 only. It does NOT approve K3 (enforcing it for any tenant), K4 (the confirm path), S4 or any live run."
+      record: "Asked \"Approve K0 with the recommended answers?\" with options \"Approve K0\" and \"Change something\"; the user answered \"Approve K0\" on 2026-11-19."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user

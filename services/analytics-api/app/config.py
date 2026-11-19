@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ANALYTICS_V2_ENABLED: bool = False
     ANALYTICS_V2_CONTRACTS: str = ""  # comma-separated certified contracts, id@version, one per analytics tenant
     ANALYTICS_MIGRATE_ON_START: bool = True
+    ANALYTICS_INTENT_COVERAGE_TENANTS: str = ""  # comma-separated tenants (or *) whose questions must be fully covered by the interpreted request; empty is off
     # ---- Connect mode on Databricks (a customer's own warehouse; off by default) ----
     ANALYTICS_CONNECT_DATABRICKS_ENABLED: bool = False
     ANALYTICS_CONNECT_REGISTRY_ROOT: str = ""  # one folder per analytics tenant (<root>/<tenant_id>/contracts), each holding that tenant's certified contract

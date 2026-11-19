@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 
+from app.runtime.intent_coverage import coverage_reference, unaccounted_positions
 from app.runtime.intent_echo import echo_problems
 from packages.platform_contracts.agent_runtime import EvidenceReference, NodeInput, NodeOutput, RunError
 from packages.platform_contracts.analytics_intent import AnalyticalIntent
@@ -119,7 +120,7 @@ class SnapshotOntologyProvider:
         return snapshot.ontology.model_copy(update={"snapshot_id": snapshot.snapshot_id})
 
 
-def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True):
+def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, coverage_tenants: frozenset[str] | None = None):
     """Create a handler whose lookups are exact, tenant-scoped snapshot reads."""
 
     def handle(node_input: NodeInput) -> NodeOutput:
@@ -136,6 +137,9 @@ def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True):
             if resolved.tenant_id != node_input.tenant_id:
                 raise IntentResolutionError("tenant_scope_mismatch")
             echo = echo_problems(node_input.request_text, resolved, ontology) if echo_check else []
+            coverage: list[int] = []
+            if not echo and coverage_tenants and ("*" in coverage_tenants or node_input.tenant_id in coverage_tenants):
+                coverage = unaccounted_positions(node_input.request_text, resolved, ontology)
         except IntentResolutionError as exc:
             if exc.candidates and exc.code == "ambiguous_semantic_alias":
                 previous = node_input.payload.get("clarification_state") or {}
@@ -212,6 +216,21 @@ def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True):
                 evidence=(
                     EvidenceReference(
                         evidence_id=f"intent-echo:{node_input.run_id}",
+                        kind="error",
+                        fingerprint=hashlib.sha256(reference.encode()).hexdigest(),
+                    ),
+                ),
+            )
+        if coverage:
+            reference = coverage_reference(node_input.request_text, coverage)
+            return NodeOutput(
+                run_id=node_input.run_id,
+                node_id=node_input.node_id,
+                status="failed",
+                error=RunError(code="intent_coverage_mismatch", message_reference=reference),
+                evidence=(
+                    EvidenceReference(
+                        evidence_id=f"intent-coverage:{node_input.run_id}",
                         kind="error",
                         fingerprint=hashlib.sha256(reference.encode()).hexdigest(),
                     ),

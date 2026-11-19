@@ -1,6 +1,6 @@
 # The intent coverage check: a plan to review (2026-11-19)
 
-Status: **a plan only. Nothing is built and no gate is approved.** The check can only refuse (or ask) more often, never less, so it cannot weaken an existing gate; it is still a behaviour change to a safety gate, so it needs the owner's approval (K0 below). It continues `SEMANTIC_SYNONYMS_DESIGN.md` (S1 to S3 built; S4, certifying synonyms, waits for this).
+Status: **K0 was approved by the owner on 2026-11-19 with the recommended answers (program file `intent_coverage_k0`). K1 and K2 are built offline (see "K1 and K2 built" at the end); K3 (enforcing it), K4 (confirm) and S4 are not approved.** The check can only refuse (or ask) more often, never less, so it cannot weaken an existing gate; it is still a behaviour change to a safety gate, so it needs the owner's approval (K0 below). It continues `SEMANTIC_SYNONYMS_DESIGN.md` (S1 to S3 built; S4, certifying synonyms, waits for this).
 
 ## The problem, measured
 
@@ -92,3 +92,23 @@ Everything up to K4 builds and tests offline.
 It closes the specific hole synonyms open: a stated constraint or second metric silently dropped. It does not make the system understand meaning, it will refuse some good questions (the cost of being deterministic), and it cannot catch a wrong value inside a correct-looking filter (a model that filters on `EU` when the question says `EMEA` is caught only if the filter-value check compares the token; that is one of the K1 tests, not a guarantee).
 
 Not verified: the false-flag rate on questions written by anyone but me, any real model's behaviour, and other contracts.
+
+## K1 and K2 built (2026-11-19), offline
+
+**K1.** `app/runtime/intent_coverage.py` (the check and its neutral list `neutral-v1`), wired into the ontology resolution node after the echo check, **off by default** and switched on per tenant (`ANALYTICS_INTENT_COVERAGE_TENANTS`, a comma list or `*`; a tenant not listed is untouched). On a mismatch the run ends as the existing `unsupported_request` refusal with a new internal code `intent_coverage_mismatch`. **Evidence holds positions and a hash, never words** (`unaccounted_words:2@5,6#<hash>`); the requester's response rebuilds their own words from their own question and those positions ("The question includes words the interpreted request does not use: "refunded"."). Tests: `tests/test_intent_coverage.py` (32, including end to end through the governed runtime, the evidence scan, and "only ever stricter"); deliberate breaks of every accounting rule, the switch, the tenant filter, the service mapping and the no-words rule were caught (two initial survivors got their own tests).
+
+Two differences from the plan above: the neutral list has **84 words**, not "about 60" (generic function words plus the contraction fragments `s`, `t`, `re`, `ve`, `ll`, `d`, `m` that the tokenizer produces), and filter words such as `with`, `where`, `than` are accounted only when the intent holds a filter, like time and sort words.
+
+**K2.** `reference_stack/coverage_eval.py`, a pinned 49-case corpus, the generated report `docs/evaluation/intent-coverage-k2-report.md`, and the **hold-out template** `reference_stack/m7/coverage-holdout.owner.json` for you to fill in (empty; K3 waits for it). The neutral list was fixed **before** the corpus was written and was not changed after seeing results. Author-written cases, so optimistic:
+
+| Group | Echo check alone: answered | Plus coverage: answered |
+|---|---|---|
+| Valid plain questions (answered is good) | 20 of 20 | **16 of 20** (4 newly refused, 20%: the proposed limit is met only at its boundary) |
+| Faithful intents that hold their condition | 3 of 3 | 3 of 3 |
+| Dropped constraint (answered is bad) | 11 of 12 | **0 of 12** |
+| Omitted second metric (answered is bad) | 5 of 5 | **0 of 5** |
+| Near-misses (answered is bad) | 0 of 8 | 0 of 8 |
+
+The four valid questions newly refused are filler and a split phrase ("right now", "Quickly,", "Hi,", "received in total"). The sandbox contract has no temporal dimension, so no intent can hold a time range there: every time condition is a dropped constraint by construction, and the time-accounting rules are covered by unit tests.
+
+**What is left for you.** Fill in `coverage-holdout.owner.json` (20 questions with the metric and whether you expect an answer or a refusal; do not read the report first). Then K3 can be proposed with your numbers, not mine.
