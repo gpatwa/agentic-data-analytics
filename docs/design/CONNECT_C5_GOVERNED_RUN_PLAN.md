@@ -1,6 +1,6 @@
 # C5: a governed question through the whole graph on the connected Databricks sandbox, a plan to review (2026-11-18)
 
-Status: **a plan only. Nothing is built, nothing has run, and no gate below is approved.** C5-0 (this review) needs the owner's explicit approval; the live run (C5-2) needs a separate one with the exact statements shown first (CLAUDE.md). It continues `CONNECT_CERTIFICATION_PLAN.md`: C4 proved the connected-warehouse half (assets, compile, gateway, allowlist, suspension, rotation, removal) with the intent built by hand. C5 runs the **real governed runtime** on the same certified sandbox contract.
+Status: **C5-0 (this review) was approved by the owner on 2026-11-18 with the recommended answers (program file `connect_certification_c5_0`). C5-1 is built offline (see the end of this file); nothing has run live and C5-2 is not approved.** The live run (C5-2) needs its own approval with the generated statements (`CONNECT_C5_STATEMENTS.md`) shown first (CLAUDE.md). It continues `CONNECT_CERTIFICATION_PLAN.md`: C4 proved the connected-warehouse half (assets, compile, gateway, allowlist, suspension, rotation, removal) with the intent built by hand. C5 runs the **real governed runtime** on the same certified sandbox contract.
 
 ## What C5 must show
 
@@ -77,3 +77,15 @@ It shows one governed question set answered, refused or reviewed correctly on on
 5. **Acceptance:** the expected denials and values in the table must hold exactly; everything else is recorded as a measurement, with no thresholds unless you set them. (Recommended: as written.)
 
 Not verified: whether the graph works end to end on Databricks (the estimate, result-validation and explanation stages have only run on PostgreSQL and DuckDB), the model's behaviour on these questions, and the cost and time. Finding a break in the graph's Databricks path is a plausible and acceptable outcome of C5-1.
+
+## C5-1 built (2026-11-18), on fakes only
+
+`app/connect/e2e/databricks_govern.py` (`--stage govern` of `databricks_certify`), its generated statements `CONNECT_C5_STATEMENTS.md` (kept equal by a test) and `tests/test_databricks_govern.py` (50 tests; deliberate breaks of every stop rule and judge were caught). The run drives the product's own `GovernedRuntime` and router over a local control store, with trap pilot gateway and compiler, a counting model client (cap 24) and a recording gateway. Nothing ran against a workspace or a real model.
+
+**What the build found, and the changes to the plan it forces (for you to accept at C5-2):**
+
+1. **The graph's intent-echo check refuses natural phrasings on the certified sandbox contract.** The drafted metrics' only certified terms are their ids (`order count`, `order amount sum`), and the echo check (`app/runtime/intent_echo.py`) requires a question to name a metric by a certified term. "How many orders are there?" and "What is the total order amount?" are therefore refused as `unsupported_request` whatever the model returns, before any SQL exists. This is the check's documented conservative abstention, and it is also a usability gap of a drafted contract without aliases: a customer's contract would need reviewed synonyms. **Plan change:** Q1 and Q2 keep the natural wording but are **recorded, not judged** (an answer with the right value, or an echo refusal, never a wrong value); new **Q1b** ("What is the order count?") and **Q2b** ("What is the order amount sum?") use the certified terms and **must answer correctly**. Q6, Q7 and Q8 use the certified wording. That is **10 questions, at most 8 model calls expected** under the cap of 24 (the cap and the one-attempt rule are unchanged). Adding aliases to the certified contract is a change to a certified definition and is yours; I have not made it.
+2. **A connected tenant whose connection is suspended gets a typed `503 context_unavailable`** (the resolver's refusal surfaces from run start-up), not a failed run record. It is a stable code and nothing falls back to the pilot's warehouse; Q7 accepts it as a refusal and records the code.
+3. Q5 (instructions in the question): even when the scripted model complies with the injected instruction, the echo check refuses the run because the question names no certified metric. The model returning raw SQL is a typed failure; neither reaches the warehouse.
+4. The prompt-hygiene canaries are the text values of the sandbox's second ceiling table (`EMEA`, `AMER`), not new seeded columns: no change to the approved fixture statements.
+5. Not measured: tokens and warehouse seconds (the client does not report them); cost stays an estimate.

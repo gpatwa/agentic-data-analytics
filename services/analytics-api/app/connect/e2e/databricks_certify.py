@@ -200,10 +200,7 @@ class Certify:
         record = None
         try:
             record = self.stand_up()
-            if stage == "draft":
-                self.draft(record)
-            else:
-                self.ask(record)
+            getattr(self, stage)(record)  # "draft" (C2), "ask" (C4), "govern" (C5, `databricks_govern.Govern`)
         except sp.SpikeStop as stop:
             self.stopped = stop.code
         except DraftError as exc:
@@ -267,7 +264,7 @@ def render_markdown(suffix: str = "a1b2c3d4", warehouse: str = "Serverless Start
 
 def main(argv: list[str] | None = None, *, sdk: Any | None = None, model: Any | None = None) -> int:
     p = argparse.ArgumentParser(description="Databricks certification stages C2 (draft) and C4 (ask), owner-approved, throwaway.")
-    p.add_argument("--stage", choices=("draft", "ask"), required=True)
+    p.add_argument("--stage", choices=("draft", "ask", "govern"), required=True)
     p.add_argument("--allow-live", action="store_true")
     p.add_argument("--expect-host", required=True)
     p.add_argument("--suffix", required=True)
@@ -282,10 +279,10 @@ def main(argv: list[str] | None = None, *, sdk: Any | None = None, model: Any | 
     if not sp._HOST.match(args.expect_host) or not sp._SUFFIX.match(args.suffix) or not args.warehouse.strip():
         print("refused: check --expect-host, --suffix and --warehouse", file=sys.stderr)
         return 2
-    if args.stage == "ask" and not args.registry:
+    if args.stage in ("ask", "govern") and not args.registry:
         print("refused: --registry is required for the ask stage", file=sys.stderr)
         return 2
-    if args.stage == "draft" and model is None:
+    if args.stage in ("draft", "govern") and model is None:
         missing = [n for n in MODEL_ENV if not os.environ.get(n)]
         if missing:
             print("Not run. Set these environment variables (names only shown): " + ", ".join(missing), file=sys.stderr)
@@ -298,8 +295,14 @@ def main(argv: list[str] | None = None, *, sdk: Any | None = None, model: Any | 
     admin = sp.connect_admin(args.expect_host, sdk=sdk)
     wid = sp.pick_warehouse(admin, args.warehouse)
     names = sp.Names.for_run(args.suffix)
-    run = Certify(admin, wid, args.warehouse, args.expect_host, names, lambda secrets: make_session_factory(secrets), model=model,
-                  out_dir=Path(args.out_dir) if args.out_dir else Path("semantic_registry_drafts"), registry=Path(args.registry) if args.registry else None)
+    common = dict(model=model, out_dir=Path(args.out_dir) if args.out_dir else Path("semantic_registry_drafts"), registry=Path(args.registry) if args.registry else None)
+    if args.stage == "govern":
+        from app.connect.e2e.databricks_govern import Govern
+
+        run: Certify = Govern(admin, wid, args.warehouse, args.expect_host, names, lambda secrets: make_session_factory(secrets), model_factory=lambda _rid: model,
+                              **common)
+    else:
+        run = Certify(admin, wid, args.warehouse, args.expect_host, names, lambda secrets: make_session_factory(secrets), **common)
     if model is not None:
         run.scanner.watch("model_api_key", os.environ.get("AZURE_OPENAI_API_KEY", ""))
     result = run.run(args.stage)
