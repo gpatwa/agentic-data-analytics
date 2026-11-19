@@ -78,7 +78,7 @@ def _recall(found: set[Signature], expected: set[Signature]) -> float | None:
 # ---------------------------------------------------------------------------------------------------------------- checks
 
 
-def find_escapes(result: DraftResult, facts: SchemaFacts) -> tuple[str, ...]:
+def find_escapes(result: DraftResult, facts: SchemaFacts, *, physical_prefix: str = "") -> tuple[str, ...]:
     """Independent invariants a draft must satisfy. Each returned string is a violated invariant, never content."""
     problems: list[str] = []
     document = result.document
@@ -96,7 +96,7 @@ def find_escapes(result: DraftResult, facts: SchemaFacts) -> tuple[str, ...]:
     physical = {d.id: d.physical_name for d in contract.datasets}
     columns = {(physical[f.dataset_id], f.physical_name) for f in contract.fields}
     for table_name, column_name in columns:
-        table = facts.table(table_name)
+        table = facts.table(table_name.removeprefix(physical_prefix))
         if table is None or table.column(column_name) is None:
             problems.append("unknown_schema_object")
     metrics, dimensions = draft_signatures(contract)
@@ -170,7 +170,7 @@ def run_case_full(
         "drops": drops,
         "kept_metrics": len(kept_metrics),
         "kept_dimensions": len(kept_dimensions),
-        "escapes": find_escapes(result, case.facts),
+        "escapes": find_escapes(result, case.facts, physical_prefix=ctx.physical_prefix),
         "leaks": prompt_leaks + _count_present(case.secrets, _serialised(result)),
         "injections": _count_present(case.canaries, _serialised(result)),
     }
