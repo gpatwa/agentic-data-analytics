@@ -12,7 +12,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 STATUSES = ("pending", "active", "suspended", "removed")
-AUTH_METHODS = ("key_pair", "federated")
+AUTH_METHODS = ("key_pair", "federated", "oauth_m2m")
 
 
 class ConnectionNotFound(KeyError):
@@ -41,6 +41,7 @@ class ConnectionRecord:
     auth_method: str = "key_pair"
     secret_name: str | None = None  # a reference into the tenant's secret store, never a value
     teardown: tuple[str, ...] = ()  # the statements that remove what setup created; object names only, no secrets
+    http_path: str = ""  # Databricks only: the SQL warehouse's HTTP path (not a secret)
     status: str = "pending"
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -58,6 +59,8 @@ class ConnectionRecord:
                 raise ValueError("allowed tables must be exact lower-case database.schema.table names")
         if self.auth_method == "key_pair" and not self.secret_name:
             raise ValueError("a key-pair connection needs a secret reference")
+        if self.auth_method == "oauth_m2m" and (self.engine != "databricks" or not self.secret_name or not self.user):
+            raise ValueError("an OAuth M2M connection is Databricks only and needs a client id (user) and a secret reference")
         if self.auth_method == "federated" and self.secret_name:
             raise ValueError("a federated connection stores no secret")
 
