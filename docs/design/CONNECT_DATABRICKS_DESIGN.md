@@ -84,3 +84,14 @@ With the owner signed in in Chrome, I looked at the validation workspace and cha
 - **What it does allow:** the earlier validation runs created and removed service principals, grants and OAuth M2M secrets here, so a spike on option A (service principals, Unity Catalog grants, `CAN_USE`, M2M) **can** run on it.
 
 Consequence for the plan: option A is the one that can be proven on this workspace; testing option B would need a workspace whose account has an account console (for example a paid or trial account the owner names). That is one more reason to keep A as the first step.
+
+## Decision after the spike (2026-11-18): the admin pre-creates the principal
+
+The owner chose, after `CONNECT_DATABRICKS_SPIKE_RESULTS.md`, that **the admin runs a script that pre-creates the per-connection service principal** (with its OAuth secret, `USE CATALOG`/`USE SCHEMA` on the path, `SELECT` on the named tables and `CAN_USE` on the named warehouse). Compass never holds an admin-level credential.
+
+What Compass does in this design:
+1. The admin names the tables (the ceiling) in Compass and receives one generated script: SQL for the grants and SDK/CLI calls for the principal and secret, plus a removal script. A verifier compares what the workspace reports (`SHOW GRANTS`, the warehouse permission list) with exactly what the script creates, as for Snowflake.
+2. The admin gives Compass the principal's application id and the secret **once** (shown once by Databricks); Compass stores it in the vault and uses OAuth M2M with short-lived tokens.
+3. The spike showed the principal itself is read-only, so no delegated setup role is needed. Rollback is the admin's removal script; Compass deletes its stored secret.
+
+Still unverified: that the generated script runs as written on a workspace; that the verifier accepts the real read-backs; that the stored secret path passes the leak scan. Proposed gates: **D1** build the generator, verifier and screen offline on fakes (no approval needed to build); **D3** one live end-to-end check on the validation workspace (script, verify, connection test through the product, removal, sweep), approved once with the exact generated statements shown first.
