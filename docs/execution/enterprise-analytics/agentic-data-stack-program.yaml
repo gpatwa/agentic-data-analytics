@@ -321,6 +321,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Gate D0 (review) of docs/design/CONNECT_DATABRICKS_DESIGN.md only, with its recommendation: setup option A (the admin runs one registration script once; Compass then creates per-connection read-only service principals inside the ceiling) and the plan to answer the open questions with a read-only live spike before building. The owner did not answer the other three decisions (which sandbox workspace and SQL warehouse, whether Compass may hold one narrow setup-principal secret, token lifetimes); they stay open. It approves no build of the runtime pieces and NO live step: D2 (spike) and D3 (end to end) each need the owner's explicit approval, with the exact statements shown first."
       record: "Asked \"Approve D0, the Databricks design with option A?\" with options \"Approve D0\" and \"Change the design\"; the user answered \"Approve D0\" on 2026-11-18 without changing the design or answering the other decisions."
+    connect_databricks_setup_direction:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Design decision only, after docs/design/CONNECT_DATABRICKS_SPIKE_RESULTS.md: for Databricks Connect mode the admin runs a script that pre-creates the per-connection service principal, its secret, the path grants and the warehouse access; Compass then only passes on SELECT within the ceiling. Compass does NOT hold an admin-level credential. It approves no build and no live step."
+      record: "Asked \"Which setup direction for Databricks?\" with options \"Admin pre-creates script\" and \"Discuss options\"; the user answered \"Admin pre-creates script\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
