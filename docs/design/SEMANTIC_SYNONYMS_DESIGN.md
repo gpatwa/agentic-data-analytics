@@ -1,6 +1,6 @@
 # Certified synonyms: a design note (2026-11-18)
 
-Status: **a design note only. Nothing is built and no gate is approved.** It needs the owner's review (S0 below). Any change to a certified definition, including a synonym, stays the owner's explicit act (CLAUDE.md: semantic certification is a human gate).
+Status: **a design note only. Nothing is built and no gate is approved.** It needs the owner's review (S0 below). It includes S6 (confirm instead of refuse), added at the owner's request. Any change to a certified definition, including a synonym, stays the owner's explicit act (CLAUDE.md: semantic certification is a human gate).
 
 ## Why now
 
@@ -78,13 +78,39 @@ An open gap this note found, not solved here: the echo check asks whether the ch
 | **S2 Drafter** | Proposal schema, prompt, no-value rule, `REVIEW.md` block, tests on the scripted model. | no | none beyond S0 |
 | **S3 Evaluation** | The phrasing corpus, the three measures, a report; proposed thresholds. | no | none beyond S0 |
 | **S4 Certify** | **You** review the proposed synonyms and certify a new version of the sandbox contract. I do not certify. | human | you |
+| **S6 Confirm instead of refuse** | The `interpretation` clarification, human-only confirmation, evidence, corpus and report with the habitual-confirmer risk figure. Offline, on the scripted model. A behaviour change to a safety gate, so it waits for your decision 6. | no | your decision 6 |
 | **S5 Live re-check (optional)** | The C5 question set again on the sandbox, with the pilot's model (about 8 calls), one browser sign-in. | yes | a separate approval with the statements shown first |
 
 S1 to S3 build and test offline with no live access.
 
+## S6: ask the person to confirm, instead of refusing (the model understood, the words did not match)
+
+**The question this answers.** Is the model doing the semantic understanding? Yes: it reads the question and the certified vocabulary and picks the metric, dimensions and filters. The echo check is a deterministic, lexical backstop against a model that returns a well-formed, certified intent for the *wrong* question (total revenue for "total profit"). A check that asked the same model "are you sure?" could not catch that reliably. Today, when the backstop and the model disagree, the run is **refused**, which discards a correct interpretation whenever the person's wording was not certified (the C5 Q1 and Q2 case). Synonyms shrink that set; S6 handles what is left.
+
+**Proposal.** When, and only when, every other check passes (the intent resolves against certified ids, the contract and tenant match, nothing is uncertified, policy would allow it) and the **only** failure is the echo check, the run does not end as `unsupported_request`. It pauses with the product's existing **clarification** outcome:
+
+```text
+"I read this as: order count (counts orders). Is that what you meant?"   [ Yes, use order count ]  [ No, none of these ]
+```
+
+- Uses the existing machinery: `AnalyticsClarificationState`, `POST /runs/{id}/clarify`, identity binding ("only the requester"), at most five targeted ambiguities. A new ambiguity kind, `interpretation`, carries the model's chosen certified metric (and dimension, if grouped) with its certified display name and a one-line plain-words description built from the contract (aggregation and measure), **never data**.
+- **Yes** records the confirmation and resumes the run past the echo check for exactly those ids. **No** (or no answer before the run expires) ends as the same refusal as today.
+- The confirmation is a **person's act on a certified id**, so it widens nothing: the run still compiles only certified definitions, within the same policy, review threshold and ceiling. It only replaces the lexical match with the requester's own statement.
+- **Humans only.** A caller that is an agent or a delegated caller (`caller_kind != "human"`, as for review decisions) gets the refusal plus the candidate id in the typed response, and cannot confirm; an agent must not approve its own interpretation.
+- **Evidence.** The question fingerprint, the proposed ids, the answer and who gave it are sealed in the evidence envelope like any other transition.
+
+**What it costs, stated plainly**
+- It moves the decision for a mismatch from a deterministic gate to a person, who may click "Yes" out of habit (confirmation fatigue). Mitigations: show the metric's plain-words definition, not just its name; never offer it for a model that returned several candidates or an unresolved id; measure the confirm rate, and treat a rate near 100% as a sign the wording rules are too tight, not as proof of correctness.
+- A near-miss ("total profit" answered with revenue) now asks "did you mean revenue?" instead of refusing. That is the honest interaction, but it turns a zero wrong-answer gate into "zero wrong answers unless the person confirms the wrong thing", which is a **policy decision for the owner**, not an implementation detail.
+- One more pause in the run; typically a few seconds of the person's time.
+
+**What it adds for the synonym loop.** Every confirmed pair (a question's wording, the certified id) is exactly what an owner would want to see as a **suggested synonym**. S6 records them (hashed question fingerprint plus wording the person typed is user data, so the privacy decision in section 5 applies before any suggestion is shown).
+
+**Evaluation.** The phrasing corpus gets a scripted "user" that confirms correct readings and rejects wrong ones. Measures: refusals that become answers after a correct confirm; near-misses correctly rejected; and the proportion of wrong readings a **habitually-confirming** user would let through (the risk figure the owner needs). Thresholds are proposed, not approved.
+
 ## What this does and does not solve
 
-It lets a certified contract say what its metrics and dimensions are called, keeps those words under the same human gate as the definitions, and lets the drafter do the typing for the reviewer. It does **not** make the system understand meaning: matching stays lexical and conservative, a phrasing nobody certified is still refused, and the quality of a customer's vocabulary is only as good as the reviewer's. It does not address per-user vocabularies, other languages, or definitions that differ between teams.
+It lets a certified contract say what its metrics and dimensions are called, keeps those words under the same human gate as the definitions, and lets the drafter do the typing for the reviewer. It does **not** make the system understand meaning: the model interprets the question, and the acceptance check stays lexical and conservative; a phrasing nobody certified is still refused (or, with S6, put to the person to confirm), and the quality of a customer's vocabulary is only as good as the reviewer's. It does not address per-user vocabularies, other languages, or definitions that differ between teams.
 
 ## Decisions for you (S0)
 
@@ -93,5 +119,6 @@ It lets a certified contract say what its metrics and dimensions are called, kee
 3. **The drafter proposes at most 5 synonyms per metric or dimension from names and comments only.** (Recommended: yes.)
 4. **Evaluation:** build the phrasing corpus and report in S3 before you certify any synonym for the sandbox. (Recommended: yes.)
 5. **Out of scope for now:** suggesting synonyms from refusals, other languages and per-user terms. (Recommended: yes.)
+6. **S6:** when the model's certified reading is valid but only the wording check fails, ask the requester to confirm instead of refusing, humans only, with the risk figure measured first. (Recommended: yes, after S1 to S3 show how many refusals synonyms alone remove; if synonyms remove most of them, S6 can wait.)
 
 Not verified: how many pinned digests move, how often a real model's proposed synonyms pass the rules, and the real false-abstention rate; each is a measurement in S1 to S3.
