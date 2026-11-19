@@ -58,6 +58,10 @@ def _review_note(result: DraftResult, report: RunReport | None, skipped: tuple[s
     ]
     lines += [f"- metric `{m.id}`: {m.aggregation} of `{m.measure_field_id or 'rows'}` on `{m.dataset_id}`" for m in contract.metrics]
     lines += [f"- dimension `{d.id}`: `{d.field_id}` ({d.dimension_type})" for d in contract.dimensions]
+    lines += ["", "## Terms you would be certifying (names and synonyms the model proposed)", "",
+              "Certifying this contract certifies these words: a question that uses one of them will be matched to the metric or dimension. Remove any you would not want a colleague to use for it.", ""]
+    worded = [(m.id, m.display_name, m.synonyms) for m in contract.metrics] + [(d.id, d.display_name, d.synonyms) for d in contract.dimensions]
+    lines += [f"- `{i}`: " + (f"display name \"{name}\"; " if name else "") + ("synonyms " + ", ".join(f"\"{w}\"" for w in syn) if syn else "no synonyms") for i, name, syn in worded if name or syn] or ["- none proposed or kept"]
     lines += ["", "## Dropped, with the reason", ""]
     lines += [f"- {code}: {count}" for code, count in sorted(drops.items())] or ["- none"]
     if result.dropped:
@@ -84,7 +88,7 @@ def _review_note(result: DraftResult, report: RunReport | None, skipped: tuple[s
         "## To certify",
         "",
         "1. Read `contract.draft.json` and the descriptions on the nodes in `ontology.candidate.json`.",
-        "2. Edit anything wrong. Check each metric's grain and measure against the business definition.",
+        "2. Edit anything wrong. Check each metric's grain and measure against the business definition, and read every proposed term above.",
         "3. In a separate change, move the contract into the registry with `lifecycle: certified` and the metrics `certified`.",
         "   Certification is the semantic owners' decision, recorded in the program file; this draft is not one.",
         "",

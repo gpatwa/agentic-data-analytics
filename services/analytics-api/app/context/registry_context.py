@@ -20,6 +20,16 @@ from packages.platform_contracts.semantic import SemanticRegistryDocument
 _STOP = frozenset("a an the of by for and per to in on is are what how do we our me show give i can you".split())
 
 
+def _words(item, *, display: bool = True) -> dict:
+    """The certified business words of an object, only when it has any, so a contract without them yields the same vocabulary as before."""
+    out: dict = {}
+    if display and getattr(item, "display_name", None):
+        out["display_name"] = item.display_name
+    if item.synonyms:
+        out["synonyms"] = list(item.synonyms)
+    return out
+
+
 def certified_vocabulary(document: SemanticRegistryDocument) -> str:
     """The exact certified identifiers a model may use in an intent (ids and kinds only; no policy, owners, or data)."""
     if document.lifecycle != "certified":
@@ -29,23 +39,24 @@ def certified_vocabulary(document: SemanticRegistryDocument) -> str:
     return json.dumps(
         {
             "semantic_contract": {"contract_id": contract.id, "contract_version": contract.version},
-            "datasets": [{"dataset_id": d.id, "description": d.description} for d in contract.datasets],
+            "datasets": [{"dataset_id": d.id, "description": d.description, **_words(d, display=False)} for d in contract.datasets],
             "metrics": [
                 {
                     "metric_id": m.id,
                     "dataset_id": m.dataset_id,
                     "aggregation": m.aggregation,
                     "measure": m.measure_field_id,
+                    **_words(m),
                 }
                 for m in contract.metrics
                 if m.certification == "certified"
             ],
             "dimensions": [
-                {"dimension_id": d.id, "dataset_id": d.dataset_id, "type": d.dimension_type}
+                {"dimension_id": d.id, "dataset_id": d.dataset_id, "type": d.dimension_type, **_words(d)}
                 for d in contract.dimensions
             ],
             "filterable_fields": [
-                {"field_id": f.id, "data_type": f.data_type}
+                {"field_id": f.id, "data_type": f.data_type, **_words(f, display=False)}
                 for f in fields.values()
                 if f.classification != "restricted"
             ],
@@ -82,6 +93,7 @@ def context_from_contract(
             tenant_id=contract.tenant_id,
             node_type=kind,
             label=getattr(asset, "display_name", None) or asset.id,
+            attributes={"synonyms": list(asset.synonyms)} if asset.synonyms else {},
             lifecycle="certified",
             valid_from=observed - timedelta(days=1),
             provenance=(provenance.model_copy(update={"source_id": asset.id}),),

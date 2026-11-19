@@ -351,3 +351,22 @@ def test_the_published_statements_equal_the_generator():
     published = (Path(__file__).resolve().parents[3] / "docs/design/CONNECT_C5_STATEMENTS.md").read_text()
     assert published == dg.render_markdown()
     assert "C5-2 not approved" in published and all(q[1] in published for q in dg.QUESTIONS)
+
+
+def test_with_certified_synonyms_the_natural_phrasings_answer_and_the_refusals_still_hold(tmp_path, registry):
+    """A TEST FIXTURE standing in for the owner's certification of reviewed synonyms (S4). The published sandbox contract is untouched."""
+    import json as _json
+
+    path = registry / "contracts" / "sandbox-databricks-v1.json"
+    raw = _json.loads(path.read_text())
+    for m in raw["contract"]["metrics"]:
+        m["synonyms"] = {"order_count": ["how many orders"], "order_amount_sum": ["total order amount"]}[m["id"]]
+    path.write_text(_json.dumps(raw))
+    fake, run, _ = build(tmp_path, registry)
+    result = run.run("govern")
+    s = steps(result)
+    assert problems(result) == [] and s["Q1"]["result"] == "allowed" and s["Q2"]["result"] == "allowed"
+    assert "value=30.0" in s["Q1"]["detail"] and "value=3255.0" in s["Q2"]["detail"]
+    for q in ("Q3", "Q4", "Q5"):
+        assert s[q]["result"] == "denied" and "statements_q=0" in s[q]["detail"]
+    clean_teardown(fake, result)
