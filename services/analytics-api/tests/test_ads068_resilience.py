@@ -73,7 +73,7 @@ def test_a_backup_captures_every_durable_table_but_not_leases_and_restores_ident
     assert (
         manifest.tables["analytics_agent_runs"].rows == 3 and manifest.tables["analytics_evidence_envelopes"].rows == 3
     )
-    assert manifest.schema_revision == "0012_durable_run_material" and manifest.object_count > 100
+    assert manifest.schema_revision == "0013_connect_store" and manifest.object_count > 100
     assert verify_backup_files(tmp_path / "backup") == manifest
     assert json.loads((tmp_path / "backup/manifest.json").read_text())["digest"] == manifest.digest
     target = build_stack("duckdb", tmp_path / "target")
@@ -109,7 +109,7 @@ def test_a_restored_database_is_a_working_one(tmp_path):
                 (d / "manifest.json")
                 .read_text()
                 .replace(
-                    '"schema_revision": "0012_durable_run_material"', '"schema_revision": "0010_candidate_evaluations"'
+                    '"schema_revision": "0013_connect_store"', '"schema_revision": "0010_candidate_evaluations"'
                 )
             ),
             "backup_manifest_tampered",
