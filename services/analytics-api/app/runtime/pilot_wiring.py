@@ -125,6 +125,8 @@ class GovernedRuntime:
     gateway_for_tenant: Callable[[str], Any | None] | None = None
     # tenant -> all of that tenant's own assets (`app.connect.tenant_assets`), or None for the pilot's. Raising fails the run closed.
     assets_for_tenant: Callable[[str], TenantAssets | None] | None = None
+    # tenants whose questions must be fully covered by the interpreted request (`app.runtime.intent_coverage`); "*" is all; empty is off
+    coverage_tenants: frozenset[str] = frozenset()
     _tenant_breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -177,7 +179,7 @@ class GovernedRuntime:
                 ResilientModelClient(self.model_factory(request.request_id), breaker=self.model_breaker),
                 vocabulary=t.vocabulary,
             ),
-            "resolve": ontology_resolution_node(t.contracts, FixedOntology(ontology)),
+            "resolve": ontology_resolution_node(t.contracts, FixedOntology(ontology), coverage_tenants=self.coverage_tenants),
             "clarify": clarification_node(),
             "plan": analytics_plan_node(t.contracts),
             "validate": certified_intent_node(t.contracts),
@@ -363,6 +365,7 @@ def build_pilot_runtime(
         require_run_id_key=settings.ENV != "dev",
         gateway_for_tenant=gateway_for_tenant,
         assets_for_tenant=assets_for_tenant,
+        coverage_tenants=frozenset(t.strip() for t in (getattr(settings, "ANALYTICS_INTENT_COVERAGE_TENANTS", "") or "").split(",") if t.strip()),
     )
     started = time.monotonic()
     service = runtime.service()

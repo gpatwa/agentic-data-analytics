@@ -328,6 +328,16 @@ class GovernedAnalyzeService:
                     retry_guidance="resubmit_with_new_idempotency_key",
                 )
             return _answer(base, state, material)
+        if kind == "failed" and "intent_coverage_mismatch" in codes:
+            from app.runtime.intent_coverage import explain_coverage, words_from_reference
+
+            reference = next(e.message_reference for e in state.errors if e.code == "intent_coverage_mismatch")
+            return AnalyticsRefuseOutcome(
+                **base,
+                reason_code="unsupported_request",
+                explanation=explain_coverage(words_from_reference(state.request_text, reference)),
+                remediation="Remove the extra conditions, or ask the data owner to add them as certified concepts.",
+            )
         if kind == "failed" and "intent_echo_mismatch" in codes:
             from app.runtime.intent_echo import explain
 
