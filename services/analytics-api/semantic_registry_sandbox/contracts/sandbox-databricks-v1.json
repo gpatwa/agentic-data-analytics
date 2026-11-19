@@ -1,0 +1,111 @@
+{
+  "lifecycle": "certified",
+  "contract": {
+    "contract_version": "v1",
+    "id": "sandbox-databricks",
+    "tenant_id": "sandbox",
+    "domain": "sandbox",
+    "version": "2026-11-18",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "orders",
+        "display_name": "Orders",
+        "source_asset_id": "compass_connect_spike_889cfc3a.data.orders",
+        "physical_name": "compass_connect_spike_889cfc3a.data.orders",
+        "description": "Table containing order records with an identifier and amount.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "orders.id",
+        "dataset_id": "orders",
+        "physical_name": "id",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.amount",
+        "dataset_id": "orders",
+        "physical_name": "amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      }
+    ],
+    "entities": [],
+    "dimensions": [
+      {
+        "id": "amount",
+        "dataset_id": "orders",
+        "field_id": "orders.amount",
+        "entity_id": null,
+        "dimension_type": "numeric",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "id": "order_count",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_amount_sum",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [],
+    "policies": [],
+    "metadata": {
+      "draft": {
+        "status": "certified by the owner as drafted (2026-11-18), no edits",
+        "schema_fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082",
+        "model_id": "gpt-6-luna",
+        "prompt_version": "m2-v1",
+        "drafter_version": "0.1.0"
+      }
+    }
+  }
+}

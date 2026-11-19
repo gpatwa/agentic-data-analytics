@@ -351,6 +351,18 @@ milestones:
       approved_at: 2026-11-18
       scope: "Stage C2 (draft on the sandbox) of docs/design/CONNECT_CERTIFICATION_PLAN.md, with the statements in docs/design/CONNECT_CERTIFICATION_STATEMENTS.md: one run of `databricks_certify --stage draft` on the owner's validation workspace (sandbox catalog with synthetic tables, the generated registration script as the signed-in owner, a read through the connection's own principal, EXPLAIN dry runs), one structured-output call to the pilot's Azure OpenAI deployment (compass-pilot-openai, gpt-6-luna) with the redacted view only, the draft written to a drafts folder that is not the registry, then created-only teardown and a zero-row sweep. The model key is read from the owner's az login into the process environment only. It does NOT approve C3 (certification, the owner's own act) or C4 (ask), which needs a separate approval after certification."
       record: "Asked \"Approve C2, the live draft run on the sandbox?\" with options \"Approve C2\" and \"Not now\"; the user answered \"Approve C2\" on 2026-11-18."
+    connect_certification_c3:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Stage C3 of docs/design/CONNECT_CERTIFICATION_PLAN.md: certification of the sandbox draft as drafted (no edits), tenant sandbox, contract sandbox-databricks, grain orders.id (inferred, accepted by the owner), dimension amount kept, metrics order_count and order_amount_sum certified, written to services/analytics-api/semantic_registry_sandbox/contracts/sandbox-databricks-v1.json at the owner's instruction. It does NOT approve C4 (ask), which needs a separate approval."
+      record: "The owner first said a certified contract was in the registry, then that they had placed nothing; asked to choose, the user answered \"Certify the draft as-is\" on 2026-11-18."
+    connect_certification_c4:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Stage C4 (ask through the connection) of docs/design/CONNECT_CERTIFICATION_PLAN.md, with the statements in docs/design/CONNECT_CERTIFICATION_STATEMENTS.md: one run of `databricks_certify --stage ask` on the owner's validation workspace with registry services/analytics-api/semantic_registry_sandbox and suffix 889cfc3a (sandbox catalog with synthetic tables, the generated registration script as the signed-in owner, assets from the certified contract, one compiled metric through the gateway, a refused outside-table statement, health check and suspension, secret rotation, connection removal), then created-only teardown and a zero-row sweep. No model call."
+      record: "Asked \"Do you approve C4 against semantic_registry_sandbox, with suffix 889cfc3a?\"; the user answered \"Approve C4\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
