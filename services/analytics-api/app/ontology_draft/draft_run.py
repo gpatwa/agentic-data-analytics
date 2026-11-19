@@ -49,7 +49,7 @@ def stop_reasons(report, *, remote: bool) -> list[str]:
         reasons.append("validator_escape")
     if report.injections:
         reasons.append("injection")
-    if remote and any(code.startswith("explain_failed:") for code in report.drops):
+    if remote and any(code == "explain_failed" or code.startswith("explain_failed:") for code in report.drops):  # `drops` keys drop the ":<class>" suffix
         reasons.append("explain_failed")
     return reasons
 
