@@ -17,15 +17,26 @@ from app.connect.vault import KeyVaultSecretStore
 from app.execution import DatabricksGateway
 from app.runtime.pilot_wiring import TenantAssets
 
+_URL = ""  # set per test by `control_db`: a migrated SQLite file standing in for the control database
 SANDBOX = Path(__file__).resolve().parent.parent / "semantic_registry_sandbox"
 CATALOG = "compass_connect_spike_889cfc3a"
 HOST = "dbc-1234abcd-5678.cloud.databricks.com"
 
 
 def settings(root="", **over):
-    base = dict(ENV="dev", ANALYTICS_V2_ENABLED=True, ANALYTICS_CONNECT_DATABRICKS_ENABLED=True, ANALYTICS_CONNECT_REGISTRY_ROOT=str(root),
+    base = dict(ENV="dev", ANALYTICS_CONTROL_DB_URL=_URL, ANALYTICS_V2_ENABLED=True, ANALYTICS_CONNECT_DATABRICKS_ENABLED=True, ANALYTICS_CONNECT_REGISTRY_ROOT=str(root),
                 ANALYTICS_CONNECT_KEY_VAULT_URL=None)
     return SimpleNamespace(**{**base, **over})
+
+
+@pytest.fixture(autouse=True)
+def control_db(tmp_path_factory, monkeypatch):
+    global _URL
+    from app.runtime.pilot_wiring import migrate
+
+    _URL = f"sqlite:///{tmp_path_factory.mktemp('control') / 'control.db'}"
+    migrate(_URL)
+    yield _URL
 
 
 @pytest.fixture
@@ -40,7 +51,8 @@ def test_off_by_default():
 
 @pytest.mark.parametrize(("over", "text"), [
     ({"ANALYTICS_V2_ENABLED": False}, "ANALYTICS_V2_ENABLED"),
-    ({"ENV": "prod", "ANALYTICS_CONNECT_KEY_VAULT_URL": "https://v.vault.azure.net"}, "not available in production"),
+    ({"ENV": "prod"}, "ANALYTICS_CONNECT_KEY_VAULT_URL is required in production"),
+    ({"ANALYTICS_CONTROL_DB_URL": None}, "ANALYTICS_CONTROL_DB_URL"),
     ({"ANALYTICS_CONNECT_REGISTRY_ROOT": ""}, "ANALYTICS_CONNECT_REGISTRY_ROOT"),
     ({"ANALYTICS_CONNECT_REGISTRY_ROOT": "/no/such/folder"}, "ANALYTICS_CONNECT_REGISTRY_ROOT"),
 ])
@@ -53,6 +65,23 @@ def test_custody_is_a_vault_when_configured_and_the_stand_in_otherwise(root):
     assert isinstance(build_databricks_wiring(settings(root)).setups.secrets, TenantSecretStore)
     wiring = build_databricks_wiring(settings(root, ANALYTICS_CONNECT_KEY_VAULT_URL="https://v.vault.azure.net"), vault_client=object())
     assert isinstance(wiring.setups.secrets, KeyVaultSecretStore)
+
+
+def test_production_with_a_vault_and_the_control_database_starts(root):
+    wiring = build_databricks_wiring(settings(root, ENV="prod", ANALYTICS_CONNECT_KEY_VAULT_URL="https://v.vault.azure.net"), vault_client=object())
+    assert isinstance(wiring.setups.secrets, KeyVaultSecretStore)
+
+
+def test_connections_and_the_audit_chain_survive_a_restart(root):
+    first = build_databricks_wiring(settings(root))
+    first.setups.store.add(ConnectionRecord(tenant_id="sandbox", connection_id="dbx-889cfc3a", engine="databricks", host=HOST, account=HOST,
+                                            user="0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0", role="", warehouse="w", database=CATALOG, default_schema="data",
+                                            allowed_tables=(f"{CATALOG}.data.orders",), auth_method="oauth_m2m", secret_name="databricks/sandbox",
+                                            http_path="/sql/1.0/warehouses/abcdef0123456789", status="active"))
+    first.setups.chain.append("e1", "consent_shown", "sandbox", "admin", {})
+    second = build_databricks_wiring(settings(root))  # a new process
+    assert [r.connection_id for r in second.setups.store.list("sandbox")] == ["dbx-889cfc3a"]
+    assert [e.event_id for e in second.setups.chain.events] == ["e1"]
 
 
 def test_a_tenants_registry_is_its_own_folder_and_cannot_escape_the_root(root, tmp_path):
@@ -111,7 +140,7 @@ def test_start_up_hands_the_connected_resolver_and_the_identity_check_to_the_rou
         async def start(self): pass
         async def close(self): pass
 
-    for k, v in dict(ANALYTICS_V2_ENABLED=True, ANALYTICS_CONNECT_DATABRICKS_ENABLED=True, ANALYTICS_CONNECT_REGISTRY_ROOT=str(root),
+    for k, v in dict(ANALYTICS_CONTROL_DB_URL=_URL, ANALYTICS_V2_ENABLED=True, ANALYTICS_CONNECT_DATABRICKS_ENABLED=True, ANALYTICS_CONNECT_REGISTRY_ROOT=str(root),
                      ANALYTICS_DEMO_ENABLED=False).items():
         monkeypatch.setattr(main.settings, k, v)
     monkeypatch.setattr(pw, "build_pilot_runtime", fake_build)
