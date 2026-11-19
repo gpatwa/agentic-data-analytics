@@ -327,6 +327,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Design decision only, after docs/design/CONNECT_DATABRICKS_SPIKE_RESULTS.md: for Databricks Connect mode the admin runs a script that pre-creates the per-connection service principal, its secret, the path grants and the warehouse access; Compass then only passes on SELECT within the ceiling. Compass does NOT hold an admin-level credential. It approves no build and no live step."
       record: "Asked \"Which setup direction for Databricks?\" with options \"Admin pre-creates script\" and \"Discuss options\"; the user answered \"Admin pre-creates script\" on 2026-11-18."
+    connect_databricks_d3:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "The offline build (D1) of the Databricks pre-created-principal registration (generator, verifier, end-to-end driver, tests on fakes) and, once the generated statements are in docs/design/CONNECT_DATABRICKS_REGISTRATION_STATEMENTS.md, the one live end-to-end check D3 on the owner's validation workspace: a sandbox catalog with synthetic tables, the admin-run script as the signed-in owner (principal, secret, grants, CAN_USE on the existing Serverless Starter Warehouse chosen by name), the verifier on real read-backs, a connection test through the product's Databricks session, removal, and a created-only sweep. Secrets in memory only. Approved in advance by the owner's request to ask once; nothing else (no other workspace, no changes to the warehouse, no other catalog)."
+      record: "Asked \"Build the generator now, and approve the one live check up front?\" with options \"Build and approve D3\" and \"Build only\"; the user answered \"Build and approve D3\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
