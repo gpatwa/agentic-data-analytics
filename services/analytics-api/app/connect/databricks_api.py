@@ -18,6 +18,7 @@ import secrets as _random
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
@@ -142,6 +143,7 @@ class DatabricksSetups:
             tenant_id=tenant, connection_id=cid, engine="databricks", host=pending.host, account=pending.host, user=application_id,
             role="", warehouse=pending.warehouse_name, database=pending.scope.database, default_schema=pending.scope.schemas[0],
             allowed_tables=tables, auth_method="oauth_m2m", secret_name=secret_name, http_path=http_path,
+            secret_expires_at=datetime.now(timezone.utc) + timedelta(seconds=reg.SECRET_LIFETIME_SECONDS),
             teardown=tuple(s.arg if s.op == "sql" else s.text for s in reg.generate(pending.scope, suffix=pending.suffix, warehouse_name=pending.warehouse_name,
                                                        application_id=application_id).teardown),
         )
@@ -152,7 +154,7 @@ class DatabricksSetups:
             self.secrets.delete(tenant, secret_name)
             raise Refused(exc.code) from None
         recorder.script_run_reported()
-        checks = self._test(record, pending, session_factory)
+        checks = self._test(record, session_factory)
         failed = [name for name, passed in checks if not passed]
         recorder.verified(ok=not failed, failed_checks=failed)
         if failed:
@@ -165,18 +167,18 @@ class DatabricksSetups:
         self.cancel(pending)
         return Completed(not failed, code, tuple(checks), "removed" if failed else "active")
 
-    def _test(self, record: ConnectionRecord, pending: PendingDatabricks, session_factory: Callable[[ConnectionRecord], Any]) -> list[tuple[str, bool]]:
-        """Through the product's session as the new principal: read each named table. Writes are not probed on a customer's data."""
+    def _test(self, record: ConnectionRecord, session_factory: Callable[[ConnectionRecord], Any]) -> list[tuple[str, bool]]:
+        """Through the product's session as the principal: read each named table. Writes are not probed on a customer's data."""
         checks: list[tuple[str, bool]] = []
         try:
             session = session_factory(record)
         except Exception:  # noqa: BLE001 - never echo a driver message
             return [(t, False) for t in record.allowed_tables]
         try:
-            for schema, table in sorted(pending.scope.tables):
-                label = f"{pending.scope.database}.{schema}.{table}".lower()
+            for label in record.allowed_tables:
+                catalog, schema, table = label.split(".")
                 try:
-                    stream = session.execute(f"SELECT 1 FROM {reg.bt(pending.scope.database)}.{reg.bt(schema)}.{reg.bt(table)} LIMIT 1", {})
+                    stream = session.execute(f"SELECT 1 FROM {reg.bt(catalog)}.{reg.bt(schema)}.{reg.bt(table)} LIMIT 1", {})
                     stream.fetchmany(1)
                     stream.close()
                     checks.append((label, True))
@@ -188,6 +190,63 @@ class DatabricksSetups:
             except Exception:  # noqa: BLE001
                 pass
         return checks
+
+    # ---- rotation, expiry, health -----------------------------------------------------------------------------------------
+
+    def _owned(self, tenant_id: str, connection_id: str) -> ConnectionRecord:
+        record = self.store.get(tenant_id, connection_id)
+        if record.engine != "databricks" or record.auth_method != "oauth_m2m" or record.status == "removed":
+            raise ConnectionNotFound("connection not found")
+        return record
+
+    def rotate(self, tenant_id: str, connection_id: str, *, actor_id: str, client_secret: str,
+               session_factory: Callable[[ConnectionRecord], Any]) -> Completed:
+        """Replace the stored secret with a new one the admin made. The old value is kept until the new one is proven: if the check
+        fails the old value is put back and the connection is left as it was."""
+        if not 16 <= len(client_secret or "") <= 512 or any(c.isspace() for c in client_secret):
+            raise Refused("invalid_secret")
+        record = self._owned(tenant_id, connection_id)
+        recorder = SetupRecorder(self.chain, tenant_id=tenant_id, connection_id=connection_id, admin_id=actor_id)
+        recorder.watch(client_secret)
+        try:
+            previous: str | None = self.secrets.read(tenant_id, record.secret_name or "")
+        except KeyError:
+            previous = None
+        self.secrets.put(tenant_id, record.secret_name or "", client_secret)
+        checks = self._test(record, session_factory)
+        failed = [name for name, passed in checks if not passed]
+        if failed:
+            if previous is not None:
+                self.secrets.put(tenant_id, record.secret_name or "", previous)
+            else:
+                self._remove_credential(record, recorder)
+            recorder.health_checked(ok=False, failed_checks=failed)
+            recorder.close()
+            return Completed(False, "connection_test_failed", tuple(checks), record.status)
+        expires = datetime.now(timezone.utc) + timedelta(seconds=reg.SECRET_LIFETIME_SECONDS)
+        updated = self.store.update(replace(record, status="active", secret_expires_at=expires))
+        recorder.secret_replaced(expires_at=expires.isoformat())
+        recorder.close()
+        return Completed(True, None, tuple(checks), updated.status)
+
+    def health_check(self, tenant_id: str, connection_id: str, *, actor_id: str, session_factory: Callable[[ConnectionRecord], Any],
+                     now: datetime | None = None) -> Completed:
+        """Read each named table now. A pass keeps (or restores) `active`; a fail suspends the connection, so the gateway stops using
+        it until the admin rotates the secret. An expired secret is suspended without a call."""
+        record = self._owned(tenant_id, connection_id)
+        recorder = SetupRecorder(self.chain, tenant_id=tenant_id, connection_id=connection_id, admin_id=actor_id)
+        moment = now or datetime.now(timezone.utc)
+        if record.secret_expires_at is not None and record.secret_expires_at <= moment:
+            checks: list[tuple[str, bool]] = [(t, False) for t in record.allowed_tables]
+        else:
+            checks = self._test(record, session_factory)
+        failed = [name for name, passed in checks if not passed]
+        status = "suspended" if failed else "active"
+        if status != record.status:
+            self.store.set_status(tenant_id, connection_id, status)
+        recorder.health_checked(ok=not failed, failed_checks=failed)
+        recorder.close()
+        return Completed(not failed, "connection_test_failed" if failed else None, tuple(checks), status)
 
     def _remove_credential(self, record: ConnectionRecord, recorder: SetupRecorder) -> None:
         try:
@@ -231,6 +290,30 @@ class BeginRequest(BaseModel):
 
 class ScriptRequest(BaseModel):
     application_id: str = Field(min_length=1, max_length=64)
+
+
+class DbxConnectionView(BaseModel):
+    connection_id: str
+    host: str
+    catalog: str
+    tables: list[str]
+    status: str
+    expires_at: str | None
+    expires_in_days: int | None
+    needs_rotation: bool
+
+
+ROTATE_WITHIN_DAYS = 14
+
+
+def connection_view(record: ConnectionRecord, now: datetime | None = None) -> DbxConnectionView:
+    moment = now or datetime.now(timezone.utc)
+    days = None if record.secret_expires_at is None else (record.secret_expires_at - moment).days
+    return DbxConnectionView(
+        connection_id=record.connection_id, host=record.host, catalog=record.database, tables=list(record.allowed_tables), status=record.status,
+        expires_at=record.secret_expires_at.isoformat() if record.secret_expires_at else None, expires_in_days=days,
+        needs_rotation=record.status != "active" or (days is not None and days <= ROTATE_WITHIN_DAYS),
+    )
 
 
 class StepView(BaseModel):
@@ -339,6 +422,36 @@ def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> A
     @router.post("/setups/{setup_id}/cancel", status_code=204, response_model=None)
     def cancel(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> None:
         runtime.setups.cancel(pending_for(setup_id, who))
+
+    @router.get("/connections", response_model=list[DbxConnectionView])
+    def connections(who: AnalyticsIdentity = Depends(identity)) -> list[DbxConnectionView]:
+        return [connection_view(r) for r in runtime.setups.store.list(who.tenant_id) if r.engine == "databricks" and r.status != "removed"]
+
+    @router.post("/connections/{connection_id}/secret", response_model=CompleteView)
+    def rotate(connection_id: str, body: dict[str, Any] = Body(...), who: AnalyticsIdentity = Depends(manager)) -> CompleteView:
+        # A plain dict, for the same reason as `credentials`: a validation error would echo the secret.
+        if runtime.session_factory is None:
+            raise HTTPException(503, "connection_test_not_configured")
+        value = body.get("client_secret")
+        if not isinstance(value, str):
+            raise HTTPException(422, "invalid_request")
+        try:
+            result = runtime.setups.rotate(who.tenant_id, connection_id, actor_id=who.user_id, client_secret=value, session_factory=runtime.session_factory)
+        except Refused as exc:
+            raise HTTPException(422, exc.code) from exc
+        except ConnectionNotFound as exc:
+            raise HTTPException(404, "connection_not_found") from exc
+        return CompleteView(ok=result.ok, code=result.code, checks=[{"table": t, "passed": p} for t, p in result.checks], connection_status=result.connection_status)
+
+    @router.post("/connections/{connection_id}/check", response_model=CompleteView)
+    def check(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> CompleteView:
+        if runtime.session_factory is None:
+            raise HTTPException(503, "connection_test_not_configured")
+        try:
+            result = runtime.setups.health_check(who.tenant_id, connection_id, actor_id=who.user_id, session_factory=runtime.session_factory)
+        except ConnectionNotFound as exc:
+            raise HTTPException(404, "connection_not_found") from exc
+        return CompleteView(ok=result.ok, code=result.code, checks=[{"table": t, "passed": p} for t, p in result.checks], connection_status=result.connection_status)
 
     @router.delete("/connections/{connection_id}")
     def remove(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:

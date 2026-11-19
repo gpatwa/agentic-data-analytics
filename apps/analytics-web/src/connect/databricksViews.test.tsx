@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { DbxScriptView } from './databricksApi';
-import { DatabricksStage, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
 
 const noop = () => undefined;
 const view: DbxScriptView = {
@@ -52,4 +52,29 @@ test('a failed check names each table and shows the plain-words error; a pass sa
   assert.match(good, /Connected and checked/);
   assert.match(good, /not tested against anything your admin should/);
   assert.match(renderToStaticMarkup(<DbxResultPanel errorCode="invalid_secret" result={null} />), /Nothing was stored/);
+});
+
+const conn = (over: Partial<import('./databricksApi').DbxConnection> = {}) => ({
+  connection_id: 'dbx-1', host: 'dbc-1.cloud.databricks.com', catalog: 'sales', tables: ['sales.data.orders'], status: 'active', expires_at: null, expires_in_days: 80, needs_rotation: false, ...over,
+});
+const props = { rotating: null, secret: '', problems: [], confirming: null, busy: false, onRotate: noop, onSecret: noop, onSubmitSecret: noop, onCheck: noop, onAskRemove: noop, onRemove: noop };
+
+test('connections show status and expiry, raise an alert only when rotation is due, and never show a secret', () => {
+  const calm = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} />);
+  assert.match(calm, /good for 80 more days/);
+  assert.doesNotMatch(calm, /role="alert"/);
+  const due = renderToStaticMarkup(<DbxConnections {...props} connections={[conn({ expires_in_days: 3, needs_rotation: true })]} />);
+  assert.match(due, /role="alert"/);
+  assert.match(due, /ends in 3 days/);
+  const paused = renderToStaticMarkup(<DbxConnections {...props} connections={[conn({ status: 'suspended', needs_rotation: true })]} />);
+  assert.match(paused, /Paused/);
+  assert.equal(renderToStaticMarkup(<DbxConnections {...props} connections={[]} />), '');
+});
+
+test('the rotation form is a password field that keeps the old secret until the new one is checked; removal asks first', () => {
+  const html = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} rotating="dbx-1" confirming="dbx-1" />);
+  assert.match(html, /type="password"/);
+  assert.match(html, /old secret is kept until the new one is checked/);
+  assert.match(html, /Confirm removal/);
+  assert.match(html, /delete its secret now/);
 });

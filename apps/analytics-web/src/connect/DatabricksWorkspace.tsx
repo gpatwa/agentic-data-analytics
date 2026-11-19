@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ConnectError } from './api';
-import { beginDatabricks, cancelDatabricks, completeDatabricks, scriptWithId } from './databricksApi';
-import type { DbxResult, DbxScriptView } from './databricksApi';
-import { dbxScriptFilename, dbxRemovalText, dbxScriptText, validateCredentials, validateDbxDetails } from './databricksFlow';
-import { DatabricksStage, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
+import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId } from './databricksApi';
+import type { DbxConnection, DbxResult, DbxScriptView } from './databricksApi';
+import { dbxRemovalText, dbxScriptFilename, dbxScriptText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
 import { save } from './download';
 import { parseTables } from './flow';
 import type { ConnectConfig } from './types';
@@ -23,6 +23,11 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
   const [result, setResult] = useState<DbxResult | null>(null);
   const [errorCode, setErrorCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [connections, setConnections] = useState<DbxConnection[]>([]);
+  const [rotating, setRotating] = useState<string | null>(null);
+  const [rotateSecret, setRotateSecret] = useState('');
+  const [rotateProblems, setRotateProblems] = useState<string[]>([]);
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   async function guard(work: () => Promise<void>) {
     setBusy(true);
@@ -35,6 +40,13 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
       setBusy(false);
     }
   }
+
+  const refresh = async () => setConnections(await listDbxConnections(cfg));
+
+  useEffect(() => {
+    if (ready) void guard(refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const show = () => {
     const found = validateDbxDetails({ host, catalog, warehouse, tablesText });
@@ -62,7 +74,10 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
     void guard(async () => {
       const outcome = await completeDatabricks(cfg, view.setup_id, body);
       setResult(outcome);
-      if (outcome.ok) setView(null);
+      if (outcome.ok) {
+        setView(null);
+        await refresh();
+      }
     });
   };
 
@@ -72,6 +87,33 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
       await cancelDatabricks(cfg, view.setup_id);
       setView(null);
       setSecret('');
+    });
+
+  const submitRotation = (id: string) => {
+    const found = validateSecret(rotateSecret);
+    setRotateProblems(found);
+    if (found.length) return;
+    const value = rotateSecret;
+    setRotateSecret(''); // the secret leaves page state before it is sent
+    void guard(async () => {
+      setResult(await rotateDbxSecret(cfg, id, value));
+      setRotating(null);
+      await refresh();
+    });
+  };
+
+  const check = (id: string) =>
+    guard(async () => {
+      setResult(await checkDbxConnection(cfg, id));
+      await refresh();
+    });
+
+  const remove = (id: string) =>
+    guard(async () => {
+      await removeDbxConnection(cfg, id);
+      setConfirming(null);
+      setResult(null);
+      await refresh();
     });
 
   const download = (kind: 'script' | 'removal') => {
@@ -96,6 +138,9 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
                 onChange={(field, value) => ({ applicationId: setApplicationId, secret: setSecret, httpPath: setHttpPath })[field](value)} onSubmit={connect} />
             </>
           )}
+          <DbxConnections connections={connections} rotating={rotating} secret={rotateSecret} problems={rotateProblems} confirming={confirming} busy={busy}
+            onRotate={(id) => { setRotating(id); setRotateSecret(''); setRotateProblems([]); }} onSecret={setRotateSecret} onSubmitSecret={submitRotation}
+            onCheck={(id) => void check(id)} onAskRemove={setConfirming} onRemove={(id) => void remove(id)} />
           <DbxResultPanel result={result} errorCode={errorCode} />
         </>
       )}

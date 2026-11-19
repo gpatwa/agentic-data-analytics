@@ -106,6 +106,10 @@ class GovernedRuntime:
     model_breaker: CircuitBreaker = field(default_factory=lambda: CircuitBreaker("model"))
     warehouse_breaker: CircuitBreaker = field(default_factory=lambda: CircuitBreaker("warehouse"))
     vocabularies: Mapping[str, str] = field(default_factory=dict)  # tenant -> certified ids shown to the model
+    # tenant -> that tenant's own connected warehouse gateway, or None to use `gateway` (the pilot's). Raising fails the run closed: a
+    # tenant with a connection never falls back to another warehouse.
+    gateway_for_tenant: Callable[[str], Any | None] | None = None
+    _tenant_breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         engine = self.control.engine
@@ -121,9 +125,18 @@ class GovernedRuntime:
         except KeyError as exc:
             raise SnapshotSelectionError("snapshot_tenant_mismatch") from exc
 
+    def _gateway(self, tenant_id: str) -> tuple[Any, CircuitBreaker]:
+        """The gateway for this tenant and its breaker. A connected tenant gets its own breaker, so one tenant's warehouse failing
+        never opens the circuit for another."""
+        own = self.gateway_for_tenant(tenant_id) if self.gateway_for_tenant else None
+        if own is None:
+            return self.gateway, self.warehouse_breaker
+        return own, self._tenant_breakers.setdefault(tenant_id, CircuitBreaker(f"warehouse:{tenant_id}"))
+
     def nodes(self, identity: AnalyticsIdentity, request: BootstrapRequest) -> dict:
         context, ontology = self._context(identity.tenant_id)
-        gateways = {self.gateway.dialect: ResilientGateway(self.gateway, breaker=self.warehouse_breaker)}
+        gateway, breaker = self._gateway(identity.tenant_id)
+        gateways = {gateway.dialect: ResilientGateway(gateway, breaker=breaker)}
 
         def go(ni, nxt):
             return NodeOutput(run_id=ni.run_id, node_id=ni.node_id, status="completed", next_node=nxt)
@@ -169,7 +182,7 @@ class GovernedRuntime:
             intent,
             contract,
             compile_plan=lambda i, c: self.compiler.compile(i),
-            gateway=self.gateway,
+            gateway=self._gateway(node_input.tenant_id)[0],
             limits=ExecutionLimits(),
         )
 
@@ -243,9 +256,11 @@ def migrate(database_url: str, service_root: Path | None = None) -> None:
 
 
 def build_pilot_runtime(
-    settings: Any, *, model_factory: Callable[[str], Any] | None = None, verifier: Any = None
+    settings: Any, *, model_factory: Callable[[str], Any] | None = None, verifier: Any = None,
+    gateway_for_tenant: Callable[[str], Any | None] | None = None,
 ) -> V2Runtime:
-    """Everything is read from settings; `model_factory` and `verifier` can be injected (tests)."""
+    """Everything is read from settings; `model_factory` and `verifier` can be injected (tests). `gateway_for_tenant` is the connected-
+    warehouse resolver (`app.connect.runtime_gateway.connected_gateway_resolver`); without it every tenant uses the pilot warehouse."""
     if not settings.ANALYTICS_CONTROL_DB_URL or not settings.ANALYTICS_DB_URL:
         raise RuntimeError("ANALYTICS_CONTROL_DB_URL and ANALYTICS_DB_URL are required for the governed runtime")
     if settings.ANALYTICS_MIGRATE_ON_START:
@@ -316,6 +331,7 @@ def build_pilot_runtime(
         min_cohort=settings.ANALYTICS_MIN_COHORT,
         run_id_key=settings.ANALYTICS_RUN_ID_KEY.encode() if settings.ANALYTICS_RUN_ID_KEY else None,
         require_run_id_key=settings.ENV != "dev",
+        gateway_for_tenant=gateway_for_tenant,
     )
     started = time.monotonic()
     service = runtime.service()

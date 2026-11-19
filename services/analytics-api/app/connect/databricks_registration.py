@@ -21,7 +21,8 @@ from app.connect.grants import ConnectScope, ScopeError
 TAG = "compass-connect"
 _SUFFIX = re.compile(r"^[0-9a-f]{8}$")
 PRINCIPAL_PREFIX = "compass-conn-"
-SECRET_LIFETIME = "86400s"  # one day; the admin rotates by re-running the script's secret step
+SECRET_LIFETIME_SECONDS = 90 * 24 * 3600  # 90 days: Databricks deletes a secret unused for 90 days anyway; rotate before it ends
+SECRET_LIFETIME = f"{SECRET_LIFETIME_SECONDS}s"
 DANGEROUS = {"MANAGE", "ALL PRIVILEGES", "MODIFY", "CREATE TABLE", "CREATE SCHEMA", "OWNERSHIP", "WRITE FILES", "EXECUTE"}
 
 

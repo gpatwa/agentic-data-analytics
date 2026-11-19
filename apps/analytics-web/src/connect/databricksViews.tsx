@@ -1,5 +1,5 @@
-import { dbxRemovalText, dbxScriptText, needsApplicationId } from './databricksFlow';
-import type { DbxResult, DbxScriptView } from './databricksApi';
+import type { DbxConnection, DbxResult, DbxScriptView } from './databricksApi';
+import { dbxRemovalText, dbxScriptText, expiryText, needsApplicationId } from './databricksFlow';
 import { ErrorNotice } from './views';
 
 export function DatabricksStage() {
@@ -158,3 +158,56 @@ export function DbxResultPanel({ result, errorCode }: { result: DbxResult | null
 }
 
 export { dbxRemovalText, dbxScriptText };
+
+export interface DbxConnectionsProps {
+  connections: DbxConnection[];
+  rotating: string | null;
+  secret: string;
+  problems: string[];
+  confirming: string | null;
+  busy: boolean;
+  onRotate: (id: string | null) => void;
+  onSecret: (value: string) => void;
+  onSubmitSecret: (id: string) => void;
+  onCheck: (id: string) => void;
+  onAskRemove: (id: string | null) => void;
+  onRemove: (id: string) => void;
+}
+
+export function DbxConnections(p: DbxConnectionsProps) {
+  if (!p.connections.length) return null;
+  return (
+    <section className="gv-card" data-view="dbx-connections" aria-label="Connected Databricks workspaces">
+      <h2>Connected workspaces</h2>
+      {p.connections.map((c) => (
+        <article key={c.connection_id} className="cn-connection" data-status={c.status} data-needs-rotation={c.needs_rotation}>
+          <h3>{c.host}</h3>
+          <p className="cn-small">{c.tables.join(', ')}</p>
+          <p role={c.needs_rotation ? 'alert' : undefined}>{expiryText(c.status, c.expires_in_days)}</p>
+          <div className="cn-actions">
+            <button onClick={() => p.onCheck(c.connection_id)} disabled={p.busy}>Check now</button>
+            <button onClick={() => p.onRotate(p.rotating === c.connection_id ? null : c.connection_id)} disabled={p.busy}>Give a new secret</button>
+            <button onClick={() => p.onAskRemove(c.connection_id)} disabled={p.busy}>Remove</button>
+          </div>
+          {p.rotating === c.connection_id && (
+            <div className="cn-form">
+              <label>New OAuth secret
+                <input type="password" value={p.secret} autoComplete="off" spellCheck={false} onChange={(e) => p.onSecret(e.target.value)} />
+              </label>
+              {p.problems.length > 0 && <ul className="cn-problems" data-testid="problems">{p.problems.map((x) => <li key={x}>{x}</li>)}</ul>}
+              <p className="cn-small">The old secret is kept until the new one is checked. If the check fails, the old one stays.</p>
+              <button onClick={() => p.onSubmitSecret(c.connection_id)} disabled={p.busy}>Replace and check</button>
+            </div>
+          )}
+          {p.confirming === c.connection_id && (
+            <div role="alertdialog" aria-label="Confirm removal">
+              <p>Compass will stop using this connection and delete its secret now. Your admin removes the principal and grants with the removal script.</p>
+              <button onClick={() => p.onRemove(c.connection_id)} disabled={p.busy}>Yes, remove it</button>
+              <button onClick={() => p.onAskRemove(null)}>Keep it</button>
+            </div>
+          )}
+        </article>
+      ))}
+    </section>
+  );
+}

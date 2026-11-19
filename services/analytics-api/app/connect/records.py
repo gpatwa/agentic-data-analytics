@@ -98,3 +98,10 @@ class SetupRecorder:
 
     def credential_deleted(self, receipt: DeletionReceipt) -> None:
         self._emit("connect.credential_deleted", {"ref": receipt.secret_name, "deleted_at": receipt.deleted_at.isoformat()})
+
+    def secret_replaced(self, *, expires_at: str | None) -> None:
+        """A new credential is in custody (rotation). The value is never in the record."""
+        self._emit("connect.credential_rotated", {"expires_at": expires_at})
+
+    def health_checked(self, *, ok: bool, failed_checks: Iterable[str]) -> None:
+        self._emit("connect.health_checked", {"ok": ok, "failed_checks": sorted(failed_checks)})
