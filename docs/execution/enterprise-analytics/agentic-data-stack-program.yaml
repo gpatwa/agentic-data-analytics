@@ -363,6 +363,18 @@ milestones:
       approved_at: 2026-11-18
       scope: "Stage C4 (ask through the connection) of docs/design/CONNECT_CERTIFICATION_PLAN.md, with the statements in docs/design/CONNECT_CERTIFICATION_STATEMENTS.md: one run of `databricks_certify --stage ask` on the owner's validation workspace with registry services/analytics-api/semantic_registry_sandbox and suffix 889cfc3a (sandbox catalog with synthetic tables, the generated registration script as the signed-in owner, assets from the certified contract, one compiled metric through the gateway, a refused outside-table statement, health check and suspension, secret rotation, connection removal), then created-only teardown and a zero-row sweep. No model call."
       record: "Asked \"Do you approve C4 against semantic_registry_sandbox, with suffix 889cfc3a?\"; the user answered \"Approve C4\" on 2026-11-18."
+    connect_certification_c5_0:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Stage C5-0 (review) of docs/design/CONNECT_C5_GOVERNED_RUN_PLAN.md with its five recommended answers: the eight questions as listed; the pilot's Azure OpenAI deployment with a cap of 24 model calls and one attempt per question; the review path exercised with a test-only low threshold inside the run's own runtime object; the API layer driven in-process; acceptance as written (expected denials and values hold exactly, everything else recorded as measurements, no thresholds). It approves the OFFLINE build C5-1 only. It does NOT approve the live run C5-2, which needs a separate approval with the generated statements and the full question list shown first."
+      record: "Asked \"Approve C5-0 with the recommended answers?\" with options \"Approve C5-0\" and \"Change something\"; the user answered \"Approve C5-0\" on 2026-11-18."
+    connect_certification_c5_2:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Stage C5-2 (the live governed-graph run) of docs/design/CONNECT_C5_GOVERNED_RUN_PLAN.md with the statements in docs/design/CONNECT_C5_STATEMENTS.md and the changed question set (Q1 and Q2 natural wording recorded not judged; Q1b and Q2b certified wording must answer; Q3 to Q8 as listed): one run of `databricks_certify --stage govern` on the owner's validation workspace with registry services/analytics-api/semantic_registry_sandbox and suffix 889cfc3a (sandbox catalog with synthetic tables, the generated registration script as the signed-in owner, the product's own governed runtime in process over a local throwaway control store, at most 24 calls to the pilot's Azure OpenAI deployment compass-pilot-openai / gpt-6-luna with the contract's certified vocabulary and the question only, read-only queries through the connection's own principal, the owner's own count and sum), then created-only teardown and a zero-row sweep. The model key is read from the owner's az login into the process environment only. It does NOT approve any change to the certified contract, any production deployment or any further live run."
+      record: "Asked \"Approve C5-2, the live run, with the changed question set?\" with options \"Approve C5-2\" and \"Not yet\"; the user answered \"Approve C5-2\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
