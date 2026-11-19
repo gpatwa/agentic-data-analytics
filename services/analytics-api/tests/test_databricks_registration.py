@@ -36,7 +36,7 @@ def test_the_script_grants_only_the_path_and_select_on_the_named_tables_and_neve
     assert not any(re.search(r"MANAGE|ALL PRIVILEGES|MODIFY|WITH GRANT|OWNER|\*|%", s) for s in sql)
     assert [s.op for s in script.steps][:3] == ["create_principal", "create_secret", "warehouse_can_use"]
     assert script.principal == f"compass-conn-{SUFFIX}"
-    assert all(s.arg.count("`") % 2 == 0 for s in sql)
+    assert all(s.count("`") % 2 == 0 for s in sql)
 
 
 def test_the_removal_revokes_what_was_granted_then_deletes_the_principal():
@@ -170,7 +170,8 @@ def test_a_clean_run_registers_verifies_tests_the_connection_and_leaves_nothing(
     assert steps["connection_read_orders"]["detail"] == "rows=30" and steps["connection_read_outside"]["result"] == "denied"
     assert result["teardown"]["left"] == [] and result["sweep"] == {"catalogs": 0, "principals": 0, "warehouse_entries": 0}
     assert not fake.principals and not fake.secrets and not fake.acl and not fake.catalogs
-    assert result["leaks"]["clean"] and not any(v in json.dumps(result) for v in ["oauth-secret"])
+    assert result["leaks"]["clean"] and result["leaks"]["watched"] == ["principal_secret"]  # the secret was watched all along
+    assert not any(v in json.dumps(result) for v in ["oauth-secret"])
 
 
 def test_removal_revokes_before_deleting_and_drops_only_the_catalog_this_run_created():
@@ -218,3 +219,14 @@ def test_the_command_line_refuses_without_the_flag_or_with_a_bad_host():
 def test_the_dev_tools_are_never_imported_by_the_app():
     app = Path(__file__).resolve().parents[1] / "app"
     assert [p.name for p in app.rglob("*.py") if "connect/e2e" not in p.as_posix() and re.search(r"databricks_e2e|databricks_spike", p.read_text())] == []
+
+
+def test_a_catalog_the_run_could_not_create_is_never_dropped():
+    fake, d = driver(Fake(fail_sql="CREATE CATALOG"))
+    result = d.run()
+    assert result["stopped"].startswith("unexpected") and not any(s.startswith("DROP") for s in fake.statements)
+
+
+def test_the_statements_document_equals_the_generator():
+    path = Path(__file__).resolve().parents[3] / "docs/design/CONNECT_DATABRICKS_REGISTRATION_STATEMENTS.md"
+    assert path.read_text() == e2e.render_markdown(), "regenerate with render_markdown()"
