@@ -339,6 +339,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "The offline build (D1) of the Databricks pre-created-principal registration (generator, verifier, end-to-end driver, tests on fakes) and, once the generated statements are in docs/design/CONNECT_DATABRICKS_REGISTRATION_STATEMENTS.md, the one live end-to-end check D3 on the owner's validation workspace: a sandbox catalog with synthetic tables, the admin-run script as the signed-in owner (principal, secret, grants, CAN_USE on the existing Serverless Starter Warehouse chosen by name), the verifier on real read-backs, a connection test through the product's Databricks session, removal, and a created-only sweep. Secrets in memory only. Approved in advance by the owner's request to ask once; nothing else (no other workspace, no changes to the warehouse, no other catalog)."
       record: "Asked \"Build the generator now, and approve the one live check up front?\" with options \"Build and approve D3\" and \"Build only\"; the user answered \"Build and approve D3\" on 2026-11-18."
+    connect_certification_c0:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Gate C0 (review) of docs/design/CONNECT_CERTIFICATION_PLAN.md with the plan's recommended answers: the owner certifies the sandbox draft in this repository's Git (a real customer's approvers and home for certified definitions stay undecided); one contract per connection; the pilot's Azure OpenAI deployment on synthetic sandbox data only; the approved pilot thresholds reused for the first Databricks measurement; the existing synthetic orders and customers tables as the sandbox. The offline build C1 may proceed. It approves NO live step: C2 (draft on the sandbox) and C4 (a governed question) each need the owner's explicit approval, and C3 (certification) is the owner's own act, never inferred or done by the assistant."
+      record: "Asked \"Approve C0 with the recommended answers?\" with options \"Approve C0\" and \"Change an answer\"; the user answered \"Approve C0\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user

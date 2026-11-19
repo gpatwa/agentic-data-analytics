@@ -72,7 +72,7 @@ def test_a_connected_tenant_fails_closed_never_back_to_the_pilot(records, code):
 
 def runtime(resolver):
     return GovernedRuntime(control=SimpleNamespace(engine=None), evidence=None, gateway=SimpleNamespace(dialect="postgresql", name="pilot"), compiler=None,
-                           contracts=None, contexts={}, model_factory=None, plans=object(), results=object(), policy_values=object(), gateway_for_tenant=resolver)
+                           contracts=None, contexts={"ta": (None, None), "other": (None, None)}, model_factory=None, plans=object(), results=object(), policy_values=object(), gateway_for_tenant=resolver)
 
 
 def test_the_runtime_uses_the_resolved_gateway_with_a_breaker_per_tenant_and_the_pilot_otherwise():
