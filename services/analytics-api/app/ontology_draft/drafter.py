@@ -19,7 +19,7 @@ from app.ontology_draft.profile import SchemaProfile
 from app.ontology_draft.proposal import DraftEnvelope, DraftError, parse_proposal
 from app.ontology_draft.validate import DraftContext, DraftResult, ExplainProbe, validate_and_emit
 
-PROMPT_VERSION = "m2-v1"
+PROMPT_VERSION = "m2-v2"
 MAX_COMMENT_CHARS = 200
 MAX_REPLY_TOKENS = 4_000
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
@@ -36,6 +36,9 @@ Reply with one JSON object that matches the supplied schema and nothing else. Ru
 - Use aggregation "count" with no measure_column to count rows. Do not propose ratios.
 - Do not write SQL, and do not include any field that is not in the schema. Do not include links or markup.
 - Keep descriptions short, factual and about the column or table. Prefer fewer, correct items over many guesses.
+- For each metric and dimension you may add a short display_name and up to 5 synonyms: other names a business user would call it,
+  taken from the table, column and comment names only. Use letters, digits, spaces and hyphens only. Never use an example value, an
+  identifier, a number on its own, or a generic single word that another metric's name also contains. A person reviews every synonym.
 - A join is allowed only where the schema data lists a foreign key. Joins are reviewed by a person and are not executed.
 """
 

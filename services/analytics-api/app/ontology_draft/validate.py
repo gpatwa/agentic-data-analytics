@@ -51,6 +51,7 @@ from packages.platform_contracts.semantic import (
     SemanticOwner,
     SemanticRegistryDocument,
 )
+from packages.platform_contracts.semantic_terms import MAX_PROPOSED_SYNONYMS, normalize_term, synonym_problem, tokens
 
 DRAFTER_VERSION = "0.1.0"
 SOURCE_SYSTEM = "auto-ontology-drafter"
@@ -122,6 +123,7 @@ def validate_and_emit(
     metrics = _check_metrics(proposal.metrics, facts, used_ids, drops)
     dimensions = _check_dimensions(proposal.dimensions, facts, used_ids, drops)
     metrics, dimensions = _dry_run(metrics, dimensions, facts, ctx, explain, drops)
+    words = _check_words(metrics, dimensions, profile, drops)
     joins = _check_joins(proposal.joins, facts, drops)
     terms = _check_terms(proposal.glossary, drops)
 
@@ -131,7 +133,7 @@ def validate_and_emit(
     ontology: OntologySnapshot | None = None
     if tables_in_use:
         texts = {item.table: item for item in proposal.datasets}
-        contract = _build_contract(metrics, dimensions, tables_in_use, texts, facts, ctx, fingerprint, drops)
+        contract = _build_contract(metrics, dimensions, tables_in_use, texts, facts, ctx, fingerprint, drops, words)
         document = SemanticRegistryDocument(lifecycle="draft", contract=contract)
         ontology = _build_ontology(contract, terms, descriptions, ctx, fingerprint, now)
     elif terms:
@@ -409,6 +411,7 @@ def _build_contract(
     ctx: DraftContext,
     fingerprint: str,
     drops: list[Drop],
+    words: dict[str, tuple[str | None, list[str]]] | None = None,
 ) -> SemanticContract:
     owner = SemanticOwner(id=ctx.owner_id, display_name=ctx.owner_name, owner_type="team")
     datasets: list[SemanticDataset] = []
@@ -441,7 +444,7 @@ def _build_contract(
                     classification="restricted" if is_sensitive_name(column.name) else "internal",
                 )
             )
-    return SemanticContract(
+    contract = SemanticContract(
         id=ctx.contract_id,
         tenant_id=ctx.tenant_id,
         domain=ctx.domain,
@@ -481,6 +484,78 @@ def _build_contract(
             }
         },
     )
+    return _apply_words(contract, words or {}, drops)
+
+
+def _word_problem(text: str, guard: re.Pattern[str] | None) -> str | None:
+    """Why a proposed display name or synonym is not kept. Codes only: the text is never repeated."""
+    code = synonym_problem(text)
+    if code:
+        return code
+    if guard is not None and guard.search(text):
+        return "sample_value_in_text"
+    if any((len(t) >= 6 and any(c.isdigit() for c in t) and any(c.isalpha() for c in t)) or re.fullmatch(r"\d{5,}", t) or re.fullmatch(r"[0-9a-f]{8,}", t) for t in tokens(text)):
+        return "synonym_identifier_like"
+    return None
+
+
+def _check_words(metrics: list[DraftMetric], dimensions: list[DraftDimension], profile: SchemaProfile | None, drops: list[Drop]) -> dict[str, tuple[str | None, list[str]]]:
+    """Each kept metric's and dimension's display name and synonyms, after the per-word rules. The cross-object rules run when the contract is built."""
+    guard = profile.sample_guard() if profile else None
+    out: dict[str, tuple[str | None, list[str]]] = {}
+    for kind, items in (("metric", metrics), ("dimension", dimensions)):
+        for item in items:
+            display = None
+            if item.display_name:
+                code = _word_problem(item.display_name, guard)
+                if code:
+                    drops.append(Drop("display_name", item.id, code))
+                else:
+                    display = item.display_name
+            kept: list[str] = []
+            seen: set[str] = set()
+            for n, text in enumerate(item.synonyms):
+                code = "too_many_synonyms" if len(kept) >= MAX_PROPOSED_SYNONYMS else _word_problem(text, guard)
+                if not code and normalize_term(text) in seen:
+                    code = "synonym_duplicate"
+                if code:
+                    drops.append(Drop("synonym", f"{item.id}#{n}", code))
+                    continue
+                seen.add(normalize_term(text))
+                kept.append(text)
+            if display or kept:
+                out[item.id] = (display, kept)
+    return out
+
+
+def _apply_words(contract: SemanticContract, words: dict[str, tuple[str | None, list[str]]], drops: list[Drop]) -> SemanticContract:
+    """Add the words one at a time, keeping each only if the contract still validates, so one clashing word never sinks the draft."""
+    if not words:
+        return contract
+    raw = contract.model_dump(mode="python")
+    rows = {item["id"]: item for key in ("metrics", "dimensions") for item in raw[key]}
+    for item_id, (display, synonyms) in words.items():
+        row = rows[item_id]
+        if display:
+            row["display_name"] = display
+            try:
+                SemanticContract.model_validate(raw)
+            except ValueError as exc:
+                row.pop("display_name")
+                drops.append(Drop("display_name", item_id, _term_code(exc)))
+        for n, text in enumerate(synonyms):
+            row.setdefault("synonyms", []).append(text)
+            try:
+                SemanticContract.model_validate(raw)
+            except ValueError as exc:
+                row["synonyms"].pop()
+                drops.append(Drop("synonym", f"{item_id}#{n}", _term_code(exc)))
+    return SemanticContract.model_validate(raw)
+
+
+def _term_code(exc: ValueError) -> str:
+    text = str(exc)
+    return next((c for c in ("synonym_overlaps_another_term", "synonym_is_another_id", "synonym_duplicate") if c in text), "synonym_rejected")
 
 
 def _build_ontology(
@@ -537,16 +612,16 @@ def _build_ontology(
             node(
                 f"metric.{metric.id}",
                 "metric",
-                metric.id,
-                {"aggregation": metric.aggregation, "description": descriptions.get(metric.id, "")},
+                metric.display_name or metric.id,
+                {"aggregation": metric.aggregation, "description": descriptions.get(metric.id, ""), **({"synonyms": list(metric.synonyms)} if metric.synonyms else {})},
             )
             edge(metric.dataset_id, f"metric.{metric.id}")
         for dimension in contract.dimensions:
             node(
                 f"dimension.{dimension.id}",
                 "dimension",
-                dimension.id,
-                {"dimension_type": dimension.dimension_type, "description": descriptions.get(dimension.id, "")},
+                dimension.display_name or dimension.id,
+                {"dimension_type": dimension.dimension_type, "description": descriptions.get(dimension.id, ""), **({"synonyms": list(dimension.synonyms)} if dimension.synonyms else {})},
             )
             edge(dimension.dataset_id, f"dimension.{dimension.id}")
     for term in terms:

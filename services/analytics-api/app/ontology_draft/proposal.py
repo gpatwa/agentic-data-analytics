@@ -37,6 +37,8 @@ class DraftDatasetText(_Item):
 
 class DraftMetric(_Item):
     id: str = Identifier
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
+    synonyms: list[str] = Field(default_factory=list, max_length=10)  # trimmed to the first 5 by the validator, which records each drop
     table: str = Field(min_length=1, max_length=255)
     aggregation: Literal["sum", "average", "count", "count_distinct", "min", "max"]
     measure_column: str | None = Field(default=None, max_length=255)
@@ -46,6 +48,8 @@ class DraftMetric(_Item):
 
 class DraftDimension(_Item):
     id: str = Identifier
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
+    synonyms: list[str] = Field(default_factory=list, max_length=10)
     table: str = Field(min_length=1, max_length=255)
     column: str = Field(min_length=1, max_length=255)
     dimension_type: Literal["categorical", "numeric", "temporal"]
