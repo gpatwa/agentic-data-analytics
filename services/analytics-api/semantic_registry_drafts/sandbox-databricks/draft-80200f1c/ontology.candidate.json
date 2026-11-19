@@ -1,0 +1,154 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "draft-80200f1cf7cf",
+  "tenant_id": "sandbox",
+  "captured_at": "2026-11-19T03:09:05.636520Z",
+  "nodes": [
+    {
+      "node_id": "dataset.orders",
+      "tenant_id": "sandbox",
+      "node_type": "dataset",
+      "label": "Orders",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "attributes": {
+        "description": "Table containing order records with an identifier and amount."
+      }
+    },
+    {
+      "node_id": "metric.order_count",
+      "tenant_id": "sandbox",
+      "node_type": "metric",
+      "label": "order_count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Count of order rows."
+      }
+    },
+    {
+      "node_id": "metric.order_amount_sum",
+      "tenant_id": "sandbox",
+      "node_type": "metric",
+      "label": "order_amount_sum",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of order amounts."
+      }
+    },
+    {
+      "node_id": "dimension.amount",
+      "tenant_id": "sandbox",
+      "node_type": "dimension",
+      "label": "amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "numeric",
+        "description": "Amount recorded for an order."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "contains.orders.metric.order_count",
+      "tenant_id": "sandbox",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.order_count",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.order_amount_sum",
+      "tenant_id": "sandbox",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.order_amount_sum",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.amount",
+      "tenant_id": "sandbox",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.amount",
+      "valid_from": "2026-11-19T03:09:05.636520Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "sandbox-databricks",
+          "source_version": "0.1.0/m2-v1",
+          "observed_at": "2026-11-19T03:09:05.636520Z",
+          "fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082"
+        }
+      ],
+      "confidence": 1.0
+    }
+  ]
+}
