@@ -74,6 +74,10 @@ class DraftContext:
     owner_name: str
     model_id: str
     prompt_version: str
+    # A connected warehouse: its dialect and the qualified prefix (`catalog.schema.`) that turns a table name into the physical name
+    # the gateway's allowlist holds. The defaults are the pilot's PostgreSQL, unchanged.
+    dialect: str = "postgresql"
+    physical_prefix: str = ""
 
 
 @dataclass(frozen=True)
@@ -345,6 +349,14 @@ def _probe_contract(
     return _build_contract(metrics, dimensions, tables, {}, facts, ctx, "probe", [])
 
 
+def _compiler(ctx: DraftContext) -> PostgreSQLCompiler:
+    if ctx.dialect == "databricks":
+        from app.compiler.adapter import DatabricksCompilerAdapter
+
+        return DatabricksCompilerAdapter()
+    return PostgreSQLCompiler()
+
+
 def _probe(
     contract: SemanticContract,
     ctx: DraftContext,
@@ -367,11 +379,14 @@ def _probe(
             group_by=group_by,
             limit=1,
         )
-        compiled = PostgreSQLCompiler().compile(intent, contract)
+        compiled = _compiler(ctx).compile(intent, contract)
     except (CompilationError, ValueError):
         return "compile_failed"
     try:
-        validate_read_only_sql(compiled.sql, dialect="postgres", allowed_tables=[table], case_sensitive_quoted=True)
+        if ctx.dialect == "databricks":
+            validate_read_only_sql(compiled.sql, dialect="databricks", allowed_tables=[f"{ctx.physical_prefix}{table}".lower()])
+        else:
+            validate_read_only_sql(compiled.sql, dialect="postgres", allowed_tables=[table], case_sensitive_quoted=True)
     except QueryRejected:
         return "sql_rejected"
     if explain is not None:
@@ -410,7 +425,7 @@ def _build_contract(
                 id=name,
                 display_name=text.display_name if text and not bad_text(text.display_name) else name,
                 source_asset_id=table.asset_id,
-                physical_name=name,
+                physical_name=f"{ctx.physical_prefix}{name}",
                 # A source comment is untrusted text and is not copied into a draft. Only the screened model description is.
                 description=description or "No description provided. Draft for review.",
                 owner_ids=[owner.id],

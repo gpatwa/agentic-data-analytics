@@ -1,6 +1,6 @@
 # Making a connected Databricks workspace answerable: the certification plan (2026-11-18)
 
-Status: **a plan for the owner to decide. Nothing here is built or run, and approving this plan approves no live step.** Each live gate needs the owner's explicit approval, with the exact statements shown first (CLAUDE.md). The semantic-certification gate stays human: nothing below certifies a definition, and nothing may claim one is certified because code or a fixture says so.
+Status: **C0 was approved by the owner on 2026-11-18 with the recommended answers (program file `connect_certification_c0`). C1 is built offline and tested on fakes (below); nothing has run against a workspace or a real model, and C2 to C4 are not approved.** Each live gate needs the owner's explicit approval, with the exact statements shown first (CLAUDE.md). The semantic-certification gate stays human: nothing below certifies a definition, and nothing may claim one is certified because code or a fixture says so.
 
 ## The problem
 
@@ -52,3 +52,12 @@ C2 and C4 may be approved together; C3 is yours and happens between them.
 5. **Sandbox shape:** the synthetic tables from the earlier checks (orders, customers) are enough for C2 and C4, or you want a richer set (for example the Olist reference, which is the deferred Snowflake demo-data question).
 
 Not verified: every behaviour of the drafter on Databricks, the cost and time of C2 and C4, the per-tenant runtime assembly, and anything about a customer's real data.
+
+## C1 built (2026-11-18), on fakes only
+
+- **Databricks source** (`app/ontology_draft/databricks_source.py`): facts from `DESCRIBE TABLE EXTENDED` and bounded aggregate `SELECT`s through the connection's own session, one schema per draft, the approved redaction rule reused, a fixed `DraftError` code instead of any driver message, and a `EXPLAIN` probe through the same session. Only the named tables can be read, because the principal holds nothing else.
+- **A finding the build forced:** Unity Catalog tables rarely declare primary keys, and the drafter drops any metric with no key evidence (`no_key_evidence`). So a Databricks draft needs an inferred key: `infer_keys` proposes one only when the profile saw the **whole table** (fewer rows than the row limit), the column has no nulls and every value is distinct. That is a property of today's data, not a constraint, so **the reviewer must confirm the grain at certification (C3)**. A table larger than the window gets no inferred key and its metrics are dropped.
+- **Dialect-aware drafter:** `DraftContext` gained `dialect` and `physical_prefix` (defaults are the pilot's, unchanged), so a draft's physical names are `catalog.schema.table` and its dry run compiles with the Databricks adapter and checks the SQL against the qualified allowlist.
+- **Per-tenant assets** (`app/connect/tenant_assets.py`, `GovernedRuntime.assets_for_tenant`): for a tenant with exactly one active Databricks connection, the run uses that connection's gateway, a Databricks compiler and the tenant's **certified** contract with the context built from it. It raises (fails closed) for: no certified contract (a draft or another tenant's contract never counts), a contract using any table outside the connection's allowlist (checked on every assembly), more than one certified contract, a missing registry, a suspended connection. A tenant without a connection keeps the pilot's assets. Each connected tenant has its own circuit breaker. `app/main.py` does not pass the resolver, so nothing changes in a running deployment.
+- **Tests:** 23 new tests including an end-to-end one (a fixture contract, standing in for the owner's certification, compiles for Databricks and the real gateway runs it only inside the admin's allowlist) and eleven deliberate breaks, all caught. The `certified` documents in them are test fixtures; nothing in the product certifies anything.
+- **Not built:** declared-constraint key reading, joins (still single-dataset, as decided), the C2 run script and its report, and a certification workflow for a customer's own approvers.

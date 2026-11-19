@@ -17,6 +17,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import create_engine
@@ -82,6 +83,19 @@ DEFAULT_ROLE_MAP = {
 }
 
 
+@dataclass(frozen=True)
+class TenantAssets:
+    """Everything one tenant's governed run needs that is not shared: its own warehouse gateway, a compiler for that warehouse's
+    dialect, the certified contracts for its tables and the context and vocabulary built from them."""
+
+    gateway: Any
+    compiler: Any
+    contracts: Any
+    context: Any
+    ontology: Any
+    vocabulary: str | None = None
+
+
 @dataclass
 class GovernedRuntime:
     control: ControlStore
@@ -109,6 +123,8 @@ class GovernedRuntime:
     # tenant -> that tenant's own connected warehouse gateway, or None to use `gateway` (the pilot's). Raising fails the run closed: a
     # tenant with a connection never falls back to another warehouse.
     gateway_for_tenant: Callable[[str], Any | None] | None = None
+    # tenant -> all of that tenant's own assets (`app.connect.tenant_assets`), or None for the pilot's. Raising fails the run closed.
+    assets_for_tenant: Callable[[str], TenantAssets | None] | None = None
     _tenant_breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -125,6 +141,18 @@ class GovernedRuntime:
         except KeyError as exc:
             raise SnapshotSelectionError("snapshot_tenant_mismatch") from exc
 
+    def _tenant(self, tenant_id: str) -> SimpleNamespace:
+        """The gateway, breaker, compiler, contracts, context, ontology and vocabulary this tenant's run uses."""
+        assets = self.assets_for_tenant(tenant_id) if self.assets_for_tenant else None
+        if assets is not None:
+            breaker = self._tenant_breakers.setdefault(tenant_id, CircuitBreaker(f"warehouse:{tenant_id}"))
+            return SimpleNamespace(gateway=assets.gateway, breaker=breaker, compiler=assets.compiler, contracts=assets.contracts,
+                                   context=assets.context, ontology=assets.ontology, vocabulary=assets.vocabulary)
+        context, ontology = self._context(tenant_id)
+        gateway, breaker = self._gateway(tenant_id)
+        return SimpleNamespace(gateway=gateway, breaker=breaker, compiler=self.compiler, contracts=self.contracts, context=context,
+                               ontology=ontology, vocabulary=self.vocabularies.get(tenant_id))
+
     def _gateway(self, tenant_id: str) -> tuple[Any, CircuitBreaker]:
         """The gateway for this tenant and its breaker. A connected tenant gets its own breaker, so one tenant's warehouse failing
         never opens the circuit for another."""
@@ -134,9 +162,9 @@ class GovernedRuntime:
         return own, self._tenant_breakers.setdefault(tenant_id, CircuitBreaker(f"warehouse:{tenant_id}"))
 
     def nodes(self, identity: AnalyticsIdentity, request: BootstrapRequest) -> dict:
-        context, ontology = self._context(identity.tenant_id)
-        gateway, breaker = self._gateway(identity.tenant_id)
-        gateways = {gateway.dialect: ResilientGateway(gateway, breaker=breaker)}
+        t = self._tenant(identity.tenant_id)
+        context, ontology = t.context, t.ontology
+        gateways = {t.gateway.dialect: ResilientGateway(t.gateway, breaker=t.breaker)}
 
         def go(ni, nxt):
             return NodeOutput(run_id=ni.run_id, node_id=ni.node_id, status="completed", next_node=nxt)
@@ -147,14 +175,14 @@ class GovernedRuntime:
             "retrieve": context_retrieval_node(FixedSnapshots(context, ontology), SnapshotSearch(context)),
             "extract_intent": structured_intent_node(
                 ResilientModelClient(self.model_factory(request.request_id), breaker=self.model_breaker),
-                vocabulary=self.vocabularies.get(identity.tenant_id),
+                vocabulary=t.vocabulary,
             ),
-            "resolve": ontology_resolution_node(self.contracts, FixedOntology(ontology)),
+            "resolve": ontology_resolution_node(t.contracts, FixedOntology(ontology)),
             "clarify": clarification_node(),
-            "plan": analytics_plan_node(self.contracts),
-            "validate": certified_intent_node(self.contracts),
-            "policy": policy_node(self.contracts, identity, self.policy_values, review_store=self.control),
-            "compile": compile_node(self.compiler, self.plans, self.policy_values),
+            "plan": analytics_plan_node(t.contracts),
+            "validate": certified_intent_node(t.contracts),
+            "policy": policy_node(t.contracts, identity, self.policy_values, review_store=self.control),
+            "compile": compile_node(t.compiler, self.plans, self.policy_values),
             "estimate": estimate_node(
                 self.plans,
                 GatewayCostEstimator(gateways),
@@ -169,20 +197,21 @@ class GovernedRuntime:
             "result_validate": result_validation_node(
                 self.plans,
                 self.results,
-                self.contracts,
+                t.contracts,
                 self.control_totals,
                 report_sink=lambda ni, report: self.reports.put(ni.tenant_id, ni.run_id, report),
                 min_cohort=self.min_cohort,
             ),
-            "explain": explain_node(self.results, self.contracts, self.plans, self.explainer, self.explanations),
+            "explain": explain_node(self.results, t.contracts, self.plans, self.explainer, self.explanations),
         }
 
     def control_totals(self, node_input, intent, contract):
+        t = self._tenant(node_input.tenant_id)
         return run_control_totals(
             intent,
             contract,
-            compile_plan=lambda i, c: self.compiler.compile(i),
-            gateway=self._gateway(node_input.tenant_id)[0],
+            compile_plan=lambda i, c: t.compiler.compile(i),
+            gateway=t.gateway,
             limits=ExecutionLimits(),
         )
 
@@ -190,7 +219,7 @@ class GovernedRuntime:
         return AgentGraphRunner(self.control, governed_graph_v2(self.nodes(identity, request)))
 
     def new_state(self, request: BootstrapRequest, run_id: str, purpose: str):
-        context, _ = self._context(request.identity.tenant_id)
+        context = self._tenant(request.identity.tenant_id).context
         budget = RunBudget(
             deadline=datetime.now(timezone.utc) + timedelta(seconds=self.run_seconds),
             max_transitions=40,
@@ -258,6 +287,7 @@ def migrate(database_url: str, service_root: Path | None = None) -> None:
 def build_pilot_runtime(
     settings: Any, *, model_factory: Callable[[str], Any] | None = None, verifier: Any = None,
     gateway_for_tenant: Callable[[str], Any | None] | None = None,
+    assets_for_tenant: Callable[[str], TenantAssets | None] | None = None,
 ) -> V2Runtime:
     """Everything is read from settings; `model_factory` and `verifier` can be injected (tests). `gateway_for_tenant` is the connected-
     warehouse resolver (`app.connect.runtime_gateway.connected_gateway_resolver`); without it every tenant uses the pilot warehouse."""
@@ -332,6 +362,7 @@ def build_pilot_runtime(
         run_id_key=settings.ANALYTICS_RUN_ID_KEY.encode() if settings.ANALYTICS_RUN_ID_KEY else None,
         require_run_id_key=settings.ENV != "dev",
         gateway_for_tenant=gateway_for_tenant,
+        assets_for_tenant=assets_for_tenant,
     )
     started = time.monotonic()
     service = runtime.service()
