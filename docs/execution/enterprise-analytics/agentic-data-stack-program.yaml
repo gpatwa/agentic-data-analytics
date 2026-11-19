@@ -357,6 +357,12 @@ milestones:
       approved_at: 2026-11-18
       scope: "Stage C3 of docs/design/CONNECT_CERTIFICATION_PLAN.md: certification of the sandbox draft as drafted (no edits), tenant sandbox, contract sandbox-databricks, grain orders.id (inferred, accepted by the owner), dimension amount kept, metrics order_count and order_amount_sum certified, written to services/analytics-api/semantic_registry_sandbox/contracts/sandbox-databricks-v1.json at the owner's instruction. It does NOT approve C4 (ask), which needs a separate approval."
       record: "The owner first said a certified contract was in the registry, then that they had placed nothing; asked to choose, the user answered \"Certify the draft as-is\" on 2026-11-18."
+    connect_certification_c4:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-18
+      scope: "Stage C4 (ask through the connection) of docs/design/CONNECT_CERTIFICATION_PLAN.md, with the statements in docs/design/CONNECT_CERTIFICATION_STATEMENTS.md: one run of `databricks_certify --stage ask` on the owner's validation workspace with registry services/analytics-api/semantic_registry_sandbox and suffix 889cfc3a (sandbox catalog with synthetic tables, the generated registration script as the signed-in owner, assets from the certified contract, one compiled metric through the gateway, a refused outside-table statement, health check and suspension, secret rotation, connection removal), then created-only teardown and a zero-row sweep. No model call."
+      record: "Asked \"Do you approve C4 against semantic_registry_sandbox, with suffix 889cfc3a?\"; the user answered \"Approve C4\" on 2026-11-18."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
