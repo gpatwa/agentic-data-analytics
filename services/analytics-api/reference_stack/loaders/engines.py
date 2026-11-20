@@ -51,7 +51,7 @@ class Dialect:
 
 
 _BASE = {"BIGINT": "BIGINT", "INTEGER": "INT", "BOOLEAN": "BOOLEAN", "DATE": "DATE", "DOUBLE": "DOUBLE"}
-DATABRICKS = Dialect("databricks", "`", {**_BASE, "VARCHAR": "STRING", "TIMESTAMP": "TIMESTAMP"}, "from_utc_timestamp({ts}, {tz})", "date_format({x}, 'yyyy-MM')")
+DATABRICKS = Dialect("databricks", "`", {**_BASE, "VARCHAR": "STRING", "TIMESTAMP": "TIMESTAMP_NTZ"}, "convert_timezone('UTC', {tz}, {ts})", "date_format({x}, 'yyyy-MM')")
 SNOWFLAKE = Dialect("snowflake", '"', {**_BASE, "VARCHAR": "VARCHAR", "TIMESTAMP": "TIMESTAMP_NTZ", "DOUBLE": "FLOAT"},
                     "CAST(CONVERT_TIMEZONE('UTC', {tz}, {ts}) AS TIMESTAMP_NTZ)", "TO_CHAR({x}, 'YYYY-MM')", upper_names=True)
 DUCKDB = Dialect("duckdb", '"', {**_BASE, "VARCHAR": "VARCHAR", "TIMESTAMP": "TIMESTAMP"}, "timezone({tz}, {ts} AT TIME ZONE 'UTC')", "strftime({x}, '%Y-%m')")

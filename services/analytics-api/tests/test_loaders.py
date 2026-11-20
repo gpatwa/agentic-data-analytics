@@ -74,7 +74,7 @@ def test_names_follow_each_engines_convention(data):
 def test_columns_are_typed_from_the_parquet_and_money_stays_exact(data):
     dbx = render_dry_run(synthetic_plan(data, "databricks", "c", "s"))
     sf = render_dry_run(synthetic_plan(data, "snowflake", "c", "s"))
-    assert "`total_amount` DECIMAL(12,2)" in dbx and '"TOTAL_AMOUNT" DECIMAL(12,2)' in sf and '"ORDER_TS" TIMESTAMP_NTZ' in sf and "`order_ts` TIMESTAMP" in dbx
+    assert "`total_amount` DECIMAL(12,2)" in dbx and '"TOTAL_AMOUNT" DECIMAL(12,2)' in sf and '"ORDER_TS" TIMESTAMP_NTZ' in sf and "`order_ts` TIMESTAMP_NTZ" in dbx and "`order_ts` TIMESTAMP," not in dbx
 
 
 def test_every_table_and_the_schema_carry_the_synthetic_label(data):
@@ -119,7 +119,7 @@ def test_every_generated_statement_parses_in_its_engines_dialect(data, engine):
 
 def test_the_dialects_differ_only_where_the_engines_differ():
     assert set(DIALECTS) == {"databricks", "snowflake", "duckdb"}
-    assert "from_utc_timestamp" in dialect("databricks").local("a", "b") and "CONVERT_TIMEZONE" in dialect("snowflake").local("a", "b")
+    assert "convert_timezone" in dialect("databricks").local("a", "b") and "CONVERT_TIMEZONE" in dialect("snowflake").local("a", "b")
 
 
 # ---- the executor ---------------------------------------------------------------------------------------------------------------------------
