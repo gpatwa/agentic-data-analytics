@@ -381,6 +381,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "S0 (review) of docs/design/SEMANTIC_SYNONYMS_DESIGN.md with its six recommended answers: synonyms as optional fields on the certified contract; the section 2 rules (shape, shared normaliser, uniqueness within a kind, no whole-word overlap with another term, no collision with ids or reserved words); the drafter proposing at most 5 per metric or dimension from names and screened comments only; the phrasing corpus and report (S3) before any synonym is certified for the sandbox; suggestion from refusals, other languages and per-user terms out of scope; and S6 (ask the requester to confirm instead of refusing, humans only) with the risk figure measured first. It approves the OFFLINE builds S1 to S3 only. It does NOT approve S4 (certifying any synonym, the owner's own act), S5 (a live re-check) or the S6 build, which waits for the S1 to S3 results."
       record: "Asked \"Approve S0, including decision 6?\" with options \"Approve S0\" and \"Change something\"; the user answered \"Approve S0\" on 2026-11-19."
+    semantic_trust_e1_e5:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-19
+      scope: "The OFFLINE builds E1 to E5 of docs/design/SEMANTIC_TRUST_FOUNDATIONS_PLAN.md with its recommended answers: key evidence on facts and declared-key reading (E1, E2); a hash-only refusal backlog resolved against a candidate dictionary, raw-stem retention off (E3); a contract diff and a recorded-intent behaviour diff that never calls a model, with an eval file required when certifying a new version of a contract that has one (E4); an oracle runner against fakes (E5); order E1, E2, then E3 and E4, then E5; and the Online Retail II download (about 43.5 MB from the UCI repository). It does NOT approve any live warehouse read (L1), any live oracle run (L2), a recurring oracle run (L3), raw-stem retention, loading data into any warehouse, or contacting NYC."
+      record: "Asked for decisions 1 to 6 of the plan; the user answered \"do all 1-6\" on 2026-11-19."
     intent_coverage_k0:
       status: approved
       approved_by: user
