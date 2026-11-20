@@ -2,6 +2,17 @@
 
 Status: **E1 to E5 approved by the owner on 2026-11-19 ("do all 1-6": recommended answers to decisions 1 to 5, offline builds only; program file `semantic_trust_e1_e5`).** Every stage is offline (fakes, fixtures, no warehouse, no model call, no download). Approval is requested in "Decisions for the owner". It follows the review of a published case study (below) and ties into `REALISTIC_DATA_SOURCE_REVIEW.md` (declared keys) and `INTENT_COVERAGE_CHECK_PLAN.md` (refusals).
 
+## Build status (2026-11-19)
+
+| Stage | State |
+|---|---|
+| E1 key evidence | built, tested, mutation-checked (`tests/test_key_evidence.py`) |
+| E2 declared-key reading | built against a fake catalog; the exact `information_schema` view and column names match the vendor's documentation as surfaced by search but are **not verified on a live workspace** (L1) |
+| E3 refusal backlog | built: salted-hash counters, a once-per-run guard, a dictionary resolver and report; migration `0014`; an optional hook on the analyze service, **not wired into `main.py`** (a deployment opts in and supplies a per-tenant salt) |
+| E4 contract and answer diff | built (`app/contract_review`): contract diff, recorded-intent answer diff, the certifier's review summary with blockers; **not wired into any certification command yet** |
+| E5 oracle runner | built against fakes through the real gateway validation; no live run |
+| E6 start from existing assets | proposed (section 8A); not started |
+
 ## 1. What the case study is, and what we take from it
 
 "Self-service agentic analytics at Mews, Part I" (Substack, 2026) describes a Databricks, Unity Catalog and dbt shop where an agent writes SQL against governed sources. It is one team's account of about a month of use; it gives no cost, latency or error rates, and its 25-question comparison is small. We treat it as a design signal, not as evidence.
