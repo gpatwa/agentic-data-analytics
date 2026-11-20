@@ -112,3 +112,13 @@ Two differences from the plan above: the neutral list has **84 words**, not "abo
 The four valid questions newly refused are filler and a split phrase ("right now", "Quickly,", "Hi,", "received in total"). The sandbox contract has no temporal dimension, so no intent can hold a time range there: every time condition is a dropped constraint by construction, and the time-accounting rules are covered by unit tests.
 
 **What is left for you.** Fill in `coverage-holdout.owner.json` (20 questions with the metric and whether you expect an answer or a refusal; do not read the report first). Then K3 can be proposed with your numbers, not mine.
+
+## K3 and S4 prepared (2026-11-20), nothing certified, nothing deployed
+
+**The hold-out is in** (20 questions written by a fresh agent, PR #111): no refusal was wrongly answered (0 of 10); 9 of the 10 plain valid questions were refused, 8 by the existing echo check (the fixture synonym set does not name them) and 1 by the coverage check.
+
+**S4 prepared.** A second fresh agent, which saw only the contract's metric and dimension descriptions and the validator's rules (not the corpus, hold-out or neutral list), proposed synonyms. The preparer filtered words that could mean something the contract does not define (`order volume`, `order quantity`, `order size`, `amount per order`) and those the validator rejects (a cap of 10 per item; `order amount` equals the field id). The result is a validated **draft**, `semantic_registry_sandbox/proposed/sandbox-databricks-v2.proposed.json`, built by `reference_stack/synonym_proposal.py`. The certified v1 is unchanged.
+
+**Measured once, not tuned to:** with the proposed set the hold-out has 8 plain valid questions refused, not 9 (only "count of orders" is newly answered); the author corpus shows 0 dropped constraints, 0 omitted metrics and 0 near-misses accepted (the holes stay closed). **Synonyms alone do not fix the long tail** ("orders total count?", "num of orders pleaes", "sum of amount", "total revenue"): each would need its own reviewed word, and a word like `revenue` means something the contract does not define. That is S6's job (confirm instead of refuse), which is still the owner's decision.
+
+**What stays with the owner:** certifying `2026-11-20` as the next version (reading the words), enabling K3 (`ANALYTICS_INTENT_COVERAGE_TENANTS=sandbox` is a deployment setting; not applied), and S6.
