@@ -42,6 +42,8 @@ class FactColumn(_Frozen):
     data_type: SemanticType
     nullable: bool = True
     comment: str | None = Field(default=None, max_length=2_000)
+    # Set from an upstream sensitivity tag (E6d). It can only add a restriction: nothing upstream can clear the name-based rule.
+    restricted: bool = False
 
 
 class FactForeignKey(_Frozen):
@@ -109,8 +111,15 @@ class SchemaFacts(_Frozen):
         for table in dumped["tables"]:  # only a profiled key is written, so facts that carried no evidence label keep their fingerprint
             if table["key_evidence"] != "profiled_full":
                 del table["key_evidence"]
+            for column in table["columns"]:
+                if not column["restricted"]:  # likewise, a column is marked only when an upstream tag restricted it
+                    del column["restricted"]
         canonical = json.dumps(dumped, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def is_restricted(column: FactColumn) -> bool:
+    return column.restricted or is_sensitive_name(column.name)
 
 
 def is_sensitive_name(name: str) -> bool:

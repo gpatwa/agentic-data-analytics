@@ -387,6 +387,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "The OFFLINE builds E1 to E5 of docs/design/SEMANTIC_TRUST_FOUNDATIONS_PLAN.md with its recommended answers: key evidence on facts and declared-key reading (E1, E2); a hash-only refusal backlog resolved against a candidate dictionary, raw-stem retention off (E3); a contract diff and a recorded-intent behaviour diff that never calls a model, with an eval file required when certifying a new version of a contract that has one (E4); an oracle runner against fakes (E5); order E1, E2, then E3 and E4, then E5; and the Online Retail II download (about 43.5 MB from the UCI repository). It does NOT approve any live warehouse read (L1), any live oracle run (L2), a recurring oracle run (L3), raw-stem retention, loading data into any warehouse, or contacting NYC."
       record: "Asked for decisions 1 to 6 of the plan; the user answered \"do all 1-6\" on 2026-11-19."
+    semantic_trust_e6:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-19
+      scope: "The OFFLINE build E6a to E6e of docs/design/SEMANTIC_TRUST_FOUNDATIONS_PLAN.md section 8A: importing a customer's existing Databricks metric views and Snowflake semantic views as draft candidates (conservative mapping, a not-imported list with reasons, the same validator as any draft), tags that can only tighten, and the what-we-found summary. It does NOT approve any live read of a customer's metric views, semantic views or tags (L4), certifying anything, or wiring the importer into a deployed flow."
+      record: "Asked \"Approve E6 (importing existing metric views and semantic views) as the next offline build?\" with options \"Approve E6\" and \"Not yet\"; the user answered \"Approve E6\" on 2026-11-19."
     intent_coverage_k0:
       status: approved
       approved_by: user

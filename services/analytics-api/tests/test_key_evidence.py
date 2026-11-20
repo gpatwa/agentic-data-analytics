@@ -37,6 +37,8 @@ def test_fingerprints_of_facts_without_a_profiled_key_are_unchanged_and_a_profil
     legacy = declared.model_dump(mode="json")
     for t in legacy["tables"]:
         del t["key_evidence"]
+        for col in t["columns"]:
+            del col["restricted"]
     assert declared.fingerprint() == hashlib.sha256(json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 

@@ -11,7 +11,7 @@ Status: **E1 to E5 approved by the owner on 2026-11-19 ("do all 1-6": recommende
 | E3 refusal backlog | built: salted-hash counters, a once-per-run guard, a dictionary resolver and report; migration `0014`; an optional hook on the analyze service, **not wired into `main.py`** (a deployment opts in and supplies a per-tenant salt) |
 | E4 contract and answer diff | built (`app/contract_review`): contract diff, recorded-intent answer diff, the certifier's review summary with blockers; **not wired into any certification command yet** |
 | E5 oracle runner | built against fakes through the real gateway validation; no live run |
-| E6 start from existing assets | proposed (section 8A); not started |
+| E6 start from existing assets | built offline (`app/ontology_draft/existing_assets.py`): metric view YAML and `DESCRIBE SEMANTIC VIEW` rows to candidates, tighten-only tags, a what-we-found summary. Approved 2026-11-19 (`semantic_trust_e6`). Not wired into a flow; no live read (L4) |
 
 ## 1. What the case study is, and what we take from it
 
@@ -125,13 +125,13 @@ Owner direction, 2026-11-19: "leverage what already exists in Databricks or Snow
 | Tags and classifications | governed tags | object tags, system classification tags | can only make a column *more* restricted, never less |
 | Masks and row filters | column masks, row filters | masking and row access policies | read for awareness and to warn; not enforced by us (see section 8) |
 
-Format details above come from the vendors' public documentation as surfaced by search; the exact statements to list them and the exact preview status are **not yet verified against a workspace or the full reference pages**, so E6a below verifies first.
+E6a result (2026-11-19): the full vendor references were read. Databricks metric view YAML: `version` (0.1 or 1.1), `source`, `filter`, `joins`, `fields` (alias `dimensions`), `measures`, `parameters`, `window`; `comment`, `display_name` and `synonyms` (up to 10) need specification 1.1. Snowflake `DESCRIBE SEMANTIC VIEW` returns `object_kind, object_name, parent_entity, property, property_value`, with kinds TABLE, RELATIONSHIP, DIMENSION, FACT, METRIC and DERIVED_METRIC and properties such as BASE_TABLE_NAME, PRIMARY_KEY, EXPRESSION, ACCESS_MODIFIER, SYNONYMS and COMMENT. The Snowflake page is inconsistent about which objects carry SYNONYMS and COMMENT (its example shows them where its property list omits them), so the importer reads them wherever they appear. Not verified: output column data types, row order, and anything on a real workspace (L4).
 
 ### Import rules (conservative, deterministic, no model needed)
 
 - Only what fits the product's scope maps: **one source table, a sum or a count, a simple filter, no joins, no ratios, no windows.** Anything else is listed under "not imported, and why", never approximated.
 - An imported item is a **candidate** with its source object named and a hash of its definition. The same certification gate applies.
-- Comments and descriptions are untrusted text and pass through the existing cleaning and injection screen.
+- Comments and descriptions are untrusted text and get the validator's text checks (control characters, URLs, markup). Like a model's text they are not screened for instruction-like wording, so the reviewer reads them.
 - Re-importing later produces a **contract diff (E4)**, so an upstream change becomes a reviewable change, not silent drift.
 - Tags only tighten: an upstream sensitivity tag adds a restriction; no upstream tag can remove one.
 
@@ -149,7 +149,7 @@ Format details above come from the vendors' public documentation as surfaced by 
 | **E6d** | tags to restricted-column hints (tighten only) |
 | **E6e** | the "what we found" summary in the review note |
 
-A live read of a customer's metric views or tags is its own approval (L4). E6 needs the owner's go-ahead before E6a starts; it follows E5.
+A live read of a customer's metric views or tags is its own approval (L4).
 
 ## 8. Deferred on purpose
 
