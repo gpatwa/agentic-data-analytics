@@ -1,0 +1,38 @@
+{
+  "note": "The BUILDER's regression set. It is not the owner's 20-question hold-out (reference_stack/m7/coverage-holdout.owner.json), which the owner writes without seeing the generator, and its results are never reported as the hold-out.",
+  "answerable": [
+    {"id": "A01", "question": "How many orders were placed?", "truth": {"value": "orders_distinct"}},
+    {"id": "A02", "question": "How many orders were delivered?", "truth": {"value": "delivered_orders"}},
+    {"id": "A03", "question": "How many orders were cancelled?", "truth": {"value": "cancelled_orders"}},
+    {"id": "A04", "question": "How many orders were refunded in full?", "truth": {"value": "refunded_orders"}},
+    {"id": "A05", "question": "How many orders were partially refunded?", "truth": {"value": "partially_refunded_orders"}},
+    {"id": "A06", "question": "What is the gross order value in US dollars?", "truth": {"value": "gross_value_usd_cents"}},
+    {"id": "A07", "question": "How much was refunded in US dollars?", "truth": {"value": "refunds_usd_cents"}},
+    {"id": "A08", "question": "What is the net order value in US dollars?", "truth": {"value": "net_value_usd_cents"}},
+    {"id": "A09", "question": "How much did customers tip on card orders in US dollars?", "truth": {"value": "tip_card_usd_cents"}},
+    {"id": "A10", "question": "How many reversal rows are there?", "truth": {"value": "reversal_rows"}},
+    {"id": "A11", "question": "How many orders were placed in New York?", "truth": {"map": "orders_by_city", "entry": "New York"}},
+    {"id": "A12", "question": "How many orders were placed in London?", "truth": {"map": "orders_by_city", "entry": "London"}},
+    {"id": "A13", "question": "How many orders were placed in Chicago?", "truth": {"map": "orders_by_city", "entry": "Chicago"}},
+    {"id": "A14", "question": "How many orders were placed in January 2025?", "truth": {"map": "orders_by_month_local", "entry": "2025-01"}},
+    {"id": "A15", "question": "How many orders were placed in July 2025?", "truth": {"map": "orders_by_month_local", "entry": "2025-07"}},
+    {"id": "A16", "question": "How many orders were placed in December 2025?", "truth": {"map": "orders_by_month_local", "entry": "2025-12"}},
+    {"id": "A17", "question": "How many orders were for pizza?", "truth": {"map": "orders_by_cuisine", "entry": "Pizza"}},
+    {"id": "A18", "question": "How many orders were for sushi?", "truth": {"map": "orders_by_cuisine", "entry": "Sushi"}},
+    {"id": "A19", "question": "What is the total delivery time in minutes?", "truth": {"value": "delivery_minutes_sum"}},
+    {"id": "A20", "question": "How many orders have a recorded delivery time?", "truth": {"value": "delivery_minutes_count"}}
+  ],
+  "refusals": [
+    {"id": "R01", "question": "What is the refund rate?", "reason": "ratio"},
+    {"id": "R02", "question": "What is the cancellation rate?", "reason": "ratio"},
+    {"id": "R03", "question": "What percentage of deliveries took under 30 minutes?", "reason": "ratio"},
+    {"id": "R04", "question": "What is the average tip as a percentage of the order?", "reason": "ratio"},
+    {"id": "R05", "question": "What is the revenue per courier?", "reason": "ratio"},
+    {"id": "R06", "question": "How many orders were delivered by each courier vehicle type?", "reason": "join"},
+    {"id": "R07", "question": "What is the customer lifetime value?", "reason": "join"},
+    {"id": "R08", "question": "How do orders this week compare with the week before?", "reason": "comparison"},
+    {"id": "R09", "question": "Which restaurants are growing fastest?", "reason": "comparison"},
+    {"id": "R10", "question": "What is the customer satisfaction score?", "reason": "unsupported_data"}
+  ],
+  "reason_classes": ["ratio", "join", "comparison", "unsupported_data"]
+}
