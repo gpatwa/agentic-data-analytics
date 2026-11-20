@@ -12,7 +12,7 @@ Everything goes into **one new schema that Compass owns**, created by this run, 
 |---|---|---|---|---|
 | Synthetic food delivery, tier S (10,000 orders) | restaurants, couriers, customers, orders, order_items, payments, **orders_flat** | 80, 60, 2,000, 11,126, 25,975, 9,813, 11,126 | not measured; roughly 1/100 of tier M, so a few MB at most | generator built and tested |
 | Synthetic food delivery, tier M (1 million orders), optional | same seven | 5,000, 2,000, 200,000, 1,112,404, 2,577,738, 979,779, 1,112,404 | 162 MB (measured) | generator built; one run timed at about 16 s |
-| Online Retail II, optional | one table, **online_retail_ii** | 1,067,371 source rows | 43.5 MB workbook, smaller once converted | file downloaded and unpacked nowhere; **the loader is not built yet** (see section 5) |
+| Online Retail II, optional | one table, **online_retail_ii** | 1,067,371 source rows | 43.5 MB workbook, smaller once converted | file downloaded and converted locally; loader built (see section 5) |
 
 Every table carries a comment starting `SYNTHETIC DATA` (the synthetic ones) or the CC BY 4.0 attribution (Online Retail II). `orders_flat` gets a declared primary key on its surrogate `row_id`, which is what the key-reading work (E1 and E2) reads. Warehouse primary keys are informational, so that key is a claim the loader makes about data it generated.
 
@@ -52,11 +52,11 @@ Mechanism, to be confirmed in the dry run (the exact syntax is not verified on t
 
 **Cleanup:** by default the schema stays, because the next steps need it. On request, one `DROP SCHEMA ... CASCADE` on the schema this run created, and only that.
 
-## 5. What has to be built first, offline
+## 5. What is built offline
 
-- **Loader for the synthetic data:** a small script that reads the generator's Parquet and emits the statements above, with a dry-run mode that prints them. Offline work; the plan's earlier approval (G1 to G4) covers building it, but not running it.
-- **Loader for Online Retail II (only if you choose it):** converts the workbook to typed Parquet, adds `row_id`, `line_amount` (quantity times price, because the compiler cannot multiply columns) and `is_cancellation`, and drives the same load. Offline, no approval needed to build; downloading is already done.
-- Neither loader runs against a warehouse until this request is approved.
+- **Loaders (built, PR #105):** dry-run plans for Databricks and Snowflake, a statement guard that keeps every statement inside one `catalog.schema`, and an executor over an injected session that stops on a non-empty schema, a failed statement or any count mismatch. No connector is wired, and the command line only offers `--dry-run`.
+- **Online Retail II converter (built):** converts the workbook to typed Parquet and adds `row_id`, `line_amount` and `is_cancellation`. Run once on the real file: 1,067,371 rows, ledger and DuckDB keys agree.
+- Nothing runs against a warehouse until this request is approved; a connector session is the one remaining piece, and it is supplied at run time.
 
 ## 6. What approval unlocks
 
