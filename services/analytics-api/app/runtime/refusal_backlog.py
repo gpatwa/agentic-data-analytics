@@ -36,6 +36,13 @@ MIN_SALT_BYTES = 16
 _NEUTRAL = frozenset(stem(w) for w in NEUTRAL_WORDS)
 
 
+def tenant_salt(key: bytes, tenant_id: str) -> bytes:
+    """One salt per tenant, derived from a deployment secret, so the salt is never stored and two tenants never share hashes."""
+    if len(key) < 32:
+        raise ValueError("backlog_key_too_short")
+    return hmac.new(key, b"refusal-backlog-v1|" + tenant_id.encode(), sha256).digest()
+
+
 def term_hash(salt: bytes, word_stem: str) -> str:
     if len(salt) < MIN_SALT_BYTES:
         raise ValueError("salt_too_short")

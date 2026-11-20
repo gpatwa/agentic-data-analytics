@@ -1,0 +1,2 @@
+# Tools for the reference data (the Online Retail II converter and its tests). Not part of the service image.
+openpyxl==3.1.5

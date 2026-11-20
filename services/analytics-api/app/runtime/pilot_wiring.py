@@ -288,6 +288,18 @@ def migrate(database_url: str, service_root: Path | None = None) -> None:
             os.environ["ANALYTICS_CONTROL_DB_URL"] = previous
 
 
+def _build_refusal_recorder(settings: Any, control_engine: Any) -> Any:
+    """E3, opt-in: a recorder that counts coverage refusals by salted word hash. Off unless enabled; enabling it without a key fails the start-up."""
+    if not getattr(settings, "ANALYTICS_REFUSAL_BACKLOG_ENABLED", False):
+        return None
+    key = (getattr(settings, "ANALYTICS_REFUSAL_BACKLOG_KEY", None) or "").encode()
+    if len(key) < 32:
+        raise RuntimeError("ANALYTICS_REFUSAL_BACKLOG_KEY must be at least 32 bytes when the refusal backlog is enabled")
+    from app.runtime.refusal_backlog import BacklogRecorder, SqlBacklogStore, tenant_salt
+
+    return BacklogRecorder(SqlBacklogStore(control_engine), lambda tenant_id: tenant_salt(key, tenant_id))
+
+
 def build_pilot_runtime(
     settings: Any, *, model_factory: Callable[[str], Any] | None = None, verifier: Any = None,
     gateway_for_tenant: Callable[[str], Any | None] | None = None,
@@ -348,6 +360,7 @@ def build_pilot_runtime(
                 ).items()
             },
         )
+    refusal_recorder = _build_refusal_recorder(settings, control_engine)
     runtime = GovernedRuntime(
         control=ControlStore(control_engine, lease_seconds=settings.ANALYTICS_LEASE_SECONDS),
         evidence=EvidenceStore(control_engine),
@@ -368,6 +381,7 @@ def build_pilot_runtime(
         gateway_for_tenant=gateway_for_tenant,
         assets_for_tenant=assets_for_tenant,
         coverage_tenants=frozenset(t.strip() for t in (getattr(settings, "ANALYTICS_INTENT_COVERAGE_TENANTS", "") or "").split(",") if t.strip()),
+        refusal_recorder=refusal_recorder,
     )
     started = time.monotonic()
     service = runtime.service()
