@@ -393,6 +393,12 @@ milestones:
       approved_at: 2026-11-20
       scope: "The OFFLINE builds G1 to G4 of docs/design/SYNTHETIC_DATA_GENERATOR_SPEC.md, with decisions 1 to 5 approved as recommended: defects D1 to D10 including the general ones D4, D5, D6, D9 and D10; the starting rates as plausible guesses tuned only through the versioned config; real city names only, no coordinates; domain order after food delivery of retail, then SaaS, then support tickets. It does NOT approve G5 (loading any output into a Databricks or Snowflake workspace), any other live step, or describing synthetic data as real."
       record: "Asked for decisions 1 to 5 of the generator specification; the user answered \"Approve 1 - 5\" on 2026-11-20."
+    synthetic_data_g5_load_tier_s:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-20
+      scope: "G5 of docs/design/SYNTHETIC_DATA_GENERATOR_SPEC.md, limited to: loading the synthetic food-delivery data, tier S (10,000 orders; seven tables: restaurants, couriers, customers, orders, order_items, payments, orders_flat), into the new schema dev.compass_synthetic_food_delivery on https://dbc-b8672746-8e43.cloud.databricks.com, using the Serverless Starter Warehouse (2X-Small) and the owner's own user as the loading identity, with option C (the owner reviews every dry-run statement first) and then option A (one run that stops on any failed statement or count mismatch). Warehouse-time cap: 15 minutes (a limit, not an estimate). Cleanup: the schema is kept; one DROP SCHEMA ... CASCADE on this schema only, and only on the owner's request. No other object is touched: no other schema, catalog, table or grant, and the existing schemas in dev (bronze, silver, gold, default, social_intelligence_dev) are out of scope. It does NOT approve tier M, Online Retail II, any other workspace, any grant to the Connect principal, L1, L2, L3 or L4. The run itself waits for the owner to say go after reading the dry run, and needs a working credential supplied at run time and never stored or printed."
+      record: "Asked for host, catalog and warehouse values; looked them up read-only through the owner's signed-in Chrome (catalogs dev, samples, system; one warehouse, the Serverless Starter Warehouse). Proposed values were shown and the user answered \"Approve G5 with those values\" on 2026-11-20."
     semantic_trust_e6:
       status: approved
       approved_by: user
