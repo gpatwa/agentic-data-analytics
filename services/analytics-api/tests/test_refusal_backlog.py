@@ -164,3 +164,45 @@ def test_no_word_reaches_the_sql_tables(tmp_path):
     with engine.connect() as c:
         stored = " ".join(str(v) for t in ("refusal_backlog_counts", "refusal_backlog_seen") for row in c.execute(text(f"SELECT * FROM {t}")) for v in row)
     assert "refund" not in stored.lower() and "revenue" not in stored.lower()
+
+
+# ---- wiring: the deployment opt-in ----------------------------------------------------------------------------------------------------------
+
+
+def test_the_salt_is_derived_per_tenant_and_a_short_key_is_refused():
+    from app.runtime.refusal_backlog import tenant_salt
+
+    key = b"k" * 32
+    assert tenant_salt(key, "a") == tenant_salt(key, "a") and tenant_salt(key, "a") != tenant_salt(key, "b") and len(tenant_salt(key, "a")) == 32
+    assert tenant_salt(key, "a") != tenant_salt(b"j" * 32, "a")
+    with pytest.raises(ValueError):
+        tenant_salt(b"short", "a")
+
+
+def test_the_recorder_is_off_by_default_and_enabling_it_needs_a_long_key():
+    from types import SimpleNamespace
+
+    from app.runtime.pilot_wiring import _build_refusal_recorder
+
+    assert _build_refusal_recorder(SimpleNamespace(), object()) is None
+    assert _build_refusal_recorder(SimpleNamespace(ANALYTICS_REFUSAL_BACKLOG_ENABLED=False, ANALYTICS_REFUSAL_BACKLOG_KEY="k" * 40), object()) is None
+    with pytest.raises(RuntimeError, match="at least 32 bytes"):
+        _build_refusal_recorder(SimpleNamespace(ANALYTICS_REFUSAL_BACKLOG_ENABLED=True, ANALYTICS_REFUSAL_BACKLOG_KEY="short"), object())
+    with pytest.raises(RuntimeError):
+        _build_refusal_recorder(SimpleNamespace(ANALYTICS_REFUSAL_BACKLOG_ENABLED=True), object())
+
+
+def test_an_enabled_recorder_counts_by_tenant_salt_and_stores_no_word():
+    from types import SimpleNamespace
+
+    import sqlalchemy as sa
+
+    from app.runtime.pilot_wiring import _build_refusal_recorder
+    engine = sa.create_engine("sqlite://")
+    rb._META.create_all(engine)  # the deployment gets these tables from migration 0014
+    rec = _build_refusal_recorder(SimpleNamespace(ANALYTICS_REFUSAL_BACKLOG_ENABLED=True, ANALYTICS_REFUSAL_BACKLOG_KEY="k" * 40), engine)
+    assert rec(run_id="r1", tenant_id="t1", code="intent_coverage_mismatch", question="How many orders were refunded?", reference="unaccounted_words:1@4#abcdef012345") is True
+    assert rec(run_id="r1", tenant_id="t1", code="intent_coverage_mismatch", question="How many orders were refunded?", reference="unaccounted_words:1@4#abcdef012345") is False  # once per run
+    with engine.connect() as conn:
+        dump = " ".join(str(v) for row in conn.execute(sa.text("select * from refusal_backlog_counts")) for v in row)
+    assert "refunded" not in dump and "orders" not in dump
