@@ -387,6 +387,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "The OFFLINE builds E1 to E5 of docs/design/SEMANTIC_TRUST_FOUNDATIONS_PLAN.md with its recommended answers: key evidence on facts and declared-key reading (E1, E2); a hash-only refusal backlog resolved against a candidate dictionary, raw-stem retention off (E3); a contract diff and a recorded-intent behaviour diff that never calls a model, with an eval file required when certifying a new version of a contract that has one (E4); an oracle runner against fakes (E5); order E1, E2, then E3 and E4, then E5; and the Online Retail II download (about 43.5 MB from the UCI repository). It does NOT approve any live warehouse read (L1), any live oracle run (L2), a recurring oracle run (L3), raw-stem retention, loading data into any warehouse, or contacting NYC."
       record: "Asked for decisions 1 to 6 of the plan; the user answered \"do all 1-6\" on 2026-11-19."
+    synthetic_generator_g1_g4:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-20
+      scope: "The OFFLINE builds G1 to G4 of docs/design/SYNTHETIC_DATA_GENERATOR_SPEC.md, with decisions 1 to 5 approved as recommended: defects D1 to D10 including the general ones D4, D5, D6, D9 and D10; the starting rates as plausible guesses tuned only through the versioned config; real city names only, no coordinates; domain order after food delivery of retail, then SaaS, then support tickets. It does NOT approve G5 (loading any output into a Databricks or Snowflake workspace), any other live step, or describing synthetic data as real."
+      record: "Asked for decisions 1 to 5 of the generator specification; the user answered \"Approve 1 - 5\" on 2026-11-20."
     semantic_trust_e6:
       status: approved
       approved_by: user

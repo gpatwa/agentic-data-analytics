@@ -1,6 +1,13 @@
 # Synthetic data generator: a specification (2026-11-20)
 
-Status: **a specification. Nothing is built, nothing is loaded anywhere.** Building the generator is offline work that needs the owner's approval (decision 1). Loading any output into a warehouse is a separate live step that needs its own approval stating the workspace and schema.
+Status: **G1 to G4 built offline on 2026-11-20** (approved the same day, program file `synthetic_generator_g1_g4`; code in `services/analytics-api/reference_stack/synthetic/`, tests in `tests/test_synthetic_food_delivery.py`, pinned report `docs/evaluation/synthetic-food-delivery-report.md`). Nothing is loaded anywhere. Loading any output into a warehouse (G5) is a separate live step that needs its own approval stating the workspace and schema.
+
+What the build changed from the first draft of this spec:
+- **D5 cannot be switched off.** Timestamps are always stored in UTC; the defect is the mismatch with the local business day. The configuration rejects a defect list without D5. D6 (mixed currencies) can be switched off, and then every amount is USD.
+- **D7 is the `-1` placeholder only.** The nulls (no courier or no delivery time for a cancelled order) are meaning, not a defect, and stay when D7 is off.
+- **Tiers.** T (2,000 orders) was added for the fastest tests. Tiers M and S were run here; **L and XL were not run** and are untested.
+- **Acceptance item 5** (the drafter producing metrics only on a declared key, given the data loaded into DuckDB) is **not covered**: the tests check that `row_id` is unique and exact money columns, not the drafter end to end.
+- **Measured:** tier M (1.1 million order rows) generated in about 16 seconds and recomputed in about 9 seconds on the developer's laptop, with no disagreement between the two answer keys. That run is opt-in in the tests (`SYNTHETIC_SLOW=1`).
 
 Context: `REALISTIC_DATA_SOURCE.md`, `REALISTIC_DATA_SOURCE_REVIEW.md` and `FOOD_DELIVERY_DATA_SOURCES.md` found that no real order-level food-delivery data can be hosted, and that only Online Retail II has a clear public licence. The owner's direction (2026-11-20): make synthetic data the main source, food delivery first, other domains later, with Online Retail II kept as the one real anchor.
 
@@ -150,11 +157,11 @@ Every output carries "synthetic": the schema is named `compass_synthetic_<domain
 
 | Stage | What | Needs |
 |---|---|---|
-| G0 | this specification reviewed | owner's decisions below |
-| G1 | engine, config format, determinism and logical digest, tier S | offline approval |
-| G2 | food-delivery domain spec and defects D1 to D10 | offline approval |
-| G3 | `truth.json`, the DuckDB recomputation and the builder's question set | offline approval |
-| G4 | tiers M and L, performance check | offline approval |
+| G0 | this specification reviewed | done; decisions 1 to 5 approved 2026-11-20 |
+| G1 | engine, config format, determinism and logical digest, tier S | built |
+| G2 | food-delivery domain spec and defects D1 to D10 | built |
+| G3 | `truth.json`, the DuckDB recomputation and the builder's question set | built |
+| G4 | tiers M and L, performance check | tier M built and timed; **tier L not run**; pinned report at tier S |
 | G5 | a loader into a Compass-owned reference schema on Databricks and Snowflake | **a separate live approval** naming the workspace, schema and size |
 | G6 | the second and third domains | later, after G3 passes |
 
