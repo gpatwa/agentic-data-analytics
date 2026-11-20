@@ -1,0 +1,1107 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "draft-f49477313d15",
+  "tenant_id": "synthetic",
+  "captured_at": "2026-11-20T00:00:00Z",
+  "nodes": [
+    {
+      "node_id": "dataset.order_items",
+      "tenant_id": "synthetic",
+      "node_type": "dataset",
+      "label": "Order items",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "description": "One row per line item within an order, with quantity and unit price in cents."
+      }
+    },
+    {
+      "node_id": "dataset.orders",
+      "tenant_id": "synthetic",
+      "node_type": "dataset",
+      "label": "Orders",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "description": "One row per order record with timing, location, platform, status, monetary amounts and delivery durations."
+      }
+    },
+    {
+      "node_id": "dataset.payments",
+      "tenant_id": "synthetic",
+      "node_type": "dataset",
+      "label": "Payments",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "description": "One row per payment event against an order, with kind, amount and payment method."
+      }
+    },
+    {
+      "node_id": "metric.order_count",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Order count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Count of order rows.",
+        "synonyms": [
+          "number of orders",
+          "orders placed"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.total_amount_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Total order amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of the total amount charged on orders.",
+        "synonyms": [
+          "total amount",
+          "order total"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.subtotal_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "subtotal_sum",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of order subtotals before fees, tax and tip.",
+        "synonyms": [
+          "subtotal amount"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.delivery_fee_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Delivery fees",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of delivery fees on orders.",
+        "synonyms": [
+          "delivery fee total"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.discount_amount_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Discount amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of discounts applied to orders.",
+        "synonyms": [
+          "discount total",
+          "discounts given"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.tip_amount_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Tip amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of tips on orders.",
+        "synonyms": [
+          "tip total",
+          "tips"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.avg_delivery_minutes",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Average delivery minutes",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "average",
+        "description": "Average delivery time in minutes per order.",
+        "synonyms": [
+          "average delivery time",
+          "delivery duration"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.avg_prep_minutes",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Average prep minutes",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "average",
+        "description": "Average restaurant preparation time in minutes per order.",
+        "synonyms": [
+          "average prep time",
+          "preparation time"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.items_count_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Items ordered",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of the item counts recorded on orders.",
+        "synonyms": [
+          "total items",
+          "items count"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.payment_amount_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "payment_amount_sum",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of payment event amounts.",
+        "synonyms": [
+          "payments total"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.payment_event_count",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Payment event count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Count of payment event rows.",
+        "synonyms": [
+          "number of payments"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.order_line_count",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Order line count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Count of order line item rows."
+      }
+    },
+    {
+      "node_id": "metric.quantity_sum",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Quantity ordered",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of item quantities across order lines.",
+        "synonyms": [
+          "item quantity",
+          "units ordered"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_time",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Order time",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "temporal",
+        "description": "Timestamp when the order was placed.",
+        "synonyms": [
+          "order timestamp",
+          "order date"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_city",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "City",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "City of the order.",
+        "synonyms": [
+          "order city"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_country",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Country",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Country of the order.",
+        "synonyms": [
+          "order country"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_platform",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Platform",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Platform through which the order was placed.",
+        "synonyms": [
+          "order platform"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_status",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Order status",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Current status of the order.",
+        "synonyms": [
+          "status of order"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_payment_method",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Payment method",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Payment method used for the order.",
+        "synonyms": [
+          "order payment method"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_currency",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Order currency",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Currency of the order amounts."
+      }
+    },
+    {
+      "node_id": "dimension.payment_kind",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Payment kind",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Kind of payment event.",
+        "synonyms": [
+          "payment event kind"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.payment_event_time",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Payment event time",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "temporal",
+        "description": "Timestamp of the payment event.",
+        "synonyms": [
+          "payment timestamp"
+        ]
+      }
+    },
+    {
+      "node_id": "term.order",
+      "tenant_id": "synthetic",
+      "node_type": "glossary_term",
+      "label": "Order",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "definition": "A customer purchase from a restaurant, recorded in the orders table."
+      }
+    },
+    {
+      "node_id": "term.reversal",
+      "tenant_id": "synthetic",
+      "node_type": "glossary_term",
+      "label": "Reversal",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "definition": "An order row flagged by the is_reversal column."
+      }
+    },
+    {
+      "node_id": "term.order_line",
+      "tenant_id": "synthetic",
+      "node_type": "glossary_term",
+      "label": "Order line",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "attributes": {
+        "definition": "A single item entry within an order, identified by order and line number."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "contains.orders.metric.order_count",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.order_count",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.total_amount_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.total_amount_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.subtotal_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.subtotal_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.delivery_fee_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.delivery_fee_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.discount_amount_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.discount_amount_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.tip_amount_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.tip_amount_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.avg_delivery_minutes",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.avg_delivery_minutes",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.avg_prep_minutes",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.avg_prep_minutes",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.metric.items_count_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "metric.items_count_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.payments.metric.payment_amount_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.payments",
+      "to_node_id": "metric.payment_amount_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.payments.metric.payment_event_count",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.payments",
+      "to_node_id": "metric.payment_event_count",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.order_items.metric.order_line_count",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.order_items",
+      "to_node_id": "metric.order_line_count",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.order_items.metric.quantity_sum",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.order_items",
+      "to_node_id": "metric.quantity_sum",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_time",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_time",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_city",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_city",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_country",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_country",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_platform",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_platform",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_status",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_status",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_payment_method",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_payment_method",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders.dimension.order_currency",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders",
+      "to_node_id": "dimension.order_currency",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.payments.dimension.payment_kind",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.payments",
+      "to_node_id": "dimension.payment_kind",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.payments.dimension.payment_event_time",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.payments",
+      "to_node_id": "dimension.payment_event_time",
+      "valid_from": "2026-11-20T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-synthetic",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-20T00:00:00Z",
+          "fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111"
+        }
+      ],
+      "confidence": 1.0
+    }
+  ]
+}
