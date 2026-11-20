@@ -208,10 +208,15 @@ def test_nothing_in_the_loaders_connects_to_anything():
 # ---- the command line ----------------------------------------------------------------------------------------------------------------
 
 
-def test_the_command_line_only_prints_a_plan_and_refuses_to_execute(data, capsys):
+def test_the_command_line_prints_a_plan_and_refuses_to_execute_without_approval(data, capsys):
     args = ["synthetic", "--data", str(data), "--engine", "snowflake", "--catalog", "c", "--schema", "s"]
     assert cli([*args, "--dry-run"]) == 0 and "DRY RUN (snowflake)" in capsys.readouterr().out
-    assert cli(args) == 2 and "only --dry-run is available" in capsys.readouterr().err
+    with pytest.raises(SystemExit):  # neither --dry-run nor --execute
+        cli(args)
+    capsys.readouterr()
+    assert cli([*args, "--execute"]) == 2 and "needs --engine databricks" in capsys.readouterr().err  # snowflake, and no approval named
+    dbx = ["synthetic", "--data", str(data), "--engine", "databricks", "--catalog", "c", "--schema", "s", "--execute", "--profile", "p", "--host", "h", "--warehouse-name", "w", "--approval-id", "nope"]
+    assert cli(dbx) == 2 and "approval_not_recorded" in capsys.readouterr().err
     assert cli(["synthetic", "--data", "/nonexistent", "--engine", "databricks", "--catalog", "c", "--schema", "s", "--dry-run"]) == 2
 
 
