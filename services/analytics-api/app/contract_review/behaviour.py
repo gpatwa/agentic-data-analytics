@@ -35,11 +35,21 @@ class Expect(_Strict):
     code: str | None = None  # for a refusal: the reason code it must carry
 
 
+class Oracle(_Strict):
+    """An independent statement, written by the contract's owner, that returns the number the question should produce."""
+
+    sql: str = Field(min_length=1, max_length=8_000)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    tolerance_abs: float = Field(default=0.0, ge=0)
+    tolerance_rel: float = Field(default=0.0, ge=0, le=1)
+
+
 class EvalCase(_Strict):
     case_id: str = Field(min_length=1, max_length=100)
     question: str = Field(min_length=1, max_length=2_000)
     recorded_intent: dict[str, Any]
     expect: Expect
+    oracle: Oracle | None = None
 
 
 class EvalFile(_Strict):
@@ -112,4 +122,4 @@ def behaviour_diff(old: SemanticRegistryDocument, new: SemanticRegistryDocument,
     return out
 
 
-__all__ = ["CaseChange", "EvalCase", "EvalFile", "Expect", "Verdict", "behaviour_diff", "verdict_for"]
+__all__ = ["CaseChange", "EvalCase", "EvalFile", "Expect", "Oracle", "Verdict", "behaviour_diff", "verdict_for"]
