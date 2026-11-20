@@ -1,0 +1,763 @@
+{
+  "lifecycle": "draft",
+  "contract": {
+    "contract_version": "v1",
+    "id": "food-delivery-synthetic",
+    "tenant_id": "synthetic",
+    "domain": "food_delivery",
+    "version": "draft-f4947731",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "order_items",
+        "display_name": "Order items",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.order_items",
+        "physical_name": "dev.compass_synthetic_food_delivery.order_items",
+        "description": "One row per line item within an order, with quantity and unit price in cents.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "orders",
+        "display_name": "Orders",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.orders",
+        "physical_name": "dev.compass_synthetic_food_delivery.orders",
+        "description": "One row per order record with timing, location, platform, status, monetary amounts and delivery durations.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "payments",
+        "display_name": "Payments",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.payments",
+        "physical_name": "dev.compass_synthetic_food_delivery.payments",
+        "description": "One row per payment event against an order, with kind, amount and payment method.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "order_items.order_id",
+        "dataset_id": "order_items",
+        "physical_name": "order_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "order_items.line_no",
+        "dataset_id": "order_items",
+        "physical_name": "line_no",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "order_items.item_name",
+        "dataset_id": "order_items",
+        "physical_name": "item_name",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "order_items.quantity",
+        "dataset_id": "order_items",
+        "physical_name": "quantity",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "order_items.unit_price_cents",
+        "dataset_id": "order_items",
+        "physical_name": "unit_price_cents",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.row_id",
+        "dataset_id": "orders",
+        "physical_name": "row_id",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.order_id",
+        "dataset_id": "orders",
+        "physical_name": "order_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.order_ts",
+        "dataset_id": "orders",
+        "physical_name": "order_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.city",
+        "dataset_id": "orders",
+        "physical_name": "city",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.country",
+        "dataset_id": "orders",
+        "physical_name": "country",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.restaurant_id",
+        "dataset_id": "orders",
+        "physical_name": "restaurant_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.platform",
+        "dataset_id": "orders",
+        "physical_name": "platform",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.status",
+        "dataset_id": "orders",
+        "physical_name": "status",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.subtotal",
+        "dataset_id": "orders",
+        "physical_name": "subtotal",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.delivery_fee",
+        "dataset_id": "orders",
+        "physical_name": "delivery_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.service_fee",
+        "dataset_id": "orders",
+        "physical_name": "service_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.discount_amount",
+        "dataset_id": "orders",
+        "physical_name": "discount_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.tax",
+        "dataset_id": "orders",
+        "physical_name": "tax",
+        "data_type": "decimal",
+        "classification": "restricted"
+      },
+      {
+        "id": "orders.tip_amount",
+        "dataset_id": "orders",
+        "physical_name": "tip_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.total_amount",
+        "dataset_id": "orders",
+        "physical_name": "total_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.currency",
+        "dataset_id": "orders",
+        "physical_name": "currency",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.payment_method",
+        "dataset_id": "orders",
+        "physical_name": "payment_method",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.items_count",
+        "dataset_id": "orders",
+        "physical_name": "items_count",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.prep_minutes",
+        "dataset_id": "orders",
+        "physical_name": "prep_minutes",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.delivery_minutes",
+        "dataset_id": "orders",
+        "physical_name": "delivery_minutes",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.courier_id",
+        "dataset_id": "orders",
+        "physical_name": "courier_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.customer_id",
+        "dataset_id": "orders",
+        "physical_name": "customer_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.promo_code",
+        "dataset_id": "orders",
+        "physical_name": "promo_code",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.is_reversal",
+        "dataset_id": "orders",
+        "physical_name": "is_reversal",
+        "data_type": "boolean",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.updated_at",
+        "dataset_id": "orders",
+        "physical_name": "updated_at",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.delivery_address",
+        "dataset_id": "orders",
+        "physical_name": "delivery_address",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "payments.payment_id",
+        "dataset_id": "payments",
+        "physical_name": "payment_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.order_id",
+        "dataset_id": "payments",
+        "physical_name": "order_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.event_ts",
+        "dataset_id": "payments",
+        "physical_name": "event_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.kind",
+        "dataset_id": "payments",
+        "physical_name": "kind",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.amount",
+        "dataset_id": "payments",
+        "physical_name": "amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.currency",
+        "dataset_id": "payments",
+        "physical_name": "currency",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "payments.payment_method",
+        "dataset_id": "payments",
+        "physical_name": "payment_method",
+        "data_type": "string",
+        "classification": "internal"
+      }
+    ],
+    "entities": [],
+    "dimensions": [
+      {
+        "synonyms": [
+          "order timestamp",
+          "order date"
+        ],
+        "id": "order_time",
+        "display_name": "Order time",
+        "dataset_id": "orders",
+        "field_id": "orders.order_ts",
+        "entity_id": null,
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "order city"
+        ],
+        "id": "order_city",
+        "display_name": "City",
+        "dataset_id": "orders",
+        "field_id": "orders.city",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "order country"
+        ],
+        "id": "order_country",
+        "display_name": "Country",
+        "dataset_id": "orders",
+        "field_id": "orders.country",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "order platform"
+        ],
+        "id": "order_platform",
+        "display_name": "Platform",
+        "dataset_id": "orders",
+        "field_id": "orders.platform",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "status of order"
+        ],
+        "id": "order_status",
+        "display_name": "Order status",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "order payment method"
+        ],
+        "id": "order_payment_method",
+        "display_name": "Payment method",
+        "dataset_id": "orders",
+        "field_id": "orders.payment_method",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_currency",
+        "display_name": "Order currency",
+        "dataset_id": "orders",
+        "field_id": "orders.currency",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "payment event kind"
+        ],
+        "id": "payment_kind",
+        "display_name": "Payment kind",
+        "dataset_id": "payments",
+        "field_id": "payments.kind",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "payment timestamp"
+        ],
+        "id": "payment_event_time",
+        "display_name": "Payment event time",
+        "dataset_id": "payments",
+        "field_id": "payments.event_ts",
+        "entity_id": null,
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "synonyms": [
+          "number of orders",
+          "orders placed"
+        ],
+        "id": "order_count",
+        "display_name": "Order count",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "total amount",
+          "order total"
+        ],
+        "id": "total_amount_sum",
+        "display_name": "Total order amount",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.total_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "subtotal amount"
+        ],
+        "id": "subtotal_sum",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.subtotal",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "delivery fee total"
+        ],
+        "id": "delivery_fee_sum",
+        "display_name": "Delivery fees",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.delivery_fee",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "discount total",
+          "discounts given"
+        ],
+        "id": "discount_amount_sum",
+        "display_name": "Discount amount",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.discount_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "tip total",
+          "tips"
+        ],
+        "id": "tip_amount_sum",
+        "display_name": "Tip amount",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.tip_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "average delivery time",
+          "delivery duration"
+        ],
+        "id": "avg_delivery_minutes",
+        "display_name": "Average delivery minutes",
+        "dataset_id": "orders",
+        "aggregation": "average",
+        "measure_field_id": "orders.delivery_minutes",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "average prep time",
+          "preparation time"
+        ],
+        "id": "avg_prep_minutes",
+        "display_name": "Average prep minutes",
+        "dataset_id": "orders",
+        "aggregation": "average",
+        "measure_field_id": "orders.prep_minutes",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "total items",
+          "items count"
+        ],
+        "id": "items_count_sum",
+        "display_name": "Items ordered",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.items_count",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "payments total"
+        ],
+        "id": "payment_amount_sum",
+        "dataset_id": "payments",
+        "aggregation": "sum",
+        "measure_field_id": "payments.amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "payments.payment_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "number of payments"
+        ],
+        "id": "payment_event_count",
+        "display_name": "Payment event count",
+        "dataset_id": "payments",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "payments.payment_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_line_count",
+        "display_name": "Order line count",
+        "dataset_id": "order_items",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "order_items.order_id",
+            "order_items.line_no"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "item quantity",
+          "units ordered"
+        ],
+        "id": "quantity_sum",
+        "display_name": "Quantity ordered",
+        "dataset_id": "order_items",
+        "aggregation": "sum",
+        "measure_field_id": "order_items.quantity",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "order_items.order_id",
+            "order_items.line_no"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [],
+    "policies": [],
+    "metadata": {
+      "draft": {
+        "status": "draft, not certified",
+        "schema_fingerprint": "f49477313d15c6931fb33753f87c30d7f471a3fd03cf75b198094f304e44d111",
+        "model_id": "claude-agent-stand-in-not-the-product-model",
+        "prompt_version": "m2-v2",
+        "drafter_version": "0.1.0"
+      }
+    }
+  }
+}
