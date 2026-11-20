@@ -1,4 +1,106 @@
 {
   "_instructions": "YOURS to fill in before K3 (docs/design/INTENT_COVERAGE_CHECK_PLAN.md). Write 20 questions the way a colleague would actually ask them about the sandbox orders (metrics: order_count, order_amount_sum; one dimension: amount). Do NOT look at the coverage report first and do not tune anything to them. For each: 'question' (free text), 'metric' (order_count or order_amount_sum: the metric a correct reading would use), 'expect' ('answer' if the question asks only for that metric with no extra condition; 'refuse' if it adds a condition, a second metric, a time period, a filter, a sort or a limit the contract cannot apply). Leave 'cases' empty to skip. Nothing here is certified or executed.",
-  "cases": []
+  "cases": [
+    {
+      "question": "how many orders do we have",
+      "metric": "order_count",
+      "expect": "answer"
+    },
+    {
+      "question": "whats the total order amount for last quarter?",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    },
+    {
+      "question": "Total revenue from orders pls",
+      "metric": "order_amount_sum",
+      "expect": "answer"
+    },
+    {
+      "question": "order count by city",
+      "metric": "order_count",
+      "expect": "refuse"
+    },
+    {
+      "question": "Could you tell me the total number of orders in the sandbox table?",
+      "metric": "order_count",
+      "expect": "answer"
+    },
+    {
+      "question": "avg order amount",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    },
+    {
+      "question": "sum of amount",
+      "metric": "order_amount_sum",
+      "expect": "answer"
+    },
+    {
+      "question": "how many orders are completed",
+      "metric": "order_count",
+      "expect": "refuse"
+    },
+    {
+      "question": "orders total count?",
+      "metric": "order_count",
+      "expect": "answer"
+    },
+    {
+      "question": "What's the largest order amount we've seen?",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    },
+    {
+      "question": "hey, what is the overall sum of all order amounts?",
+      "metric": "order_amount_sum",
+      "expect": "answer"
+    },
+    {
+      "question": "give me the order count and the total amount together",
+      "metric": "order_count",
+      "expect": "refuse"
+    },
+    {
+      "question": "num of orders pleaes",
+      "metric": "order_count",
+      "expect": "answer"
+    },
+    {
+      "question": "total amount of orders over 100",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    },
+    {
+      "question": "How much money did all orders add up to?",
+      "metric": "order_amount_sum",
+      "expect": "answer"
+    },
+    {
+      "question": "top 5 orders by amount",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    },
+    {
+      "question": "count of orders",
+      "metric": "order_count",
+      "expect": "answer"
+    },
+    {
+      "question": "how many orders did we get this month",
+      "metric": "order_count",
+      "expect": "refuse"
+    },
+    {
+      "question": "What is the combined value of every order?",
+      "metric": "order_amount_sum",
+      "expect": "answer"
+    },
+    {
+      "question": "total refunded amount across orders",
+      "metric": "order_amount_sum",
+      "expect": "refuse"
+    }
+  ],
+  "_provenance": "Written on 2026-11-20 by a fresh Claude agent that was given only the two metrics and the refusal rules and had not seen the corpus or the neutral word list. The owner adopted the 20 questions as written (reply \"Use these\"). They are independent of the check's author, but not written by a human colleague. Nothing was tuned to them."
 }
