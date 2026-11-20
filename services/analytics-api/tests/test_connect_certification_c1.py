@@ -80,6 +80,8 @@ class Session:
             return Stream(rows)
         if sql.startswith("EXPLAIN "):
             return Stream([("== Physical Plan ==",)])
+        if "information_schema.table_constraints" in sql:
+            return Stream([(c,) for c in getattr(self, "declared_keys", {}).get(re.search(r"table_name = '([^']+)'", sql)[1], ())])
         table = re.search(r"`([^`]+)`(?:\)| w|$)", sql.split(" FROM ", 1)[1].replace("(SELECT * FROM ", "").replace("(SELECT ", ""))
         names = [c[0] for c in DATA["orders"]["columns"]]
         rows = DATA["orders"]["rows"]

@@ -86,6 +86,7 @@ class GovernedAnalyzeService:
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
         run_id_key: bytes | None = None,
         require_run_id_key: bool = False,
+        refusal_recorder: Callable[..., Any] | None = None,
     ) -> None:
         if require_run_id_key and (run_id_key is None or len(run_id_key) < 32):
             # F-02: without a server-side key, anyone who knows a colleague's user ID and idempotency key can compute the run ID.
@@ -99,6 +100,7 @@ class GovernedAnalyzeService:
         )
         self.sealer = sealer
         self._run_id_key = run_id_key
+        self.refusal_recorder = refusal_recorder  # optional hook: counts coverage refusals by salted word hash (E3); never stores words
 
     # ---- operations ----
 
@@ -300,6 +302,7 @@ class GovernedAnalyzeService:
         if self.sealer is not None:
             self.sealer.seal(state)  # idempotent; feedback binds to this sealed evidence
         outcome = self._terminal(state, base)
+        self._count_coverage_refusal(identity, state)
         if isinstance(outcome, AnalyticsAnswerOutcome) and not _is_requester(identity, state):
             # The rows were computed under the requester's identity and policy values; nobody else receives them (F-05).
             outcome = AnalyticsRefuseOutcome(
@@ -308,6 +311,17 @@ class GovernedAnalyzeService:
                 explanation="Only the person who asked can see this answer's rows.",
             )
         return AnalyzeRunResponse(run_id=state.run_id, state="terminal", outcome=outcome)
+
+    def _count_coverage_refusal(self, identity: AnalyticsIdentity, state: AgentRunState) -> None:
+        if self.refusal_recorder is None or state.terminal_outcome is None or state.terminal_outcome.kind != "failed":
+            return
+        reference = next((e.message_reference for e in state.errors if e.code == "intent_coverage_mismatch"), None)
+        if reference:
+            try:
+                self.refusal_recorder(run_id=state.run_id, tenant_id=identity.tenant_id, code="intent_coverage_mismatch",
+                                      question=state.request_text, reference=reference)
+            except Exception:  # noqa: BLE001 - a backlog failure must never change an answer or a refusal
+                pass
 
     def _terminal(self, state: AgentRunState, base: dict[str, Any]):
         kind = state.terminal_outcome.kind

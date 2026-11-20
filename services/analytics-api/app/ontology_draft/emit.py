@@ -14,6 +14,11 @@ from pathlib import Path
 from app.ontology_draft.evaluation import RunReport
 from app.ontology_draft.validate import DraftResult
 
+KEY_EVIDENCE_NOTES = {
+    "declared": "a constraint recorded in the warehouse catalog. Primary keys on Snowflake and Databricks are not enforced, so this is a claim; confirm the grain is one row per key.",
+    "profiled_full": "unique and never null across the whole table when it was profiled. A fact about today's rows, not a constraint; confirm the grain.",
+    "none": "no key, so no metric can be drafted on this table.",
+}
 DEFAULT_DRAFTS_DIR = Path(__file__).resolve().parents[2] / "semantic_registry_drafts"
 
 
@@ -58,6 +63,9 @@ def _review_note(result: DraftResult, report: RunReport | None, skipped: tuple[s
     ]
     lines += [f"- metric `{m.id}`: {m.aggregation} of `{m.measure_field_id or 'rows'}` on `{m.dataset_id}`" for m in contract.metrics]
     lines += [f"- dimension `{d.id}`: `{d.field_id}` ({d.dimension_type})" for d in contract.dimensions]
+    lines += ["", "## The key behind each table's metrics (what it proves)", ""]
+    lines += [f"- `{table}`: key ({', '.join(info['columns']) or 'none'}), evidence **{info['evidence']}**: {KEY_EVIDENCE_NOTES[info['evidence']]}"
+              for table, info in sorted(provenance.get("keys", {}).items())] or ["- no tables in use"]
     lines += ["", "## Terms you would be certifying (names and synonyms the model proposed)", "",
               "Certifying this contract certifies these words: a question that uses one of them will be matched to the metric or dimension. Remove any you would not want a colleague to use for it.", ""]
     worded = [(m.id, m.display_name, m.synonyms) for m in contract.metrics] + [(d.id, d.display_name, d.synonyms) for d in contract.dimensions]

@@ -18,7 +18,7 @@ from typing import Callable
 
 from app.compiler.postgres import CompilationError, PostgreSQLCompiler
 from app.execution.validation import QueryRejected, validate_read_only_sql
-from app.ontology_draft.facts import FactColumn, FactTable, SchemaFacts, is_sensitive_name
+from app.ontology_draft.facts import FactColumn, FactTable, SchemaFacts, is_restricted
 from app.ontology_draft.profile import SchemaProfile, screen_proposal
 from app.ontology_draft.proposal import (
     DraftDatasetText,
@@ -145,6 +145,7 @@ def validate_and_emit(
         "prompt_version": ctx.prompt_version,
         "drafter_version": DRAFTER_VERSION,
         "profile_fingerprint": profile.aggregate_fingerprint() if profile else None,  # aggregate stats only, never samples
+        "keys": {t.name: {"columns": list(t.primary_key), "evidence": t.key_evidence} for t in facts.tables if t.name in tables_in_use},
     }
     return DraftResult(document, ontology, tuple(joins), tuple(drops), fingerprint, provenance)
 
@@ -199,7 +200,7 @@ def _metric_problem(metric: DraftMetric, facts: SchemaFacts, used_ids: set[str])
     column = _column(table, metric.measure_column)
     if column is None:
         return "measure_required" if not metric.measure_column else "unknown_column"
-    if is_sensitive_name(column.name):
+    if is_restricted(column):
         return "sensitive_column"
     if metric.aggregation in {"sum", "average"} and column.data_type not in NUMERIC:
         return "measure_type_mismatch"
@@ -233,7 +234,7 @@ def _dimension_problem(dimension: DraftDimension, facts: SchemaFacts, used_ids: 
         return "unknown_column"
     if bad_text(dimension.description):
         return "bad_description"
-    if is_sensitive_name(column.name):
+    if is_restricted(column):
         return "sensitive_column"
     key_columns = set(table.primary_key) | {name for fk in table.foreign_keys for name in fk.columns}
     if column.name in key_columns:
@@ -441,7 +442,7 @@ def _build_contract(
                     dataset_id=name,
                     physical_name=column.name,
                     data_type=column.data_type,
-                    classification="restricted" if is_sensitive_name(column.name) else "internal",
+                    classification="restricted" if is_restricted(column) else "internal",
                 )
             )
     contract = SemanticContract(

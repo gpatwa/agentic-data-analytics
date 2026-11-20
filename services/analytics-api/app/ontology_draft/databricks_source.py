@@ -67,9 +67,38 @@ def _single_schema(tables: Sequence[tuple[str, str]]) -> str:
     return next(iter(schemas))
 
 
+def _literal(value: str) -> str:
+    if not _IDENT.match(value or ""):
+        raise DraftError("invalid_identifier")
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _declared_key(session: Any, catalog: str, schema: str, table: str, known: set[str]) -> tuple[str, ...]:
+    """The table's declared primary key from the catalog's information schema, or `()`.
+
+    Constraints on Unity Catalog are informational (not enforced), so a key found here is a claim the reviewer must confirm; the draft
+    labels it `declared`. Only catalog metadata is read, and only rows for tables the connection's principal can already see. A read
+    that fails, or a key that names a column the facts do not hold (an unrecognised type was skipped), gives no key: no key means no
+    metric on that table, which is the safe direction."""
+    info = f"{_bt(catalog)}.information_schema"
+    sql = (
+        f"SELECT kcu.column_name FROM {info}.table_constraints tc JOIN {info}.key_column_usage kcu "
+        "ON tc.constraint_catalog = kcu.constraint_catalog AND tc.constraint_schema = kcu.constraint_schema "
+        "AND tc.constraint_name = kcu.constraint_name "
+        f"WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = {_literal(schema)} AND tc.table_name = {_literal(table)} "
+        "ORDER BY kcu.ordinal_position"
+    )
+    try:
+        names = tuple(str(row[0]) for row in _rows(session, sql))
+    except Exception:  # noqa: BLE001 - never echo the driver's message; no key is the safe answer
+        return ()
+    return names if names and len(set(names)) == len(names) and set(names) <= known else ()
+
+
 def introspect_session(session: Any, *, catalog: str, tables: Sequence[tuple[str, str]]) -> Introspection:
-    """Facts for exactly `tables` (schema, table). Keys are not read: Unity Catalog constraints are rarely declared, so a draft from
-    here has no key evidence and therefore no executable joins, which matches the single-dataset scope already decided."""
+    """Facts for exactly `tables` (schema, table), with each table's declared primary key when the catalog has one (`key_evidence` is
+    then `declared`). Foreign keys are not read, so a draft has no executable joins, which matches the single-dataset scope already
+    decided. A table with no declared key may still get a profiled one from `infer_keys`."""
     schema = _single_schema(tables)
     skipped: list[str] = []
     fact_tables: list[FactTable] = []
@@ -94,7 +123,9 @@ def introspect_session(session: Any, *, catalog: str, tables: Sequence[tuple[str
                 elif name == "Comment" and kind:
                     comment = kind[:MAX_COMMENT_CHARS]
             if columns:
-                fact_tables.append(FactTable(name=table, asset_id=f"{catalog}.{schema}.{table}", comment=comment, columns=tuple(columns)))
+                key = _declared_key(session, catalog, schema, table, {c.name for c in columns})
+                fact_tables.append(FactTable(name=table, asset_id=f"{catalog}.{schema}.{table}", comment=comment, columns=tuple(columns),
+                                             primary_key=key, key_evidence="declared" if key else "none"))
             else:
                 skipped.append(table)
     except DraftError:
@@ -184,7 +215,7 @@ def infer_keys(facts: SchemaFacts, profile: SchemaProfile, *, row_limit: int = P
         unique = [c.name for c in seen.columns if c.rows and c.rows < row_limit and c.nulls == 0 and c.distinct == c.rows]
         named = [n for n in unique if re.search(r"(^|_)(id|key)$|^(id|key)(_|$)", n.lower())]
         pick = (named or unique or [None])[0]
-        tables.append(table.model_copy(update={"primary_key": (pick,)}) if pick else table)
+        tables.append(table.model_copy(update={"primary_key": (pick,), "key_evidence": "profiled_full"}) if pick else table)
     return SchemaFacts(tables=tuple(tables))
 
 
