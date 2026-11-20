@@ -15,6 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SemanticType = Literal["string", "integer", "decimal", "boolean", "date", "timestamp"]
 
+# Where a table's key came from. `declared`: a constraint in the warehouse catalog (informational on Snowflake and Databricks, so a claim,
+# not an enforced guarantee). `profiled_full`: unique and non-null in the profile, which saw the whole table; a fact about today's rows.
+# `none`: no key. `tested` is reserved for a later importer of dbt-style tests and is not accepted yet.
+KeyEvidence = Literal["declared", "profiled_full", "none"]
+
 # The sensitive-name list from the approved redaction rule (docs/AUTO_ONTOLOGY_DESIGN.md). A column whose name has one of these
 # tokens is classified `restricted` in a draft and is never offered as a dimension or a measure. Reviewers can add it by hand.
 # Amended by the owner on 2026-11-16 ("Yes, extend it"): birth, birthday and birthdate, so date_of_birth and birthDate match.
@@ -57,7 +62,16 @@ class FactTable(_Frozen):
     comment: str | None = Field(default=None, max_length=2_000)
     columns: tuple[FactColumn, ...] = Field(min_length=1)
     primary_key: tuple[str, ...] = ()
+    key_evidence: KeyEvidence = "none"
     foreign_keys: tuple[FactForeignKey, ...] = ()
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_key_evidence(cls, data):
+        """A key given without a stated source is a declared one (that is how every earlier caller built it)."""
+        if isinstance(data, dict) and data.get("primary_key") and "key_evidence" not in data:
+            return {**data, "key_evidence": "declared"}
+        return data
 
     @model_validator(mode="after")
     def keys_exist(self) -> "FactTable":
@@ -68,6 +82,8 @@ class FactTable(_Frozen):
         for key in (self.primary_key, *(fk.columns for fk in self.foreign_keys)):
             if not set(key) <= known:
                 raise ValueError(f"key references an unknown column in table {self.name}")
+        if bool(self.primary_key) != (self.key_evidence != "none"):
+            raise ValueError(f"key and key evidence disagree in table {self.name}")
         return self
 
     def column(self, name: str) -> FactColumn | None:
@@ -89,7 +105,11 @@ class SchemaFacts(_Frozen):
 
     def fingerprint(self) -> str:
         """SHA-256 over the canonical JSON of the facts, so an unchanged schema yields an unchanged fingerprint."""
-        canonical = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        dumped = self.model_dump(mode="json")
+        for table in dumped["tables"]:  # only a profiled key is written, so facts that carried no evidence label keep their fingerprint
+            if table["key_evidence"] != "profiled_full":
+                del table["key_evidence"]
+        canonical = json.dumps(dumped, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 

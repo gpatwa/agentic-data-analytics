@@ -95,13 +95,55 @@ Where the design is already stronger (determinism, a hard gate, synonym-clash re
 | **E3** | salted stem-hash counters, dictionary resolver, ranked report | new module under `app/runtime`, one migration, report generator | report generated from fixtures; no word reaches a log (a test scans for it); resolver never reverses a hash |
 | **E4** | contract diff; recorded-intent eval file; answer-behaviour diff | new `app/contracts_diff` module, eval-file schema, generator | a fixture edit that adds a bad synonym shows up in the diff; two mutation checks |
 | **E5** | oracle spec, runner, report | extends the connect e2e runner pattern | fake-session tests: match, mismatch, oracle failed, oracle outside the ceiling refused |
+| **E6** | start from existing warehouse assets (section 8A) | importers for metric views and semantic views | proposed, not approved |
 
 Order: E1, E2, then E3 and E4 in either order, then E5. Each is one pull request with its own tests, ruff-clean, with the usual pinned report where there is one. A generated report is kept equal to its generator by a test, as for the earlier evaluations.
+
+## 8A. Stage E6: start from what the customer already has (adoption)
+
+Owner direction, 2026-11-19: "leverage what already exists in Databricks or Snowflake, make it easy for adoption." The principle: **a customer should never re-model what their warehouse already says.** Connect reads what exists, turns the usable part into a draft, shows what it found and what it could not use, and a person certifies. Nothing imported is certified, and nothing is written back.
+
+### What exists, per engine, and what it gives us
+
+| Asset | Databricks | Snowflake | Use |
+|---|---|---|---|
+| Table and column comments | Unity Catalog comments (already read by `DESCRIBE`) | comments (already read) | descriptions, as untrusted text through the existing cleaning |
+| Primary keys | informational constraints; `information_schema` views are documented and privilege-filtered | declared keys (already read); informational | grain keys (E1, E2) |
+| Metric definitions | **metric views**: YAML with a source, dimensions (called fields in newer docs), measures, an optional filter and comments; spec versions 0.1 and 1.1; documented as Public Preview | **semantic views**: logical tables, facts, dimensions, metrics, synonyms and comments; `DESCRIBE SEMANTIC VIEW` | the best input: someone already decided the definitions |
+| Synonyms | none native in the metric view YAML as found | yes, per dimension and metric | proposed synonyms, certified by a person like any other |
+| Tags and classifications | governed tags | object tags, system classification tags | can only make a column *more* restricted, never less |
+| Masks and row filters | column masks, row filters | masking and row access policies | read for awareness and to warn; not enforced by us (see section 8) |
+
+Format details above come from the vendors' public documentation as surfaced by search; the exact statements to list them and the exact preview status are **not yet verified against a workspace or the full reference pages**, so E6a below verifies first.
+
+### Import rules (conservative, deterministic, no model needed)
+
+- Only what fits the product's scope maps: **one source table, a sum or a count, a simple filter, no joins, no ratios, no windows.** Anything else is listed under "not imported, and why", never approximated.
+- An imported item is a **candidate** with its source object named and a hash of its definition. The same certification gate applies.
+- Comments and descriptions are untrusted text and pass through the existing cleaning and injection screen.
+- Re-importing later produces a **contract diff (E4)**, so an upstream change becomes a reviewable change, not silent drift.
+- Tags only tighten: an upstream sensitivity tag adds a restriction; no upstream tag can remove one.
+
+### Onboarding the owner sees
+
+"Found: 3 metric views, 41 commented columns, 12 declared keys, 2 sensitivity tags. Drafted: 5 metrics, 9 dimensions. Not imported: 2 (a ratio; a join). Review and certify." The adoption measures are time to the first certified answer and the share of draft items that came from existing assets.
+
+### Stages (all offline; none approved yet)
+
+| Stage | What |
+|---|---|
+| **E6a** | read the full vendor references; record verified fixtures (a Databricks metric view YAML at each spec version; a Snowflake `DESCRIBE SEMANTIC VIEW` result); write down what could not be verified |
+| **E6b** | Databricks metric view YAML to draft candidates, with the not-imported list |
+| **E6c** | Snowflake semantic view description to draft candidates, with synonyms as proposals |
+| **E6d** | tags to restricted-column hints (tighten only) |
+| **E6e** | the "what we found" summary in the review note |
+
+A live read of a customer's metric views or tags is its own approval (L4). E6 needs the owner's go-ahead before E6a starts; it follows E5.
 
 ## 8. Deferred on purpose
 
 - **Contract size versus accuracy and cost.** I do not know how our interpreter sees a tenant's contract. If it sees all of it, a few hundred metrics may hurt accuracy and cost. First step is a measurement plan (a note, not a build); retrieval only if it shows a problem.
-- **Importing an existing semantic layer** (Databricks metric views, dbt semantic models, Snowflake semantic views) as high-confidence drafts into the same certification gate. It needs a design note and verification of each source format first; my earlier dbt wording is unverified. It would also supply the reserved `tested` evidence level.
+- **Importing an existing semantic layer** moved up: see section 8A (stage E6), at the owner's request on 2026-11-19.
 - **Per-user identity pass-through** (the user's own token, so warehouse row filters and masks apply). A customer with existing row-level security will ask. It adds token custody and audit burden, so it needs its own design note and an owner decision; it would be an option on top of the ceiling, never a replacement.
 - **Writing certification tags back to the warehouse.** Conflicts with the read-only principle; would need a separate optional privilege. Not now.
 
@@ -111,6 +153,7 @@ Human gates are unchanged: semantic certification, security, policy and threshol
 - **L1:** read declared keys on a real Databricks or Snowflake workspace (catalog metadata only).
 - **L2:** run the oracle mode on a real warehouse.
 - **L3:** any recurring oracle run.
+- **L4:** read a customer's existing metric views, semantic views or tags (section 8A).
 - Opt-in raw-stem retention for a tenant (E3, option 3) is a privacy decision.
 
 ## Decisions for the owner

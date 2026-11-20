@@ -138,7 +138,7 @@ def test_introspection_reads_keys_types_and_skips_unknown_types(engine):
     result = introspect_engine(engine)
     orders = result.facts.table("orders")
     assert [t.name for t in result.facts.tables] == ["customers", "orders"]
-    assert orders.primary_key == ("id",)
+    assert orders.primary_key == ("id",) and orders.key_evidence == "declared"  # read from the engine's catalog
     assert [(fk.columns, fk.ref_table, fk.ref_columns) for fk in orders.foreign_keys] == [(("customer_id",), "customers", ("id",))]
     assert orders.column("amount").data_type == "decimal"
     assert orders.column("status").data_type == "string"

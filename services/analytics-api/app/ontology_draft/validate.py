@@ -145,6 +145,7 @@ def validate_and_emit(
         "prompt_version": ctx.prompt_version,
         "drafter_version": DRAFTER_VERSION,
         "profile_fingerprint": profile.aggregate_fingerprint() if profile else None,  # aggregate stats only, never samples
+        "keys": {t.name: {"columns": list(t.primary_key), "evidence": t.key_evidence} for t in facts.tables if t.name in tables_in_use},
     }
     return DraftResult(document, ontology, tuple(joins), tuple(drops), fingerprint, provenance)
 

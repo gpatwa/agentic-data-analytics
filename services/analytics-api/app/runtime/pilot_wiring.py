@@ -127,6 +127,7 @@ class GovernedRuntime:
     assets_for_tenant: Callable[[str], TenantAssets | None] | None = None
     # tenants whose questions must be fully covered by the interpreted request (`app.runtime.intent_coverage`); "*" is all; empty is off
     coverage_tenants: frozenset[str] = frozenset()
+    refusal_recorder: Any = None  # optional E3 hook: counts coverage refusals by salted word hash; set by a deployment that opts in
     _tenant_breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -250,6 +251,7 @@ class GovernedRuntime:
             sealer=EvidenceSealer(self.control, self.evidence, self.reports),
             run_id_key=self.run_id_key,
             require_run_id_key=self.require_run_id_key,
+            refusal_recorder=self.refusal_recorder,
         )
 
     def feedback_service(self) -> FeedbackService:
