@@ -35,3 +35,14 @@ def test_the_review_says_the_amount_sums_are_not_certified():
 def test_no_registry_folder_holds_the_draft():
     for root in ("semantic_registry_sandbox/contracts", "semantic_registry_sandbox_v2/contracts"):
         assert not list((SERVICE / root).glob("*orders*current*"))
+
+
+def test_the_usd_amount_draft_is_an_uncertified_stand_in_draft_and_the_review_pins_the_matching_value():
+    files = list((SERVICE / "semantic_registry_drafts/food-delivery-orders-usd-gross").glob("*/contract.draft.json"))
+    assert len(files) == 1
+    doc = json.loads(files[0].read_text())
+    assert doc["lifecycle"] == "draft" and "stand-in" in json.dumps(doc["contract"]["metadata"])
+    gross = next(m for m in doc["contract"]["metrics"] if m["id"] == "gross_order_value")
+    assert gross["aggregation"] == "sum" and gross["measure_field_id"] == "orders_usd_gross.total_amount"
+    review = (SERVICE.parent.parent / "docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md").read_text()
+    assert "545,012.03" in review and "Matches the key exactly" in review and "Do not certify under that name" in review

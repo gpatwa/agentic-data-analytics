@@ -1,0 +1,399 @@
+{
+  "lifecycle": "draft",
+  "contract": {
+    "contract_version": "v1",
+    "id": "food-delivery-orders-usd-gross",
+    "tenant_id": "synthetic",
+    "domain": "food_delivery",
+    "version": "draft-0d32b667",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "orders_usd_gross",
+        "display_name": "USD orders, gross",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.orders_usd_gross",
+        "physical_name": "dev.compass_synthetic_food_delivery.orders_usd_gross",
+        "description": "Synthetic food-delivery orders in USD that were not cancelled, one row per order. Amounts are gross: refunds are separate reversal rows and are not netted.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "orders_usd_gross.order_id",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "order_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.order_ts",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "order_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.city",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "city",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.country",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "country",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.cuisine",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "cuisine",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.platform",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "platform",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.status",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "status",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.subtotal",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "subtotal",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.delivery_fee",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "delivery_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.service_fee",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "service_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.discount_amount",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "discount_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.tip_amount",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "tip_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.total_amount",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "total_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.currency",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "currency",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders_usd_gross.payment_method",
+        "dataset_id": "orders_usd_gross",
+        "physical_name": "payment_method",
+        "data_type": "string",
+        "classification": "internal"
+      }
+    ],
+    "entities": [],
+    "dimensions": [
+      {
+        "synonyms": [
+          "order timestamp"
+        ],
+        "id": "order_time",
+        "display_name": "Order time",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.order_ts",
+        "entity_id": null,
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "city",
+        "display_name": "City",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.city",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "country",
+        "display_name": "Country",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.country",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "cuisine",
+        "display_name": "Cuisine",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.cuisine",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "platform",
+        "display_name": "Platform",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.platform",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "status"
+        ],
+        "id": "order_status",
+        "display_name": "Order status",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.status",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "payment_method",
+        "display_name": "Payment method",
+        "dataset_id": "orders_usd_gross",
+        "field_id": "orders_usd_gross.payment_method",
+        "entity_id": null,
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "synonyms": [
+          "number of orders"
+        ],
+        "id": "order_count",
+        "display_name": "Order count",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "total amount",
+          "gross total amount"
+        ],
+        "id": "gross_order_value",
+        "display_name": "Gross order value",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.total_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "subtotal amount"
+        ],
+        "id": "gross_subtotal",
+        "display_name": "Gross subtotal",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.subtotal",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "delivery fee"
+        ],
+        "id": "delivery_fee_total",
+        "display_name": "Delivery fees",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.delivery_fee",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "service fee"
+        ],
+        "id": "service_fee_total",
+        "display_name": "Service fees",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.service_fee",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "discount amount"
+        ],
+        "id": "discount_total",
+        "display_name": "Discounts given",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.discount_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "synonyms": [
+          "tip amount"
+        ],
+        "id": "tip_total",
+        "display_name": "Tips",
+        "dataset_id": "orders_usd_gross",
+        "aggregation": "sum",
+        "measure_field_id": "orders_usd_gross.tip_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "candidate",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [],
+    "policies": [],
+    "metadata": {
+      "draft": {
+        "status": "draft, not certified",
+        "schema_fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc",
+        "model_id": "claude-agent-stand-in-not-the-product-model",
+        "prompt_version": "m2-v2",
+        "drafter_version": "0.1.0"
+      }
+    }
+  }
+}
