@@ -20,7 +20,7 @@ class AnalyzeRequest(_Strict):
 
 class ClarifyRequest(_Strict):
     purpose: str = Field(min_length=1, max_length=255)
-    ambiguity_code: Literal["metric", "dataset", "grain", "time", "filter"]
+    ambiguity_code: Literal["metric", "dataset", "grain", "time", "filter", "interpretation"]
     selected_id: str = Field(min_length=1, max_length=255)
 
 

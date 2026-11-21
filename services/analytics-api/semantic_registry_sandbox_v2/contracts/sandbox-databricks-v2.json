@@ -54,17 +54,19 @@
     "id": "sandbox-databricks",
     "joins": [],
     "metadata": {
+      "certification": {
+        "change": "synonyms only; no definition, grain, filter or policy changed",
+        "previous_version": "2026-11-18",
+        "source": "words proposed by a fresh agent, filtered by the preparer",
+        "status": "certified by the owner on 2026-11-20 (approval recorded in docs/execution/enterprise-analytics/agentic-data-stack-program.yaml, s6_s4_k3_decisions)",
+        "words_digest": "c48aa6a57a25912cf3b9be6fd82aa250ed511d25bd9c8daf8c921a14a1d8dd46"
+      },
       "draft": {
         "drafter_version": "0.1.0",
         "model_id": "gpt-6-luna",
         "prompt_version": "m2-v1",
         "schema_fingerprint": "80200f1cf7cf20cc4cb07e847fa326427fd84aa6ea177fc7e0a3a04bc8f2b082",
         "status": "certified by the owner as drafted (2026-11-18), no edits"
-      },
-      "proposal": {
-        "previous_version": "2026-11-18",
-        "source": "words proposed by a fresh agent, filtered by the preparer",
-        "status": "PROPOSED synonyms, not certified"
       }
     },
     "metrics": [
@@ -143,5 +145,5 @@
     "tenant_id": "sandbox",
     "version": "2026-11-20"
   },
-  "lifecycle": "draft"
+  "lifecycle": "certified"
 }

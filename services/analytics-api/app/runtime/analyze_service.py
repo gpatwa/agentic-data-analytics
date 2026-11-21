@@ -27,6 +27,7 @@ from app.runtime.clarification import ClarificationError, resume_clarification
 from app.runtime.control_store import ControlStore, ControlStoreError, LeaseUnavailable, StaleWorkerError
 from app.runtime.graph_runner import AgentGraphRunner, GraphRunError
 from app.runtime.run_start import SnapshotSelectionError
+from app.security.identity import caller_kind
 from packages.platform_contracts.agent_runtime import AgentRunState
 from packages.platform_contracts.analytics_planning import AnalyticsClarificationState
 from packages.platform_contracts.analytics_v2 import (
@@ -46,6 +47,12 @@ from packages.platform_contracts.review import REVIEWER_GROUP
 from packages.platform_contracts.security import AnalyticsIdentity
 
 _KEY = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
+
+
+def _choice_label(code: str, choice: str) -> str:
+    if code == "interpretation":
+        return "No, that is not what I meant" if choice == "none" else "Yes, that is what I meant"
+    return choice
 
 
 class ServiceError(Exception):
@@ -168,6 +175,8 @@ class GovernedAnalyzeService:
         self, identity: AnalyticsIdentity, *, purpose: str, run_id: str, ambiguity_code: str, selected_id: str
     ) -> AnalyzeRunResponse:
         self._authorize(identity, purpose)
+        if ambiguity_code == "interpretation" and caller_kind(identity) != "human":
+            raise ServiceError(403, "human_required")  # an agent must never approve its own interpretation
         state = self._load(run_id, identity.tenant_id, purpose)
         if state.request_id.split(":", 1)[0] != _tag(identity):
             raise ServiceError(403, "not_run_requester")
@@ -288,7 +297,7 @@ class GovernedAnalyzeService:
                     AnalyticsClarificationQuestion(
                         id=item.code,
                         prompt=item.prompt,
-                        choices=[AnalyticsClarificationChoice(id=c, label=c) for c in item.candidate_ids[:8]],
+                        choices=[AnalyticsClarificationChoice(id=c, label=_choice_label(item.code, c)) for c in item.candidate_ids[:8]],
                         free_text_allowed=False,
                     )
                     for item in clarification.ambiguities

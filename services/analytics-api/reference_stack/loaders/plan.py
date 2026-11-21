@@ -16,7 +16,7 @@ import duckdb
 
 from reference_stack.loaders.engines import Dialect, PlanError
 
-ALLOWED_VERBS = ("CREATE SCHEMA", "CREATE VOLUME", "CREATE STAGE", "CREATE TABLE", "COPY INTO", "COMMENT ON", "PUT")
+ALLOWED_VERBS = ("CREATE SCHEMA", "CREATE VOLUME", "CREATE STAGE", "CREATE TABLE", "CREATE VIEW", "COPY INTO", "COMMENT ON", "PUT")
 _QUALIFIED = re.compile(r"([`\"])([A-Za-z_]\w*)\1\.([`\"])([A-Za-z_]\w*)\3(?:\.([`\"])([A-Za-z_]\w*)\5)?")
 
 

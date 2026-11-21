@@ -33,7 +33,7 @@ class AnalyticsPlan(BaseModel):
 class AnalyticsAmbiguity(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    code: Literal["metric", "dataset", "grain", "time", "filter"]
+    code: Literal["metric", "dataset", "grain", "time", "filter", "interpretation"]
     prompt: str = Field(min_length=1, max_length=2_000)
     candidate_ids: list[str] = Field(min_length=1, max_length=20)
 

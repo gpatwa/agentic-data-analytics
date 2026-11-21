@@ -127,6 +127,7 @@ class GovernedRuntime:
     assets_for_tenant: Callable[[str], TenantAssets | None] | None = None
     # tenants whose questions must be fully covered by the interpreted request (`app.runtime.intent_coverage`); "*" is all; empty is off
     coverage_tenants: frozenset[str] = frozenset()
+    confirm_tenants: frozenset[str] = frozenset()  # S6: ask the requester to confirm instead of refusing on a wording mismatch; off unless listed
     refusal_recorder: Any = None  # optional E3 hook: counts coverage refusals by salted word hash; set by a deployment that opts in
     _tenant_breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
 
@@ -180,7 +181,7 @@ class GovernedRuntime:
                 ResilientModelClient(self.model_factory(request.request_id), breaker=self.model_breaker),
                 vocabulary=t.vocabulary,
             ),
-            "resolve": ontology_resolution_node(t.contracts, FixedOntology(ontology), coverage_tenants=self.coverage_tenants),
+            "resolve": ontology_resolution_node(t.contracts, FixedOntology(ontology), coverage_tenants=self.coverage_tenants, confirm_tenants=self.confirm_tenants),
             "clarify": clarification_node(),
             "plan": analytics_plan_node(t.contracts),
             "validate": certified_intent_node(t.contracts),
@@ -382,6 +383,7 @@ def build_pilot_runtime(
         assets_for_tenant=assets_for_tenant,
         coverage_tenants=frozenset(t.strip() for t in (getattr(settings, "ANALYTICS_INTENT_COVERAGE_TENANTS", "") or "").split(",") if t.strip()),
         refusal_recorder=refusal_recorder,
+        confirm_tenants=frozenset(t.strip() for t in (getattr(settings, "ANALYTICS_INTERPRETATION_CONFIRM_TENANTS", "") or "").split(",") if t.strip()),
     )
     started = time.monotonic()
     service = runtime.service()

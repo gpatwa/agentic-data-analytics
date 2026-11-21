@@ -21,6 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="print the plan and run nothing")
     mode.add_argument("--execute", action="store_true", help="run the plan (Databricks only; needs a recorded G5 approval)")
+    p.add_argument("--with-curated-view", action="store_true", help="synthetic only: also create the orders_current view (needs its own approval to execute)")
     p.add_argument("--profile", help="execute: the databricks CLI profile")
     p.add_argument("--host", help="execute: the workspace host, which must be named in the approval")
     p.add_argument("--warehouse-name", help="execute: the SQL warehouse to use")
@@ -31,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset == "synthetic":
             from reference_stack.loaders.synthetic import synthetic_plan
 
-            plan = synthetic_plan(args.data, args.engine, args.catalog, args.schema)
+            plan = synthetic_plan(args.data, args.engine, args.catalog, args.schema, with_curated_view=args.with_curated_view)
         else:
             from reference_stack.loaders.online_retail import retail_plan
 
@@ -54,7 +55,7 @@ def _execute(plan, args) -> int:  # noqa: ANN001
         print("refused: --execute needs --engine databricks, --profile, --host, --warehouse-name and --approval-id", file=sys.stderr)
         return 2
     try:
-        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes)
+        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes, also=("orders_current",) if args.with_curated_view else ())
         session = DatabricksCliSession(args.profile, find_warehouse_id(args.profile, args.warehouse_name), args.cap_minutes * 60)
     except (ApprovalError, EngineError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
