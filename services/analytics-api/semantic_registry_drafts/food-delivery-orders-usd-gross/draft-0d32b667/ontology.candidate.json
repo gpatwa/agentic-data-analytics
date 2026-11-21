@@ -1,0 +1,654 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "draft-0d32b6677929",
+  "tenant_id": "synthetic",
+  "captured_at": "2026-11-21T00:00:00Z",
+  "nodes": [
+    {
+      "node_id": "dataset.orders_usd_gross",
+      "tenant_id": "synthetic",
+      "node_type": "dataset",
+      "label": "USD orders, gross",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "description": "Synthetic food-delivery orders in USD that were not cancelled, one row per order. Amounts are gross: refunds are separate reversal rows and are not netted."
+      }
+    },
+    {
+      "node_id": "metric.order_count",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Order count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Number of non-cancelled USD orders (one row per order).",
+        "synonyms": [
+          "number of orders"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.gross_order_value",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Gross order value",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of the total amount of orders in USD, gross of refunds.",
+        "synonyms": [
+          "total amount",
+          "gross total amount"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.gross_subtotal",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Gross subtotal",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of order subtotals in USD, gross of refunds.",
+        "synonyms": [
+          "subtotal amount"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.delivery_fee_total",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Delivery fees",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of delivery fees charged on orders in USD.",
+        "synonyms": [
+          "delivery fee"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.service_fee_total",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Service fees",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of service fees charged on orders in USD.",
+        "synonyms": [
+          "service fee"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.discount_total",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Discounts given",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of discount amounts applied to orders in USD.",
+        "synonyms": [
+          "discount amount"
+        ]
+      }
+    },
+    {
+      "node_id": "metric.tip_total",
+      "tenant_id": "synthetic",
+      "node_type": "metric",
+      "label": "Tips",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "aggregation": "sum",
+        "description": "Sum of tips on orders in USD.",
+        "synonyms": [
+          "tip amount"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.order_time",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Order time",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "temporal",
+        "description": "Timestamp at which the order was placed.",
+        "synonyms": [
+          "order timestamp"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.city",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "City",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "City of the order."
+      }
+    },
+    {
+      "node_id": "dimension.country",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Country",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Country of the order."
+      }
+    },
+    {
+      "node_id": "dimension.cuisine",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Cuisine",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Cuisine category of the order."
+      }
+    },
+    {
+      "node_id": "dimension.platform",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Platform",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Platform through which the order was placed."
+      }
+    },
+    {
+      "node_id": "dimension.order_status",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Order status",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Status of the order. Cancelled orders are excluded from this table.",
+        "synonyms": [
+          "status"
+        ]
+      }
+    },
+    {
+      "node_id": "dimension.payment_method",
+      "tenant_id": "synthetic",
+      "node_type": "dimension",
+      "label": "Payment method",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Method used to pay for the order."
+      }
+    },
+    {
+      "node_id": "term.gross_amount",
+      "tenant_id": "synthetic",
+      "node_type": "glossary_term",
+      "label": "Gross amount",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "attributes": {
+        "definition": "An order amount before refunds. Refunds are recorded as separate reversal rows and are not netted against orders."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "contains.orders_usd_gross.metric.order_count",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.order_count",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.gross_order_value",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.gross_order_value",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.gross_subtotal",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.gross_subtotal",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.delivery_fee_total",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.delivery_fee_total",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.service_fee_total",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.service_fee_total",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.discount_total",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.discount_total",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.metric.tip_total",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "metric.tip_total",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.order_time",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.order_time",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.city",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.city",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.country",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.country",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.cuisine",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.cuisine",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.platform",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.platform",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.order_status",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.order_status",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_usd_gross.dimension.payment_method",
+      "tenant_id": "synthetic",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_usd_gross",
+      "to_node_id": "dimension.payment_method",
+      "valid_from": "2026-11-21T00:00:00Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-usd-gross",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T00:00:00Z",
+          "fingerprint": "0d32b66779290150ac35cf21b330af923f53633bb2b3ac1a2b4d054e75b111dc"
+        }
+      ],
+      "confidence": 1.0
+    }
+  ]
+}

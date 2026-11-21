@@ -420,3 +420,40 @@ def test_the_statement_cap_stops_the_session_on_the_ninth():
         session.query("SELECT 1")
     with pytest.raises(CapExceeded, match="statement_cap_reached"):
         session.query("SELECT 1")
+
+
+# ---- the USD amount view: the currency rule the compiler cannot apply ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+def test_the_usd_view_plan_is_one_statement_three_checks_and_guarded(data, engine):
+    from reference_stack.loaders.plan import guard
+
+    plan = synthetic_plan(data, engine, "cmp_ref", "synth_fd", usd_view_only=True)
+    assert len(plan.steps) == 1 and plan.steps[0].text.startswith("CREATE VIEW") and len(plan.checks) == 3 and not any(s.kind == "upload" for s in plan.steps)
+    guard(plan, plan.steps[0].text)
+    assert sqlglot.parse_one(plan.steps[0].text, read=engine) is not None and "currency" in plan.steps[0].text.lower() and "'USD'" in plan.steps[0].text
+    for c in plan.checks:
+        assert sqlglot.parse_one(c.sql, read=engine) is not None
+
+
+def test_the_usd_view_reproduces_the_answer_keys_gross_value_on_duckdb(data):
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS cat")
+    con.execute("CREATE SCHEMA cat.sch")
+    con.execute(f"CREATE VIEW cat.sch.orders_flat AS SELECT * FROM read_parquet('{(data / 'orders_flat.parquet').as_posix()}')")
+    base = synthetic_plan(data, "duckdb", "cat", "sch", view_only=True)
+    con.execute(base.steps[-1].text.replace(" COMMENT = 'SYNTHETIC DATA: one row per real order, latest version, no reversals, no test orders'", ""))
+    plan = synthetic_plan(data, "duckdb", "cat", "sch", usd_view_only=True)
+    con.execute(plan.steps[0].text.split(" COMMENT = ")[0] + " AS " + plan.steps[0].text.split(" AS ", 1)[1])
+    for c in plan.checks:
+        assert int(con.execute(c.sql).fetchone()[0]) == c.expected, c.name  # the key's gross USD value, unique orders, no cancelled
+
+
+def test_the_usd_view_needs_an_approval_that_names_it(tmp_path):
+    from reference_stack.loaders.approval import ApprovalError, check_approval
+
+    f = tmp_path / "p.yaml"
+    f.write_text("a:\n  g:\n    status: approved\n    approved_by: user\n    scope: 'dev.sch on https://h with Wh orders_current'\n")
+    with pytest.raises(ApprovalError):
+        check_approval("g", "https://h", "dev", "sch", "Wh", 15, f, also=("orders_usd_gross",))

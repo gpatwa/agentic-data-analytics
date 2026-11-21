@@ -1,0 +1,277 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "draft-214826a46be1",
+  "tenant_id": "tenant-draft",
+  "captured_at": "2026-11-21T07:17:36.354429Z",
+  "nodes": [
+    {
+      "node_id": "dataset.orders_current",
+      "tenant_id": "tenant-draft",
+      "node_type": "dataset",
+      "label": "Current Orders",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "description": "One row per real order, representing its latest version; excludes reversals and test orders."
+      }
+    },
+    {
+      "node_id": "metric.order_count",
+      "tenant_id": "tenant-draft",
+      "node_type": "metric",
+      "label": "Order Count",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "aggregation": "count",
+        "description": "Number of order rows in the current orders table."
+      }
+    },
+    {
+      "node_id": "dimension.order_timestamp",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "Order Timestamp",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "temporal",
+        "description": "Timestamp recorded for the order."
+      }
+    },
+    {
+      "node_id": "dimension.city",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "City",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "City recorded for the order."
+      }
+    },
+    {
+      "node_id": "dimension.country",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "Country",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Country recorded for the order."
+      }
+    },
+    {
+      "node_id": "dimension.order_status",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "Order Status",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Status recorded for the order."
+      }
+    },
+    {
+      "node_id": "dimension.platform",
+      "tenant_id": "tenant-draft",
+      "node_type": "dimension",
+      "label": "Platform",
+      "lifecycle": "candidate",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "attributes": {
+        "dimension_type": "categorical",
+        "description": "Platform through which the order was placed."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "contains.orders_current.metric.order_count",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "metric.order_count",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_current.dimension.order_timestamp",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "dimension.order_timestamp",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_current.dimension.city",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "dimension.city",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_current.dimension.country",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "dimension.country",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_current.dimension.order_status",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "dimension.order_status",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    },
+    {
+      "edge_id": "contains.orders_current.dimension.platform",
+      "tenant_id": "tenant-draft",
+      "edge_type": "contains",
+      "from_node_id": "dataset.orders_current",
+      "to_node_id": "dimension.platform",
+      "valid_from": "2026-11-21T07:17:36.354429Z",
+      "valid_to": null,
+      "provenance": [
+        {
+          "source_system": "auto-ontology-drafter",
+          "source_id": "food-delivery-orders-current-real",
+          "source_version": "0.1.0/m2-v2",
+          "observed_at": "2026-11-21T07:17:36.354429Z",
+          "fingerprint": "214826a46be14f9a75bccefae9a14098a45ebdbcd06f851627c62834108d79cb"
+        }
+      ],
+      "confidence": 1.0
+    }
+  ]
+}

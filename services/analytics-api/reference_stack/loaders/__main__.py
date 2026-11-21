@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--execute", action="store_true", help="run the plan (Databricks only; needs a recorded G5 approval)")
     p.add_argument("--with-curated-view", action="store_true", help="synthetic only: also create the orders_current view (needs its own approval to execute)")
     p.add_argument("--view-only", action="store_true", help="synthetic only: create just the orders_current view on a schema that already holds the tables")
+    p.add_argument("--usd-view-only", action="store_true", help="synthetic only: create just the orders_usd_gross view (needs orders_current to exist)")
     p.add_argument("--max-statements", type=int, help="execute: stop after this many statements")
     p.add_argument("--profile", help="execute: the databricks CLI profile")
     p.add_argument("--host", help="execute: the workspace host, which must be named in the approval")
@@ -34,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset == "synthetic":
             from reference_stack.loaders.synthetic import synthetic_plan
 
-            plan = synthetic_plan(args.data, args.engine, args.catalog, args.schema, with_curated_view=args.with_curated_view or args.view_only, view_only=args.view_only)
+            plan = synthetic_plan(args.data, args.engine, args.catalog, args.schema, with_curated_view=args.with_curated_view or args.view_only, view_only=args.view_only, usd_view_only=args.usd_view_only)
         else:
             from reference_stack.loaders.online_retail import retail_plan
 
@@ -57,7 +58,7 @@ def _execute(plan, args) -> int:  # noqa: ANN001
         print("refused: --execute needs --engine databricks, --profile, --host, --warehouse-name and --approval-id", file=sys.stderr)
         return 2
     try:
-        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes, also=("orders_current",) if (args.with_curated_view or args.view_only) else ())
+        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes, also=("orders_usd_gross",) if args.usd_view_only else (("orders_current",) if (args.with_curated_view or args.view_only) else ()))
         session = DatabricksCliSession(args.profile, find_warehouse_id(args.profile, args.warehouse_name), args.cap_minutes * 60, max_statements=args.max_statements)
     except (ApprovalError, EngineError) as exc:
         print(f"refused: {exc}", file=sys.stderr)

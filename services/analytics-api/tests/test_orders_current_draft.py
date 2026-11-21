@@ -27,11 +27,32 @@ def test_order_count_is_keyed_on_order_id_the_profiled_key_of_the_view():
     assert "key (order_id), evidence **profiled_full**" in review  # the evidence level is stated for the reviewer
 
 
-def test_the_review_says_the_amount_sums_are_not_certifiable_yet():
+def test_the_review_says_the_amount_sums_are_not_certified():
     review = (SERVICE.parent.parent / "docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md").read_text()
-    assert "Nothing is certified" in review and "Do not certify yet" in review and "41% too high" in review
+    assert "are NOT certified" in review and "Do not certify yet" in review and "41% too high" in review
 
 
 def test_no_registry_folder_holds_the_draft():
     for root in ("semantic_registry_sandbox/contracts", "semantic_registry_sandbox_v2/contracts"):
         assert not list((SERVICE / root).glob("*orders*current*"))
+
+
+def test_the_usd_amount_draft_is_an_uncertified_stand_in_draft_and_the_review_pins_the_matching_value():
+    files = list((SERVICE / "semantic_registry_drafts/food-delivery-orders-usd-gross").glob("*/contract.draft.json"))
+    assert len(files) == 1
+    doc = json.loads(files[0].read_text())
+    assert doc["lifecycle"] == "draft" and "stand-in" in json.dumps(doc["contract"]["metadata"])
+    gross = next(m for m in doc["contract"]["metrics"] if m["id"] == "gross_order_value")
+    assert gross["aggregation"] == "sum" and gross["measure_field_id"] == "orders_usd_gross.total_amount"
+    review = (SERVICE.parent.parent / "docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md").read_text()
+    assert "545,012.03" in review and "Matches the key exactly" in review and "Do not certify under that name" in review
+
+
+def test_the_real_model_draft_is_an_uncertified_draft_by_the_pilot_deployment_and_proposes_no_amount_sum():
+    files = list((SERVICE / "semantic_registry_drafts/food-delivery-orders-current-real").glob("*/contract.draft.json"))
+    assert len(files) == 1
+    doc = json.loads(files[0].read_text())
+    assert doc["lifecycle"] == "draft" and doc["contract"]["metadata"]["draft"]["model_id"] == "gpt-6-luna"
+    assert [m["id"] for m in doc["contract"]["metrics"]] == ["order_count"]  # the real model proposed no amount sum, tip sum or average
+    certified = json.loads((SERVICE / "semantic_registry_synthetic/contracts/food-delivery-orders-current-v1.json").read_text())["contract"]
+    assert {d["field_id"] for d in doc["contract"]["dimensions"]} <= {d["field_id"] for d in certified["dimensions"]}

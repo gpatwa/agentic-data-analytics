@@ -1,6 +1,6 @@
 # The `orders_current` contract draft: what to read before certifying (2026-11-21)
 
-Status: **a draft for the owner to read. Nothing is certified.** Files: `services/analytics-api/semantic_registry_drafts/food-delivery-orders-current/draft-7e7bf1e2/` (`contract.draft.json`, `ontology.candidate.json`, `REVIEW.md`). It was drafted by a Claude agent standing in for the drafting model (the product's own model was not called) and then passed through the product's real validator. Over the view `dev.compass_synthetic_food_delivery.orders_current` (one row per real order: latest recorded version, no reversal rows, no test restaurant), keyed on `order_id`. A view cannot declare a key, so the evidence is `profiled_full`: the live run counted 9,995 rows and 0 duplicate `order_id`.
+Status: **update 2026-11-21: the owner chose "Counts now, USD amounts next", so `order_count` and the eight dimensions are certified as contract version 2026-11-21 (`services/analytics-api/semantic_registry_synthetic/contracts/food-delivery-orders-current-v1.json`; program file `orders_current_certify_counts`). The amount sums, the tip sum and the averages are NOT certified. No synonym is certified.** The text below is the review as the owner read it. Files: `services/analytics-api/semantic_registry_drafts/food-delivery-orders-current/draft-7e7bf1e2/` (`contract.draft.json`, `ontology.candidate.json`, `REVIEW.md`). It was drafted by a Claude agent standing in for the drafting model (the product's own model was not called) and then passed through the product's real validator. Over the view `dev.compass_synthetic_food_delivery.orders_current` (one row per real order: latest recorded version, no reversal rows, no test restaurant), keyed on `order_id`. A view cannot declare a key, so the evidence is `profiled_full`: the live run counted 9,995 rows and 0 duplicate `order_id`.
 
 **What the validator kept:** 6 metrics, 8 dimensions. It dropped `restaurant_name` (a sensitive-looking column) and one synonym that equalled another id.
 
@@ -24,3 +24,20 @@ Status: **a draft for the owner to read. Nothing is certified.** Files: `service
 ## What stays gated
 
 Certification is yours. This note and the draft approve nothing, grant nothing and call no model. The next steps it enables, each needing its own approval: the Connect registration grant (statements printable with `python -m app.connect.registration_print`), and a real-model drafter run.
+
+## USD amounts next (built offline, not applied)
+
+A second curated view, `orders_usd_gross`, carries the currency rule the compiler cannot: one row per real order in USD that was not cancelled, from `orders_current`. Amounts are gross: refunds are reversal rows in the source and are not netted. On DuckDB it reproduces the answer key's gross USD value exactly (545,012.03 on tier S) with unique orders and no cancelled rows. Creating it in the warehouse (`python -m reference_stack.loaders synthetic ... --usd-view-only`, 5 statements) needs an approval that names `orders_usd_gross`. After it exists, amount metrics (`order_amount_usd_sum`, and a count of USD orders) can be drafted on it for the next certification round. Tips and delivery averages still need their own rules (cash tips are not recorded; the `-1` placeholder).
+
+## Amount metrics drafted on `orders_usd_gross` (2026-11-21): a draft, nothing certified
+
+Draft: `services/analytics-api/semantic_registry_drafts/food-delivery-orders-usd-gross/draft-0d32b667/`, drafted by a Claude agent standing in for the model and passed through the real validator over the live view (key `order_id`, profiled; the live run found it unique). 7 metrics, 7 dimensions kept; one synonym dropped (it equalled another id). Measured on tier S (7,092 USD orders that were not cancelled):
+
+| Draft metric | Value | Answer key | Verdict |
+|---|---|---|---|
+| `order_count` | 7,092 | n/a (USD orders) | Fine: counts the view's rows. |
+| `gross_order_value` (sum of `total_amount`) | 545,012.03 | **545,012.03** | **Matches the key exactly.** The currency rule now lives in the view. Candidate to certify. |
+| `gross_subtotal`, `delivery_fee_total`, `service_fee_total`, `discount_total` | 409,660.78; 17,775.08; 61,451.18; 12,571.40 | not in the key | Single-currency now; not checkable against the key. Certify only if you want them, after reading. |
+| `tip_total` | 35,923.40 | card tips alone are 24,717.49 | **Ambiguous.** The field holds card and wallet tips, not cash tips (they are never recorded). "Tips" is therefore an understatement of real tips and does not equal the key's card-only figure. Do not certify under that name. |
+
+Recommendation: certify `gross_order_value` (and `order_count` over this view if you want a USD-only count) as the next round; hold `tip_total` until it is named for what it holds ("recorded tips, excluding cash"); read the fee and discount sums before deciding. Gross means refunds are separate reversal rows and are not netted: a "net" value needs its own rule. Certification is yours.
