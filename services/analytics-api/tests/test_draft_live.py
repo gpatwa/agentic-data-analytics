@@ -45,3 +45,13 @@ def test_the_model_is_built_from_the_environment_only(monkeypatch):
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "dep")
     client, key = dl.model_from_environment()
     assert key == "k" * 16 and client is not None
+
+
+def test_the_adapter_answers_the_prepare_call_the_profile_step_makes():
+    class FakeCli:
+        def query(self, sql):
+            return []
+
+    session = dl.CliReadSession(FakeCli())
+    assert session.prepare(timeout_seconds=30.0) is None  # without it the profile step failed with profile_failed on the first live attempt
+    assert session.close() is None

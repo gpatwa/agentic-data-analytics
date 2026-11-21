@@ -44,6 +44,10 @@ class CliReadSession:
     def execute(self, sql: str, params: dict | None = None) -> _Stream:  # noqa: ARG002
         return _Stream(self._s.query(sql))
 
+    def prepare(self, timeout_seconds: float) -> None:  # noqa: ARG002
+        """The sources ask a session to set a per-statement timeout. Here the bound is the driver's wall clock and the CLI session's own cap."""
+        return None
+
     def close(self) -> None:
         return None
 
