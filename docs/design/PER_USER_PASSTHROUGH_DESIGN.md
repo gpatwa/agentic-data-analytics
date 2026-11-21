@@ -45,4 +45,16 @@ It does not make a customer's rules *correct*, only applied. It does not apply t
 3. **A security review** of the threats above by someone other than the author before any build. (Recommended: required.)
 4. **A live test needs** a workspace with a row filter or a column mask, two users, and your approval of the exact statements first.
 
-Nothing in this note is approved, built or tested.
+Nothing in this note is built or tested. The decisions below were taken on 2026-11-21; building is still not approved.
+
+## Decisions taken (2026-11-21), from the independent review
+
+The independent review is `docs/security/PER_USER_PASSTHROUGH_THREATS.md` (an agent review, not the human review or penetration test the threat model also asks for). The owner accepted these recommendations (program file `passthrough_design_decisions`):
+
+1. **N1 to N6 are design requirements**, to be met before any build: (N1) one explicit per-run identity object (requester, warehouse subject, token handle, mode) created once and carried by the run; (N2) a run resumed after a review approval runs as the **requester**, never the reviewer, or is refused; (N3) the control-totals query and the execution run on the same identity, and the dry-run is not treated as separable; (N4) the tenant-keyed rebuild hook and gateway cache are removed or keyed by user for pass-through connections; (N5) a subject-mapping rule between the product's user and the warehouse user, checked at sign-in and again on every run; (N6) revocation semantics stated (what "revoked" means, how fast, and that no stored answer survives it).
+2. **No refresh tokens in v1.** A user signs in again when a token lapses.
+3. **User mapping (N5):** a strict match on one verified identity claim, checked at sign-in and on every run; any mismatch refuses. The exact claim and the warehouse-side mapping are to be named and checked against the identity provider (*check*) before a build.
+4. **Agents never get pass-through.** Automated and delegated callers use the principal path only; they cannot approve their own readings.
+5. **Unchanged:** a failed tag read in the L4 reader refuses the whole run.
+
+Still open and needed before a build: a customer who names row-level security, a human security review, a workspace with a row filter and two users for any live test, and the owner's approval of the exact statements.
