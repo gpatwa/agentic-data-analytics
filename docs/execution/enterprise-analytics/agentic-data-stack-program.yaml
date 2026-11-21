@@ -429,6 +429,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "K0 (review) of docs/design/INTENT_COVERAGE_CHECK_PLAN.md with its five recommended answers: a lexical coverage check after the echo check that can only be stricter; the first release is option A (refuse, naming the unaccounted words to the requester) with option B (confirm, with S6) to follow; domain words belong in certified synonyms and the neutral list stays generic and small; the owner writes a 20-question hold-out before K3 and K3 waits for those numbers; certifying synonyms (S4) waits for K3. It approves the OFFLINE builds K1 and K2 only. It does NOT approve K3 (enforcing it for any tenant), K4 (the confirm path), S4 or any live run."
       record: "Asked \"Approve K0 with the recommended answers?\" with options \"Approve K0\" and \"Change something\"; the user answered \"Approve K0\" on 2026-11-19."
+    passthrough_design_decisions:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Design decisions only for per-user identity pass-through, recorded in docs/design/PER_USER_PASSTHROUGH_DESIGN.md: the independent review's changes N1 to N6 become design requirements; no refresh tokens in v1; a strict per-run user-mapping rule; agents never get pass-through; a failed tag read in the L4 reader refuses the whole run. It does NOT approve building pass-through, any live test, any deployment, or deleting the old Databricks token on the owner's behalf (the owner does that)."
+      record: "Offered recommendations 1 to 9; the user answered \"accept 1 to 5 and 9\" on 2026-11-21. Item 9, deleting the old token, is the owner's own action in the workspace."
     connect_mode_cm1_decisions:
       status: approved
       approved_by: user
