@@ -16,12 +16,11 @@ The two synthetic-data contracts (`food-delivery-orders-current` counts and `foo
 | Tenant | Folder to create | The one contract file in it |
 |---|---|---|
 | `sandbox` (activate v2) | `<root>/sandbox/contracts/` | `sandbox-databricks-v2.json` from `services/analytics-api/semantic_registry_sandbox_v2/contracts/` (replacing v1 in that folder) |
-| `synthetic` (counts) | `<root>/synthetic/contracts/` | `food-delivery-orders-current-v1.json` from `semantic_registry_synthetic/contracts/` |
-| `synthetic` (amounts) | **cannot share the folder with the counts contract** | see the decision below |
+| `synthetic` (both views) | `<root>/synthetic/contracts/` | `food-delivery-synthetic-views-v1.json` from `semantic_registry_synthetic_combined/contracts/` (certified 2026-11-21; the owner chose option (a) below) |
 
-## A decision this exposes
+## A decision this exposed (decided 2026-11-21: option (a))
 
-A tenant serves **one** certified contract, and the synthetic data has two (counts over `orders_current`, amounts over `orders_usd_gross`). Options: (a) certify a **combined** contract with both datasets (a new certification, one folder, one tenant); (b) use two tenants, each with its own connection and grant (more to run); (c) serve only one at a time. Recommendation: (a). It needs your certification of the combined contract; I can prepare it from the two certified ones with no new definitions.
+A tenant serves **one** certified contract, and the synthetic data has two (counts over `orders_current`, amounts over `orders_usd_gross`). Options: (a) certify a **combined** contract with both datasets (a new certification, one folder, one tenant); (b) use two tenants, each with its own connection and grant (more to run); (c) serve only one at a time. **Decided: (a).** The combined contract `food-delivery-synthetic-views` was certified from the two certified contracts with no new definition (program file `synthetic_views_combined_contract`). Only ids and display names changed, to stay valid in one contract: the USD dataset's `order_count` is `usd_order_count`, its dimensions are prefixed `usd_`, and the dimensions and the two counts carry no display name (the term rule forbids a name that contains another).
 
 ## Settings to apply, for the environment you name
 
