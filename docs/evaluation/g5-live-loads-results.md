@@ -15,3 +15,14 @@ What this shows and does not show:
 - The 1.1 million-row run finished in about two minutes end to end, so the planned tiers L (50 million) and XL (1 billion) are still untested and should not be inferred from this.
 - Online Retail II is **real data** (CC BY 4.0; Chen, D. (2012), https://doi.org/10.24432/C5CG6D) and carries its attribution in the schema and table comments; it must never be labelled synthetic.
 - Nothing was granted to any principal, no model was called, nothing was certified, and no schedule was created. The three schemas and the view are kept; cleanup is a manual `DROP SCHEMA ... CASCADE` or `DROP VIEW` by the owner, only on request.
+
+## Tier L (50 million orders): not run, generation does not fit on the developer laptop (2026-11-21)
+
+Approved (program file `synthetic_tier_l_load`) into a new schema with a 30-minute cap, stop on any mismatch. **No statement was sent to the workspace and nothing was loaded.** The generator was run locally into a file-backed DuckDB so it could spill to disk (16 GB RAM, about 50 GB free). After about 20 minutes it was still generating: the working database had grown to 14 GB, free disk had fallen from 46 GB to 23 GB at roughly 2 GB a minute, and no Parquet file had been written yet (about 7 GB more would be needed). The run was stopped on the approval's own rule (abandon before free disk falls below 12 GB) and every file it had written was deleted.
+
+What this does and does not show:
+
+- Tier M (1.1 million orders) generated in about 17 seconds, so generation does **not** scale linearly: 45 times more orders did not mean 45 times the time, it meant a different regime (memory spilling to disk, tens of gigabytes of scratch). Tier L needs a bigger machine or a different method.
+- Not shown: whether the Databricks load of 50 million rows works. The loader's upload timeout (three minutes, a statement's) was a real blocker for any multi-gigabyte file and is fixed in this change (an upload now gets the run's remaining cap).
+- Options if tier L still matters, none built: (a) generate on a machine with at least 64 GB RAM and 100 GB free disk; (b) generate in chunks by order-number range (the generator keys every random draw by row number, so chunks are deterministic in principle, but its tables, ledger and answer keys are not built to be assembled from chunks); (c) accept tier M as the largest tier and test performance by loading it more than once, or load tier M into a larger warehouse size.
+- The cost estimate for the warehouse side is still not measured: tier M took about two minutes end to end on the 2X-Small warehouse.
