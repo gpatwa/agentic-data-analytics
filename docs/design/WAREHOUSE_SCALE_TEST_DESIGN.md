@@ -1,6 +1,6 @@
 # Warehouse scale test on tier M: a design (2026-11-21)
 
-Status: **a design, nothing built, nothing approved.** It follows the tier L result in `docs/evaluation/g5-live-loads-results.md` (generation did not fit on the laptop) and the owner's choice of option 3: treat tier M as the largest tier and test scale on the warehouse side. Databricks behaviour marked *check* is from general knowledge and not verified on this workspace.
+Status: **the harness and its dry run are built (fakes only); no live run, nothing approved.** See section 7 for what changed from the first draft. It follows the tier L result in `docs/evaluation/g5-live-loads-results.md` (generation did not fit on the laptop) and the owner's choice of option 3: treat tier M as the largest tier and test scale on the warehouse side. Databricks behaviour marked *check* is from general knowledge and not verified on this workspace.
 
 ## 1. What question this answers
 
@@ -39,10 +39,11 @@ The workload file records each statement's text hash, the metric and dimension i
 ### 3.2 Matrix and control of the variables
 
 - **Sizes:** 2X-Small (baseline, matches the load), X-Small, Small, Medium. Stop at Medium: a larger size on 1.1M rows is cost with no information.
-- **One dedicated, temporary warehouse per size**, named `compass-scale-<size>-<run id>`, serverless, auto-stop 5 minutes, created and deleted by the run. We do **not** resize the shared Serverless Starter Warehouse: that changes a resource other work depends on and makes runs unrepeatable.
-- **Cold vs warm:** result cache disabled for every measured statement (`SET use_cached_result = false`, *check*), so we measure execution, not the cache. Each statement: 1 cold run (first touch after warehouse start), then 5 warm runs. Cold and warm are reported separately and never averaged.
+- **One dedicated, temporary warehouse per size, all four live together** (so runs can be interleaved), named `compass-scale-<size>-<run id>`, serverless, auto-stop 5 minutes, created and deleted by the run. We do **not** resize the shared Serverless Starter Warehouse: that changes a resource other work depends on and makes runs unrepeatable.
+- **Cold vs warm:** each statement runs once cold (the first run on that warehouse), then 3 warm runs. Cold and warm are reported separately and never averaged. Cold is per statement, not per table: earlier statements may already have warmed the table's data.
+- **Result cache:** every statement carries a unique leading comment so identical text is never answered from the cache, and the warehouse's own record (`result_from_cache`) is checked afterwards: any statement it served from the cache is excluded and counted in the report. No `SET` is sent.
 - **Concurrency:** 1, 4 and 8 simultaneous statements per size, same statements, to see queueing. The Connect principal's real limit is the warehouse's, so this is what a team of analysts would meet.
-- **Order:** sizes and statements interleaved in a seeded random order over 3 rounds, so time-of-day noise on a shared cloud does not look like a size effect.
+- **Order:** statements and sizes interleaved in a seeded random order within each pass (one cold, three warm), so time-of-day noise on a shared cloud does not look like a size effect.
 
 ### 3.3 Measurement: the warehouse's own record, not a stopwatch
 
@@ -54,7 +55,7 @@ Reported per size and shape: median and p95 (not mean), cold and warm, plus byte
 
 - Every result equals its DuckDB-recomputed expected value, exactly for counts and to a stated tolerance for money. **One mismatch stops the run.**
 - The same statement returns the same result at every size.
-- Only `SELECT` and the one `SET` ever run. The read-only guard already in the loader is reused and extended; any other statement is refused before it leaves the process.
+- Only a plain `SELECT` on the target schema's own objects ever runs (a new guard, `scale_test/guard.py`: no other verb, no `;`, no object outside the schema). Anything else is refused before it leaves the process.
 
 ### 3.5 Harness
 
@@ -70,30 +71,39 @@ Tests (fakes only, no cloud): workload determinism and expected-result correctne
 
 ### 3.6 Caps and stop rules (proposed)
 
-- At most **600 statements** in all (about 32 shapes x 4 sizes x 6 runs, plus concurrency), **45 minutes** wall-clock, three warehouses live at most at one time.
-- Stop at once on: an answer mismatch, any non-`SELECT` attempt, a statement exceeding 5 minutes, a warehouse not stopping, or the cost estimate passing the cap the owner sets.
+- At most **600 statements** (the plan as built sends 578: 32 statements x 4 sizes x 4 runs, plus 8 statements at concurrency 4 and 8 per size, plus 2 preflight checks), **45 minutes** wall-clock, four warehouses live at once.
+- Stop at once on: an answer mismatch, any non-`SELECT` attempt, the budget or the cap, a statement that took over 5 minutes (checked when it returns; the run's own cap bounds a hung one), a warehouse not stopping, or the cost estimate passing the cap the owner sets.
 - **Teardown always runs** (a `finally`): delete every `compass-scale-*` warehouse the run created, then list to prove none remain. A warehouse we cannot delete is reported loudly with its name.
 
-## 4. Approvals this needs (none given)
+## 4. Preconditions found while building
+
+- **The two views do not exist in the tier M schema.** `orders_current` and `orders_usd_gross` were created only in the tier S schema; tier M holds the seven tables. The certified contract's statements read the views, so the run's preflight (two read-only `SELECT COUNT(*)`) stops with a clear error until they exist. Creating them is a small write of the same kind as approval A (the loader's `--view-only` and `--usd-view-only` modes, 8 and 5 statements, checked against the tier M answer key). It is a **separate approval** and is not part of this one.
+- **Expected answers come from a local tier M**, generated in about 20 seconds on the laptop, then each statement's DuckDB answer is compared with the warehouse's. The schema name is retargeted in memory; the certified contract on disk is untouched.
+- **The product's compiled statements end in `LIMIT 100` with no `ORDER BY`.** Above 100 groups the rows returned are an arbitrary subset, so the check is: the count equals the limit and each row is a real group with the right value.
+
+## 5. Approvals this needs (none given)
 
 | Gate | What | Why it is a gate |
 |---|---|---|
-| Live cloud mutation | create and delete up to 4 temporary warehouses | creates billable compute |
+| Live write | create the two views in the tier M schema (8 + 5 statements, loader view-only modes) | a write to the workspace; prerequisite |
+| Live cloud mutation | create and delete 4 temporary warehouses | creates billable compute |
 | Live read | about 600 `SELECT`s on the tier M schema, via the owner's `databricks` login | warehouse time |
 | Thresholds | what counts as acceptable p95 latency and cost per answer | a human gate; the numbers in this design are proposals |
 | Price table | the DBU rate and price to assume | an input we must not invent |
 
 Rollback: delete the warehouses (the run does this). Nothing is written to the data, no grant changes, the tier M schema is untouched. What cannot be undone: the compute already consumed.
 
-## 5. Phase 2, only if the curve is flat (separate approval)
+## 6. Phase 2, only if the curve is flat (separate approval)
 
 Reach a real scale signal **without generating anything on the laptop**: replicate tier M inside the warehouse, `INSERT ... SELECT` with ids offset by a fixed stride, N times, into a new schema `dev.compass_synthetic_food_delivery_m_x<N>`. Because ids are offset and everything else is copied, the answer keys transform exactly: counts and sums multiply by N; ratios, averages and distinct dimension values are unchanged. That gives 1.1M x 10 or x 45 (about 50M) with provable expected answers. Caveats to state with any result: replicated data has no new skew and perfectly repeated value distributions, so it flatters compression and caching. Its cost is real warehouse write time and storage, so it needs its own approval, cap and teardown.
 
-## 6. Decisions for the owner
+## 7. Decisions for the owner, and what changed from the first draft
 
 1. **Run Phase 1 as designed** (recommended): build the harness and the dry run first; the live run waits for your approval of the cloud mutation, thresholds and price.
 2. **The matrix**: keep 2X-Small to Medium, or add Large for a reference point (recommended: no, add it only if Medium still improves).
 3. **Thresholds and the price table**: you supply them, or approve the proposed ones after seeing the dry-run plan.
 4. **Phase 2**: defer until Phase 1 shows a flat curve.
 
-Nothing in this note is approved, built or measured.
+Changes from the first draft, found while building: no `SET` is sent (cache is avoided by a unique comment and verified from the warehouse record); the run is 1 cold + 3 warm per statement, not 5 warm; all four warehouses are live together; the views prerequisite above; the statement budget is 578 of 600.
+
+Built and tested with fakes only: `python -m reference_stack.scale_test --tier M` prints the dry run. Nothing in this note is approved or measured live.
