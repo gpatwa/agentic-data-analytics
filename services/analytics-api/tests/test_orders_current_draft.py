@@ -46,3 +46,13 @@ def test_the_usd_amount_draft_is_an_uncertified_stand_in_draft_and_the_review_pi
     assert gross["aggregation"] == "sum" and gross["measure_field_id"] == "orders_usd_gross.total_amount"
     review = (SERVICE.parent.parent / "docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md").read_text()
     assert "545,012.03" in review and "Matches the key exactly" in review and "Do not certify under that name" in review
+
+
+def test_the_real_model_draft_is_an_uncertified_draft_by_the_pilot_deployment_and_proposes_no_amount_sum():
+    files = list((SERVICE / "semantic_registry_drafts/food-delivery-orders-current-real").glob("*/contract.draft.json"))
+    assert len(files) == 1
+    doc = json.loads(files[0].read_text())
+    assert doc["lifecycle"] == "draft" and doc["contract"]["metadata"]["draft"]["model_id"] == "gpt-6-luna"
+    assert [m["id"] for m in doc["contract"]["metrics"]] == ["order_count"]  # the real model proposed no amount sum, tip sum or average
+    certified = json.loads((SERVICE / "semantic_registry_synthetic/contracts/food-delivery-orders-current-v1.json").read_text())["contract"]
+    assert {d["field_id"] for d in doc["contract"]["dimensions"]} <= {d["field_id"] for d in certified["dimensions"]}
