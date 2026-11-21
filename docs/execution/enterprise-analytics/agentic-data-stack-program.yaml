@@ -435,6 +435,12 @@ milestones:
       approved_at: 2026-11-19
       scope: "The OFFLINE build E6a to E6e of docs/design/SEMANTIC_TRUST_FOUNDATIONS_PLAN.md section 8A: importing a customer's existing Databricks metric views and Snowflake semantic views as draft candidates (conservative mapping, a not-imported list with reasons, the same validator as any draft), tags that can only tighten, and the what-we-found summary. It does NOT approve any live read of a customer's metric views, semantic views or tags (L4), certifying anything, or wiring the importer into a deployed flow."
       record: "Asked \"Approve E6 (importing existing metric views and semantic views) as the next offline build?\" with options \"Approve E6\" and \"Not yet\"; the user answered \"Approve E6\" on 2026-11-19."
+    approvals_1_2_3_orders_current_l3_l4:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Three items, each exactly as worded in the owner's reply. (1) Draft the orders_current contract offline for the owner to read; certify nothing. (2) L3 runs as a MANUAL weekly check with the owner as its owner, a cap of 20 statements and 5 minutes per run, and no schedule or job created. (3) A live check of the L4 reader's statements: at most 3 read-only statements on dev.compass_synthetic_food_delivery through the Serverless Starter Warehouse, 3-minute cap, nothing written. It does NOT approve certifying any contract, any grant, any model call, any scheduled job or deployment, any other schema, or any statement that selects data values."
+      record: "The owner answered \"Approve 1, 2 and 3.\" to the three recommended approvals on 2026-11-21."
     intent_coverage_k0:
       status: approved
       approved_by: user
