@@ -26,8 +26,8 @@ class EngineError(RuntimeError):
     pass
 
 
-def _run(argv: list[str]) -> tuple[int, str]:
-    proc = subprocess.run(argv, capture_output=True, text=True, timeout=180, check=False)  # noqa: S603
+def _run(argv: list[str], timeout: float = 180) -> tuple[int, str]:
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)  # noqa: S603
     return proc.returncode, proc.stdout
 
 
@@ -106,7 +106,11 @@ class DatabricksCliSession:
     def upload(self, local: str, remote: str) -> None:
         """Copy one file into the staging volume. The caller has already checked that `remote` is inside the run's own schema."""
         self._check_cap()
-        code, _ = self._runner(["databricks", "fs", "cp", local, f"dbfs:{remote}", "--overwrite", "-p", self.profile])
+        argv = ["databricks", "fs", "cp", local, f"dbfs:{remote}", "--overwrite", "-p", self.profile]
+        if self._runner is _run:  # a multi-gigabyte file needs more than a statement's three minutes: it gets what is left of the run's own cap
+            code, _ = _run(argv, timeout=max(60.0, self._deadline - self._clock()))
+        else:
+            code, _ = self._runner(argv)
         if code != 0:
             raise EngineError("upload_failed")
 

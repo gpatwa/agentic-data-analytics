@@ -66,3 +66,22 @@ def test_approval_must_name_the_exact_target(tmp_path):
 
 def test_the_recorded_approval_matches_the_planned_target():
     check_approval("synthetic_data_g5_load_tier_s", "https://dbc-b8672746-8e43.cloud.databricks.com", "dev", "compass_synthetic_food_delivery", "Serverless Starter Warehouse", 15)
+
+
+def test_a_real_upload_gets_what_is_left_of_the_cap_not_three_minutes(monkeypatch):
+    from reference_stack.loaders import databricks_cli as dc
+
+    seen = {}
+
+    class Done:
+        returncode, stdout = 0, ""
+
+    def fake_run(argv, **kw):
+        seen["timeout"] = kw["timeout"]
+        return Done()
+
+    monkeypatch.setattr(dc.subprocess, "run", fake_run)
+    dc.DatabricksCliSession("p", "w", 1800, runner=dc._run).upload("/a", "/Volumes/c/s/staging/a")
+    assert 1700 < seen["timeout"] <= 1800  # a statement still gets 180 seconds; an upload gets the run's remaining cap
+    dc._run(["x"])
+    assert seen["timeout"] == 180
