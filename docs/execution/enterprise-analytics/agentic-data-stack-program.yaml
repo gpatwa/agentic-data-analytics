@@ -477,6 +477,12 @@ milestones:
       approved_at: 2026-11-21
       scope: "Prepare, in a document, the exact settings and rollback for switching on K3 (ANALYTICS_INTENT_COVERAGE_TENANTS) and the certified synonym contracts for an environment the owner names later; S6 stays off. Nothing is deployed or changed. Also: the oracle runbook owner is the owner (manual weekly, no channel, no schedule)."
       record: "The user chose 'Prepare settings only' and 'Owner me, no channel yet' on 2026-11-21. The owner also ticked tier L, a Snowflake syntax check and S6 for a named pilot group without the details they need (a cost cap; an account, database, warehouse and role; names and an environment): those are NOT approved until the details are given."
+    synthetic_views_combined_contract:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Certifying ONE combined contract food-delivery-synthetic-views version 2026-11-21 for the synthetic tenant (file semantic_registry_synthetic_combined/contracts/food-delivery-synthetic-views-v1.json), so a tenant serves a single certified contract. It is built from the two contracts the owner already certified (food-delivery-orders-current: order_count and eight dimensions over orders_current; food-delivery-orders-usd-gross: order_count, gross_order_value, gross_subtotal, delivery_fee_total, service_fee_total, discount_total and seven dimensions over orders_usd_gross) with NO new definitions. Only names change, to keep every id unique inside one contract: the USD dataset's metrics and dimensions are prefixed usd_ where an id would clash (usd_order_count; usd_order_time, usd_city, usd_country, usd_cuisine, usd_platform, usd_order_status, usd_payment_method); gross_order_value and the fee and discount sums keep their names. tip_total remains NOT certified; no synonym is certified; the two earlier contracts stay certified and unchanged. It does NOT approve serving it, any deployment, any other metric, or any change to either view."
+      record: "Asked whether to certify a combined synthetic contract so the grant has one contract to serve; the user answered \"approve certification\" on 2026-11-21."
     intent_coverage_k0:
       status: approved
       approved_by: user
