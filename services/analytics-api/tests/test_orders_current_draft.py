@@ -27,9 +27,9 @@ def test_order_count_is_keyed_on_order_id_the_profiled_key_of_the_view():
     assert "key (order_id), evidence **profiled_full**" in review  # the evidence level is stated for the reviewer
 
 
-def test_the_review_says_the_amount_sums_are_not_certifiable_yet():
+def test_the_review_says_the_amount_sums_are_not_certified():
     review = (SERVICE.parent.parent / "docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md").read_text()
-    assert "Nothing is certified" in review and "Do not certify yet" in review and "41% too high" in review
+    assert "are NOT certified" in review and "Do not certify yet" in review and "41% too high" in review
 
 
 def test_no_registry_folder_holds_the_draft():

@@ -441,6 +441,12 @@ milestones:
       approved_at: 2026-11-21
       scope: "Three items, each exactly as worded in the owner's reply. (1) Draft the orders_current contract offline for the owner to read; certify nothing. (2) L3 runs as a MANUAL weekly check with the owner as its owner, a cap of 20 statements and 5 minutes per run, and no schedule or job created. (3) A live check of the L4 reader's statements: at most 3 read-only statements on dev.compass_synthetic_food_delivery through the Serverless Starter Warehouse, 3-minute cap, nothing written. It does NOT approve certifying any contract, any grant, any model call, any scheduled job or deployment, any other schema, or any statement that selects data values."
       record: "The owner answered \"Approve 1, 2 and 3.\" to the three recommended approvals on 2026-11-21."
+    orders_current_certify_counts:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Certifying the orders_current contract, scope 'Counts now, USD amounts next': contract food-delivery-orders-current version 2026-11-21 with the metric order_count and the eight dimensions order_ts, city, country, cuisine, platform, status, payment_method and currency, over dev.compass_synthetic_food_delivery.orders_current (file semantic_registry_synthetic/contracts/food-delivery-orders-current-v1.json). NOT certified: the amount sums, the tip sum and the delivery and prep averages (reasons in docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md). No synonym is certified (the agent-proposed words were not reviewed) and no restricted column is in the contract. The meaning of order_count lives in the view, so the view and the contract are versioned together. USD amounts next: a second curated view orders_usd_gross (USD, not cancelled; gross, refunds not netted) is built and verified offline only; CREATING IT IN THE WAREHOUSE IS NOT APPROVED and needs an approval that names it. Also prepared, not run: a checklist for a real-model drafting run. It does NOT approve any grant to the Connect principal, any model call, any deployment, serving this contract anywhere, or certifying any other metric."
+      record: "Asked what should be certified over orders_current and what comes next; the user chose 'Counts now, USD amounts next' and 'Prepare the real-model run' on 2026-11-21."
     intent_coverage_k0:
       status: approved
       approved_by: user

@@ -1,0 +1,221 @@
+{
+  "contract": {
+    "contract_version": "v1",
+    "datasets": [
+      {
+        "description": "One row per order, latest version, excluding reversals and test orders. Synthetic food-delivery data.",
+        "display_name": "Current orders",
+        "id": "orders_current",
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "physical_name": "dev.compass_synthetic_food_delivery.orders_current",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.orders_current"
+      }
+    ],
+    "dimensions": [
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "temporal",
+        "display_name": "Order timestamp",
+        "entity_id": null,
+        "field_id": "orders_current.order_ts",
+        "id": "order_ts",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "City",
+        "entity_id": null,
+        "field_id": "orders_current.city",
+        "id": "city",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Country",
+        "entity_id": null,
+        "field_id": "orders_current.country",
+        "id": "country",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Cuisine",
+        "entity_id": null,
+        "field_id": "orders_current.cuisine",
+        "id": "cuisine",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Platform",
+        "entity_id": null,
+        "field_id": "orders_current.platform",
+        "id": "platform",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Order status",
+        "entity_id": null,
+        "field_id": "orders_current.status",
+        "id": "status",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Payment method",
+        "entity_id": null,
+        "field_id": "orders_current.payment_method",
+        "id": "payment_method",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_current",
+        "dimension_type": "categorical",
+        "display_name": "Currency",
+        "entity_id": null,
+        "field_id": "orders_current.currency",
+        "id": "currency",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "domain": "food_delivery",
+    "entities": [],
+    "fields": [
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.order_id",
+        "physical_name": "order_id"
+      },
+      {
+        "classification": "internal",
+        "data_type": "timestamp",
+        "dataset_id": "orders_current",
+        "id": "orders_current.order_ts",
+        "physical_name": "order_ts"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.city",
+        "physical_name": "city"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.country",
+        "physical_name": "country"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.cuisine",
+        "physical_name": "cuisine"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.platform",
+        "physical_name": "platform"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.status",
+        "physical_name": "status"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.currency",
+        "physical_name": "currency"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_current",
+        "id": "orders_current.payment_method",
+        "physical_name": "payment_method"
+      }
+    ],
+    "filters": [],
+    "id": "food-delivery-orders-current",
+    "joins": [],
+    "metadata": {
+      "certification": {
+        "drafted_by": "a Claude agent standing in for the drafting model, validated by the product's validator; the product's own model was not called",
+        "scope": "counts and dimensions only; amount sums, tip sum and averages are NOT certified (see docs/design/ORDERS_CURRENT_CONTRACT_REVIEW.md)",
+        "scope_digest": "39065f03c01ce6a94b911063c0e08a107c90a885af584478098421c97cfb7385",
+        "status": "certified by the owner on 2026-11-21 (approval recorded in docs/execution/enterprise-analytics/agentic-data-stack-program.yaml, orders_current_certify_counts)",
+        "synonyms": "none: the agent-proposed words were not reviewed",
+        "view_note": "the meaning of order_count lives in the view dev.compass_synthetic_food_delivery.orders_current; if the view changes, this meaning changes: version them together"
+      }
+    },
+    "metrics": [
+      {
+        "aggregation": "count",
+        "certification": "certified",
+        "dataset_id": "orders_current",
+        "denominator_metric_id": null,
+        "display_name": "Order count",
+        "grain": {
+          "key_field_ids": [
+            "orders_current.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "order_count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      }
+    ],
+    "owners": [
+      {
+        "contact_reference": null,
+        "display_name": "Semantic owners",
+        "id": "team.semantic-owners",
+        "owner_type": "team"
+      }
+    ],
+    "policies": [],
+    "tenant_id": "synthetic",
+    "version": "2026-11-21"
+  },
+  "lifecycle": "certified"
+}
