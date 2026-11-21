@@ -1,0 +1,337 @@
+{
+  "contract": {
+    "contract_version": "v1",
+    "datasets": [
+      {
+        "description": "Synthetic food-delivery orders in USD that were not cancelled, one row per order. Amounts are gross: refunds are separate reversal rows and are not netted.",
+        "display_name": "USD orders, gross",
+        "id": "orders_usd_gross",
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "physical_name": "dev.compass_synthetic_food_delivery.orders_usd_gross",
+        "source_asset_id": "dev.compass_synthetic_food_delivery.orders_usd_gross"
+      }
+    ],
+    "dimensions": [
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "temporal",
+        "display_name": "Order time",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.order_ts",
+        "id": "order_time",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "City",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.city",
+        "id": "city",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "Country",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.country",
+        "id": "country",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "Cuisine",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.cuisine",
+        "id": "cuisine",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "Platform",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.platform",
+        "id": "platform",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "Order status",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.status",
+        "id": "order_status",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "dataset_id": "orders_usd_gross",
+        "dimension_type": "categorical",
+        "display_name": "Payment method",
+        "entity_id": null,
+        "field_id": "orders_usd_gross.payment_method",
+        "id": "payment_method",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "domain": "food_delivery",
+    "entities": [],
+    "fields": [
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.order_id",
+        "physical_name": "order_id"
+      },
+      {
+        "classification": "internal",
+        "data_type": "timestamp",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.order_ts",
+        "physical_name": "order_ts"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.city",
+        "physical_name": "city"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.country",
+        "physical_name": "country"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.cuisine",
+        "physical_name": "cuisine"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.platform",
+        "physical_name": "platform"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.status",
+        "physical_name": "status"
+      },
+      {
+        "classification": "internal",
+        "data_type": "decimal",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.subtotal",
+        "physical_name": "subtotal"
+      },
+      {
+        "classification": "internal",
+        "data_type": "decimal",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.delivery_fee",
+        "physical_name": "delivery_fee"
+      },
+      {
+        "classification": "internal",
+        "data_type": "decimal",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.service_fee",
+        "physical_name": "service_fee"
+      },
+      {
+        "classification": "internal",
+        "data_type": "decimal",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.discount_amount",
+        "physical_name": "discount_amount"
+      },
+      {
+        "classification": "internal",
+        "data_type": "decimal",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.total_amount",
+        "physical_name": "total_amount"
+      },
+      {
+        "classification": "internal",
+        "data_type": "string",
+        "dataset_id": "orders_usd_gross",
+        "id": "orders_usd_gross.payment_method",
+        "physical_name": "payment_method"
+      }
+    ],
+    "filters": [],
+    "id": "food-delivery-orders-usd-gross",
+    "joins": [],
+    "metadata": {
+      "certification": {
+        "drafted_by": "a Claude agent standing in for the drafting model, validated by the product's validator; the product's own model was not called for this draft",
+        "scope": "USD amount metrics (gross; refunds not netted) and a USD order count; tip_total is NOT certified; no synonyms",
+        "scope_digest": "a547abe46dd0fd41fd475b4effe81eb7e273900011ad7a2cb64cb387e02538d2",
+        "status": "certified by the owner on 2026-11-21 (approval recorded in docs/execution/enterprise-analytics/agentic-data-stack-program.yaml, orders_usd_gross_certify_amounts)",
+        "view_note": "the currency and cancelled-order rules live in the view dev.compass_synthetic_food_delivery.orders_usd_gross (on orders_current); if the view changes, this meaning changes: version them together"
+      }
+    },
+    "metrics": [
+      {
+        "aggregation": "count",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Order count",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "order_count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      },
+      {
+        "aggregation": "sum",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Gross order value",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "gross_order_value",
+        "measure_field_id": "orders_usd_gross.total_amount",
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      },
+      {
+        "aggregation": "sum",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Gross subtotal",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "gross_subtotal",
+        "measure_field_id": "orders_usd_gross.subtotal",
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      },
+      {
+        "aggregation": "sum",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Delivery fees",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "delivery_fee_total",
+        "measure_field_id": "orders_usd_gross.delivery_fee",
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      },
+      {
+        "aggregation": "sum",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Service fees",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "service_fee_total",
+        "measure_field_id": "orders_usd_gross.service_fee",
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      },
+      {
+        "aggregation": "sum",
+        "certification": "certified",
+        "dataset_id": "orders_usd_gross",
+        "denominator_metric_id": null,
+        "display_name": "Discounts given",
+        "grain": {
+          "key_field_ids": [
+            "orders_usd_gross.order_id"
+          ],
+          "kind": "row"
+        },
+        "id": "discount_total",
+        "measure_field_id": "orders_usd_gross.discount_amount",
+        "numerator_metric_id": null,
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "required_filter_ids": []
+      }
+    ],
+    "owners": [
+      {
+        "contact_reference": null,
+        "display_name": "Semantic owners",
+        "id": "team.semantic-owners",
+        "owner_type": "team"
+      }
+    ],
+    "policies": [],
+    "tenant_id": "synthetic",
+    "version": "2026-11-21"
+  },
+  "lifecycle": "certified"
+}
