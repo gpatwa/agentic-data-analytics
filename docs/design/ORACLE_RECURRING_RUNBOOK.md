@@ -43,11 +43,11 @@ failure carries the exception type only (a driver message can quote data). Case 
 
 | Item | Value |
 |---|---|
-| Owner (a person or team who reads the alert) | **not named** |
-| Channel (where a non-zero exit is delivered) | **not named** |
-| What the owner does on `mismatch` | **not decided** |
+| Owner (a person or team who reads the alert) | **The product owner** (chosen 2026-11-21, program file `k3_v2_settings_prepare_only`) |
+| Channel (where a non-zero exit is delivered) | **None yet.** The check is run **manually, weekly, on the owner's request**, and its result is reported in the working session. No channel, no schedule. |
+| What the owner does on `mismatch` | Investigate the case: is it the data, the definition or the oracle? Never describe a mismatch as certified or hide it; a changed definition goes through contract review (`python -m app.contract_review`) before anything is re-certified. |
 
-Until these three are named, a schedule would run unattended and its failures would go nowhere. That is the reason none is created.
+The owner is named, but there is still no channel, so a schedule would run unattended and its failures would go nowhere. That is the reason none is created: a schedule needs a named channel and its own approval.
 
 ## Cost cap per run
 
