@@ -377,3 +377,46 @@ def test_executing_with_the_view_needs_an_approval_that_names_it(tmp_path):
     check_approval("g", "https://h", "dev", "sch", "Wh", 15, f)  # the tables alone are approved
     with pytest.raises(ApprovalError):
         check_approval("g", "https://h", "dev", "sch", "Wh", 15, f, also=("orders_current",))
+
+
+# ---- view-only: the view on a schema that already holds the tables ---------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+def test_the_view_only_plan_is_one_statement_six_checks_and_a_view_absent_preflight(data, engine):
+    plan = synthetic_plan(data, engine, "cmp_ref", "synth_fd", view_only=True)
+    assert len(plan.steps) == 1 and plan.steps[0].text.startswith("CREATE VIEW") and not any(s.kind == "upload" for s in plan.steps)
+    assert len(plan.checks) == 6 and 1 + len(plan.steps) + len(plan.checks) == 8  # the preflight, the CREATE VIEW and six checks: the approved statement cap
+    assert "table_name" in plan.preflight.lower() and "orders_current" in plan.preflight.lower()  # the view must be ABSENT, the schema is not empty
+    assert plan.cleanup == (f"DROP VIEW {plan.dialect.qn('cmp_ref', 'synth_fd', 'orders_current')}",)
+    assert "CREATE TABLE" not in " ".join(s.text for s in plan.steps)
+
+
+def test_a_view_only_run_executes_eight_statements_and_creates_nothing_else(data):
+    plan = synthetic_plan(data, "databricks", "cmp_ref", "synth_fd", view_only=True)
+    fake = Fake(plan)
+    report = execute(plan, fake)
+    assert report.ok and len(fake.ran) == 1 and fake.ran[0].startswith("CREATE VIEW") and len(fake.queries) == 7  # preflight and six checks
+    assert not any(r.upper().startswith(("DROP", "DELETE", "INSERT", "CREATE TABLE", "CREATE SCHEMA", "GRANT")) for r in fake.ran)
+
+
+def test_a_view_that_already_exists_stops_before_anything_runs(data):
+    plan = synthetic_plan(data, "databricks", "cmp_ref", "synth_fd", view_only=True)
+    fake = Fake(plan, tables=1)
+    report = execute(plan, fake)
+    assert report.stopped == "schema_not_empty" and fake.ran == []
+
+
+def test_the_statement_cap_stops_the_session_on_the_ninth():
+    import json as _json
+
+    from reference_stack.loaders.databricks_cli import CapExceeded, DatabricksCliSession
+
+    def ok(argv):
+        return 0, _json.dumps({"statement_id": "s", "status": {"state": "SUCCEEDED"}, "result": {"data_array": [["0"]]}})
+
+    session = DatabricksCliSession("p", "wh", 900, runner=ok, max_statements=8)
+    for _ in range(8):
+        session.query("SELECT 1")
+    with pytest.raises(CapExceeded, match="statement_cap_reached"):
+        session.query("SELECT 1")

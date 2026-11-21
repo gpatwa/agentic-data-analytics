@@ -41,6 +41,7 @@ class DatabricksCliSession:
         runner: Runner = _run,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
+        max_statements: int | None = None,
     ) -> None:
         self.profile = profile
         self.warehouse_id = warehouse_id
@@ -49,6 +50,7 @@ class DatabricksCliSession:
         self._sleep = sleep
         self._deadline = clock() + cap_seconds
         self.statements = 0
+        self._max_statements = max_statements
 
     def _check_cap(self) -> None:
         if self._clock() > self._deadline:
@@ -76,6 +78,8 @@ class DatabricksCliSession:
             raise EngineError("cli_output_not_json") from exc
 
     def _execute(self, sql: str) -> dict[str, Any]:
+        if self._max_statements is not None and self.statements >= self._max_statements:
+            raise CapExceeded("statement_cap_reached")
         self.statements += 1
         resp = self._api(
             "post",
