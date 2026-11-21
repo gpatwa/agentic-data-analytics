@@ -326,3 +326,54 @@ def test_a_converted_set_with_a_disagreement_or_the_wrong_licence_is_not_planned
 
 def test_a_check_dataclass_carries_what_a_dry_run_prints():
     assert Check("a", "SELECT 1", 1).derived_from == ()
+
+
+# ---- the curated view: what `order_count` should mean on this data ------------------------------------------------------------------------------
+
+
+def test_the_curated_view_is_off_by_default_and_added_only_on_request(data):
+    plain = synthetic_plan(data, "databricks", "cmp_ref", "synth_fd")
+    assert not any("CREATE VIEW" in s.text for s in plain.steps) and not any("orders_current" in c.name for c in plain.checks)
+    withv = synthetic_plan(data, "databricks", "cmp_ref", "synth_fd", with_curated_view=True)
+    assert sum("CREATE VIEW" in s.text for s in withv.steps) == 1 and withv.steps[-1].text.startswith("CREATE VIEW")
+    assert len(withv.checks) == len(plain.checks) + 6
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+def test_the_view_statement_is_guarded_and_parses_in_its_dialect(data, engine):
+    from reference_stack.loaders.plan import guard
+
+    plan = synthetic_plan(data, engine, "cmp_ref", "synth_fd", with_curated_view=True)
+    view = plan.steps[-1]
+    guard(plan, view.text)  # an allowed verb, inside the one schema
+    assert sqlglot.parse_one(view.text, read=engine) is not None
+    for c in plan.checks:
+        if "orders_current" in c.name.lower() or "ORDERS_CURRENT" in c.sql:
+            assert sqlglot.parse_one(c.sql, read=engine) is not None
+
+
+def test_the_view_gives_one_row_per_real_order_and_matches_the_answer_key_on_duckdb(data):
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS cat")
+    con.execute("CREATE SCHEMA cat.sch")
+    con.execute(f"CREATE VIEW cat.sch.orders_flat AS SELECT * FROM read_parquet('{(data / 'orders_flat.parquet').as_posix()}')")
+    plan = synthetic_plan(data, "duckdb", "cat", "sch", with_curated_view=True)
+    sql = plan.steps[-1].text.replace(" COMMENT = 'SYNTHETIC DATA: one row per real order, latest version, no reversals, no test orders'", "")
+    con.execute(sql)
+    checks = [c for c in plan.checks if "orders_current" in c.name]
+    assert len(checks) == 6
+    for c in checks:
+        assert int(con.execute(c.sql).fetchone()[0]) == c.expected, c.name
+    naive = con.execute("SELECT COUNT(*) FROM cat.sch.orders_flat").fetchone()[0]
+    current = con.execute("SELECT COUNT(*) FROM cat.sch.orders_current").fetchone()[0]
+    assert current < naive  # the raw table over-counts orders: duplicates, reversal rows and late versions
+
+
+def test_executing_with_the_view_needs_an_approval_that_names_it(tmp_path):
+    from reference_stack.loaders.approval import ApprovalError, check_approval
+
+    f = tmp_path / "p.yaml"
+    f.write_text("a:\n  g:\n    status: approved\n    approved_by: user\n    scope: 'dev.sch on https://h with Wh'\n")
+    check_approval("g", "https://h", "dev", "sch", "Wh", 15, f)  # the tables alone are approved
+    with pytest.raises(ApprovalError):
+        check_approval("g", "https://h", "dev", "sch", "Wh", 15, f, also=("orders_current",))

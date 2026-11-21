@@ -9,7 +9,7 @@ from reference_stack import synonym_proposal as sp
 from app.contract_review.__main__ import main
 
 
-def test_the_real_proposal_against_the_certified_v1_shows_only_synonym_changes(capsys):
+def test_v2_against_v1_shows_only_synonym_changes(capsys):
     assert main(["--old", str(sp.V1), "--new", str(sp.PROPOSED)]) == 0
     out = capsys.readouterr().out
     assert "Review of a new contract version" in out and "Blockers" in out and "- none" in out

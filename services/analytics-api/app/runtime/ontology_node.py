@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 
 from app.runtime.intent_coverage import coverage_reference, unaccounted_positions
@@ -120,7 +121,51 @@ class SnapshotOntologyProvider:
         return snapshot.ontology.model_copy(update={"snapshot_id": snapshot.snapshot_id})
 
 
-def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, coverage_tenants: frozenset[str] | None = None):
+def interpretation_token(intent: AnalyticalIntent) -> str:
+    """A token that names exactly one reading: the contract, metrics, groupings, filters, time range, sort and limit. A confirmation is only
+    valid for the reading it was given for, so a changed intent can never ride on an earlier "yes"."""
+    canonical = json.dumps(
+        {"c": [intent.semantic_contract.contract_id, intent.semantic_contract.contract_version], "d": intent.dataset_id,
+         "m": [m.metric_id for m in intent.metrics], "g": [g.dimension_id for g in intent.group_by],
+         "f": [f.model_dump(mode="json") for f in intent.filters], "t": intent.time_range.model_dump(mode="json") if intent.time_range else None,
+         "s": [s.model_dump(mode="json") for s in intent.sort], "l": intent.limit}, sort_keys=True, separators=(",", ":"))
+    return "I:" + hashlib.sha256(canonical.encode()).hexdigest()[:16]
+
+
+def describe_interpretation(intent: AnalyticalIntent, contract: SemanticContract) -> str:
+    """Plain words for the person, built from the certified contract and the intent's ids. Never data values from the warehouse."""
+    names = {m.id: m for m in contract.metrics}
+    dims = {d.id: d for d in contract.dimensions}
+
+    def label(item, fallback: str) -> str:
+        return (getattr(item, "display_name", None) or fallback.replace("_", " "))[:80]
+
+    parts = []
+    for ref in intent.metrics:
+        m = names.get(ref.metric_id)
+        how = "a count of rows" if m and m.aggregation == "count" and not m.measure_field_id else (
+            f"the {m.aggregation} of {m.measure_field_id.split('.')[-1].replace('_', ' ')}" if m and m.measure_field_id else "a certified measure")
+        parts.append(f"{label(m, ref.metric_id)} ({how})")
+    text = "I read this as: " + " and ".join(parts)
+    if intent.group_by:
+        text += ", grouped by " + ", ".join(label(dims.get(g.dimension_id), g.dimension_id) for g in intent.group_by)
+    extras = []
+    if intent.filters:
+        extras.append("filtered by " + "; ".join(f"{f.field_id.split('.')[-1].replace('_', ' ')} {f.operator.replace('_', ' ')} {', '.join(str(v)[:40] for v in f.values)}" for f in intent.filters))
+    if intent.time_range:
+        extras.append("limited to a time period")
+    if intent.sort:
+        extras.append("sorted")
+    text += "; " + ("; ".join(extras) if extras else "with no filter, no time period and no sort") + ". Is that what you meant?"
+    return text[:1_900]
+
+
+def has_synonyms(contract: SemanticContract) -> bool:
+    return any(item.synonyms for kind in (contract.datasets, contract.metrics, contract.dimensions, contract.fields) for item in kind if getattr(item, "synonyms", None))
+
+
+def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, coverage_tenants: frozenset[str] | None = None,
+                             confirm_tenants: frozenset[str] | None = None):
     """Create a handler whose lookups are exact, tenant-scoped snapshot reads."""
 
     def handle(node_input: NodeInput) -> NodeOutput:
@@ -133,6 +178,10 @@ def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, 
             ontology = ontologies.get(node_input.context_snapshot_id, node_input.tenant_id)
             if ontology.snapshot_id != node_input.context_snapshot_id:
                 raise IntentResolutionError("ontology_snapshot_mismatch")
+            if has_synonyms(contract) and not (coverage_tenants and ("*" in coverage_tenants or node_input.tenant_id in coverage_tenants)):
+                # A certified synonym makes the echo check pass more often; without the coverage check a dropped constraint then becomes a confident
+                # wrong answer (SEMANTIC_SYNONYMS_DESIGN, "the main finding"). So a contract with synonyms is refused for a tenant without coverage.
+                raise IntentResolutionError("synonyms_need_coverage")
             resolved = resolve_certified_intent(proposed, contract, ontology)
             if resolved.tenant_id != node_input.tenant_id:
                 raise IntentResolutionError("tenant_scope_mismatch")
@@ -206,6 +255,28 @@ def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, 
                     ),
                 ),
             )
+        confirmed = ""
+        if (echo or coverage) and confirm_tenants and ("*" in confirm_tenants or node_input.tenant_id in confirm_tenants):
+            token = interpretation_token(resolved)
+            previous = node_input.payload.get("clarification_state") or {}
+            chosen = (previous.get("selected_choices") or {}).get("interpretation")
+            if chosen == token:  # a person confirmed exactly this reading: their statement replaces the lexical match, nothing else is relaxed
+                echo, coverage, confirmed = [], [], token
+            elif chosen is None and int(previous.get("continuation_count", 0)) < 2:
+                state = {
+                    "query_id": resolved.query_id,
+                    "request_fingerprint": hashlib.sha256((node_input.request_text or "").encode()).hexdigest(),
+                    "run_id": node_input.run_id, "tenant_id": node_input.tenant_id, "purpose": node_input.purpose,
+                    "ambiguities": [AnalyticsAmbiguity(code="interpretation", prompt=describe_interpretation(resolved, contract),
+                                                       candidate_ids=[token, "none"]).model_dump(mode="json")],
+                    "continuation_count": int(previous.get("continuation_count", 0)),
+                }
+                return NodeOutput(
+                    run_id=node_input.run_id, node_id=node_input.node_id, status="waiting", next_node="clarify",
+                    payload={"clarification_state": state, "approval_state": {"reason": "interpretation_confirmation"}},
+                    evidence=(_evidence(node_input, f"interpretation-asked:{token}"),),
+                )
+            # an answer of "none", or a confirmation for a different reading, ends as the refusal it would have been
         if echo:
             reference = ";".join(echo)[:250]
             return NodeOutput(
@@ -249,6 +320,7 @@ def ontology_resolution_node(contracts, ontologies, *, echo_check: bool = True, 
                     kind="context",
                     fingerprint=fingerprint,
                 ),
+                *((_evidence(node_input, f"interpretation-confirmed:{confirmed}"),) if confirmed else ()),
             ),
         )
 

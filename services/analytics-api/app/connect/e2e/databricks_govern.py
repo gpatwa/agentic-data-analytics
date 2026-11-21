@@ -243,7 +243,7 @@ class Govern(Certify):
 
         def runtime(threshold: float) -> Any:
             return GovernedRuntime(control=stack.control, evidence=EvidenceStore(stack.control.engine), gateway=self.trap, compiler=self.trap,
-                                   contracts=CertifiedContracts([]), contexts={}, review_threshold=threshold, assets_for_tenant=assets_for_tenant,
+                                   contracts=CertifiedContracts([]), contexts={}, review_threshold=threshold, assets_for_tenant=assets_for_tenant, coverage_tenants=frozenset({TENANT}),  # a contract with synonyms needs the coverage check
                                    model_factory=lambda rid: CountingModel(self.model_factory(rid), self))
 
         async def no_key() -> None:
