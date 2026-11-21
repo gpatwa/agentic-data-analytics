@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -208,8 +209,12 @@ def test_stored_feedback_holds_no_sql_rows_or_policy_values(stack, client):
     run = _answer(stack, client)
     receipt = _feedback(client, stack, run["run_id"]).json()
     raw = stack.feedback_service().store.get(receipt["feedback_id"], tenant_id="tenant-a").model_dump_json()
-    for forbidden in ("sales_orders", "SELECT", "1969", "1468", "policy_values"):
+    for forbidden in ("sales_orders", "SELECT", "policy_values"):
         assert forbidden not in raw
+    # The answer values are digits; the record also holds random hex ids and a timestamp, in which "1969" can occur by chance (about 1 run in 500).
+    # Match them only as whole numbers, never inside a longer hex or digit run.
+    for value in ("1969", "1468"):
+        assert not re.search(rf"(?<![0-9A-Za-z]){value}(?![0-9A-Za-z])", raw)
     with stack.control.engine.connect() as connection:
         stored = connection.execute(text("SELECT payload FROM analytics_feedback")).scalar()
     assert "sales_orders" not in str(stored) and "SELECT" not in str(stored)
