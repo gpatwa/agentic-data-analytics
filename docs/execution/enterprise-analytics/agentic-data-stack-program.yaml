@@ -465,6 +465,18 @@ milestones:
       approved_at: 2026-11-21
       scope: "Certifying the contract food-delivery-orders-usd-gross version 2026-11-21 over dev.compass_synthetic_food_delivery.orders_usd_gross (file semantic_registry_synthetic_usd/contracts/food-delivery-orders-usd-gross-v1.json), exactly as chosen: the USD amount metric gross_order_value (sum of total_amount; 545,012.03 on tier S, equal to the answer key's gross USD value) and a USD order_count (rows of the view), plus the fee and discount sums gross_subtotal, delivery_fee_total, service_fee_total and discount_total (single-currency now; not checkable against the answer key). The seven dimensions from the reviewed draft (order_time, city, country, cuisine, platform, order_status, payment_method) are included so the metrics can be grouped. NOT certified: tip_total (it excludes cash tips, so its name overstates what it holds). No synonym is certified. 'Gross' means refunds are separate reversal rows and are not netted: a net value is not certified. The meaning lives in the view (USD, not cancelled, on top of orders_current): the view and the contract are versioned together. The contract sits in a registry root of its own because a root holds one certified contract per tenant. It does NOT approve any grant, any model call, any deployment, serving it anywhere, or certifying any other metric."
       record: "Asked which items 'approve' covers; the user chose 'Certify gross_order_value' and 'Also certify the fee and discount sums' on 2026-11-21."
+    connect_read_grant_synthetic_views:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "The Connect read grant exactly as printed by python -m app.connect.registration_print for dev.compass_synthetic_food_delivery (orders_current and orders_usd_gross ONLY): create the per-run service principal compass-conn-a1b2c3d4 and an OAuth secret (lifetime 7776000 s), CAN_USE on the Serverless Starter Warehouse, GRANT USE CATALOG ON CATALOG dev, GRANT USE SCHEMA ON SCHEMA dev.compass_synthetic_food_delivery, GRANT SELECT on the two views. The AGENT runs it through the owner's signed-in databricks profile, 5-minute cap, stop on any failed step, no other object touched. The one-time secret is written to a private (0600) file outside the repository and never printed; the owner moves it into Compass and deletes the file. The printed teardown (revoke the four grants, delete the principal) is ready and is run only on the owner's request or to remove a partly created principal after a failed setup that the owner is told about. It does NOT approve any other table, view or schema, any write privilege, a grant option, serving the contracts to users, or any grant to a different principal."
+      record: "Asked to approve the Connect read grant and who runs it; the user answered \"approve you run it\" on 2026-11-21."
+    k3_v2_settings_prepare_only:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Prepare, in a document, the exact settings and rollback for switching on K3 (ANALYTICS_INTENT_COVERAGE_TENANTS) and the certified synonym contracts for an environment the owner names later; S6 stays off. Nothing is deployed or changed. Also: the oracle runbook owner is the owner (manual weekly, no channel, no schedule)."
+      record: "The user chose 'Prepare settings only' and 'Owner me, no channel yet' on 2026-11-21. The owner also ticked tier L, a Snowflake syntax check and S6 for a named pilot group without the details they need (a cost cap; an account, database, warehouse and role; names and an environment): those are NOT approved until the details are given."
     intent_coverage_k0:
       status: approved
       approved_by: user
