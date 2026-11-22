@@ -519,6 +519,12 @@ milestones:
       approved_at: 2026-11-22
       scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, run the Phase 2 replication pilot through the loader's replicate mode (the replication plan), using the Serverless Starter Warehouse and the owner's signed-in databricks profile. It reads dev.compass_synthetic_food_delivery_m (the source schema, read only) and creates the new schema dev.compass_synthetic_food_delivery_m_x2 with 2 copies of the four fact tables and the three dimension tables once: 37 statements (a schema-empty preflight, 8 create steps, 28 checks against the scaled answer key), with a 15-minute cap, stopping on any failed statement or check mismatch. Rollback is DROP SCHEMA ... CASCADE by the owner. It does NOT approve more than 2 copies, any other schema or table, any grant, the views on the new schema, or certifying anything."
       record: "The agent prepared this approval with the replication dry run; the user answered \"Approved, run the replication pilot\" on 2026-11-22."
+    replication_n10:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, run the Phase 2 replication through the loader's replicate mode (the replication plan), using the Serverless Starter Warehouse and the owner's signed-in databricks profile. It reads dev.compass_synthetic_food_delivery_m (the source schema, read only) and creates the new schema dev.compass_synthetic_food_delivery_m_x10 with 10 copies of the four fact tables and the three dimension tables once: 36 statements (a schema-empty preflight, 8 create steps, 27 query checks against the scaled answer key), with a 15-minute cap, stopping on any failed statement or check mismatch. Rollback is DROP SCHEMA ... CASCADE by the owner. It does NOT approve more than 10 copies, any other schema or table, any grant, the views on the new schema, or certifying anything."
+      record: "The agent prepared this approval with the replication dry run; the user answered \"Approved, run the N=10 replication\" on 2026-11-22."
     intent_coverage_k0:
       status: approved
       approved_by: user
