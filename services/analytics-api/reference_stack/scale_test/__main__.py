@@ -25,6 +25,7 @@ MAX_CAP_MINUTES = 45.0
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="reference_stack.scale_test", description=__doc__)
     p.add_argument("--tier", default="M", help="the local tier used to compute the expected answers (must be the tier loaded in the warehouse)")
+    p.add_argument("--copies", type=int, default=1, help="the schema holds this many in-warehouse copies of the tier (see the loader's replicate mode); expected values are scaled by it")
     p.add_argument("--catalog", default="dev")
     p.add_argument("--schema", default="compass_synthetic_food_delivery_m")
     p.add_argument("--sizes", default=",".join(SIZES))
@@ -74,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         generate(GeneratorConfig(tier=args.tier), Path(tmp))
         contract = workload.load_contract()
-        statements = workload.build(contract, workload.local_connection(Path(tmp)), args.catalog, args.schema)
+        statements = workload.build(contract, workload.local_connection(Path(tmp)), args.catalog, args.schema, args.copies)
     n = plan.statement_count(len(statements))
     if args.experiment:
         return _experiment_main(args, statements)

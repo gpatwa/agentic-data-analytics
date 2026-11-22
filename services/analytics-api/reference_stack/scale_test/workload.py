@@ -120,8 +120,11 @@ def _categorical(contract, dataset: str) -> list[str]:  # noqa: ANN001
     return [d.id for d in contract.dimensions if d.field_id.split(".")[0] == dataset and d.id != time_dim]
 
 
-def build(contract, con: duckdb.DuckDBPyConnection, catalog: str, schema: str) -> list[Statement]:  # noqa: ANN001
-    """About 32 statements, fixed by the contract and the data (cardinality ranks the dimensions), so a rerun is identical."""
+def build(contract, con: duckdb.DuckDBPyConnection, catalog: str, schema: str, copies: int = 1) -> list[Statement]:  # noqa: ANN001
+    """About 32 statements, fixed by the contract and the data (cardinality ranks the dimensions), so a rerun is identical.
+
+    `copies` is for a schema made by in-warehouse replication: every metric here is a count or a sum over the latest row of each order, so each group value is exactly `copies` times
+    the local tier's (proved for the loader's answer key; the group set is unchanged). Group counts are not scaled."""
     duck, bricks = DuckDBCompilerAdapter(), DatabricksCompilerAdapter()
     target = retarget(contract, catalog, schema)
     cards: dict[str, int] = {}
@@ -139,7 +142,7 @@ def build(contract, con: duckdb.DuckDBPyConnection, catalog: str, schema: str) -
         sql = bricks.compile(_intent(target, metric, dims), target, None).sql
         key = f"{shape}:{metric.id}:" + ",".join(f"{d}{'@' + g if g else ''}" for d, g in dims)
         out.append(Statement(key, shape, metric.id, tuple(d for d, _ in dims), tuple(g for _, g in dims), sql, hashlib.sha256(sql.encode()).hexdigest(),
-                             tuple(tuple(r) for r in expected), limit, metric.aggregation == "count"))
+                             tuple(tuple(r[:-1]) + (r[-1] * copies,) for r in expected), limit, metric.aggregation == "count"))
 
     for metric in contract.metrics:
         ranked = sorted(_categorical(contract, metric.dataset_id), key=lambda d: (cards.setdefault(d, _cardinality(contract, con, metric, d)), d))

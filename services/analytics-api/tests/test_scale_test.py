@@ -339,3 +339,33 @@ def test_the_experiment_refuses_without_an_existing_warehouse_and_dry_runs_with_
     assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W"]) == 0
     out = capsys.readouterr().out
     assert "DRY RUN" in out and "68 in all" in out and "nothing is created, resized, stopped or deleted" in out
+
+
+def test_copies_scales_every_expected_value_and_nothing_else(world):
+    con, one = world
+    three = workload.build(workload.load_contract(), con, CATALOG, "compass_synthetic_food_delivery_m_x3", copies=3)
+    assert [s.key for s in three] == [s.key for s in one]
+    for a, b in zip(one, three):
+        assert len(a.expected) == len(b.expected) and a.limit == b.limit
+        assert {r[:-1]: r[-1] * 3 for r in a.expected} == {r[:-1]: r[-1] for r in b.expected}  # same groups, every value tripled
+        assert "m_x3" in b.sql and "m_x3" not in a.sql
+
+
+def test_replicated_data_gives_exactly_n_times_the_answers(world, tmp_path):
+    """The assumption behind --copies, proved on DuckDB: stack the orders three times with new order ids and every group value triples."""
+    con, one = world
+    d = tmp_path / "t"
+    generate(GeneratorConfig(tier="T"), d)
+    import duckdb
+    c = duckdb.connect()
+    src = (d / "orders_flat.parquet").as_posix()
+    c.execute(f"""CREATE VIEW f AS SELECT f.* REPLACE (CASE WHEN r.k = 0 THEN order_id ELSE order_id || '.' || r.k END AS order_id, row_id + r.k * (SELECT max(row_id) + 1 FROM read_parquet('{src}')) AS row_id)
+                  FROM read_parquet('{src}') f CROSS JOIN (VALUES (0),(1),(2)) AS r(k)""")
+    c.execute("""CREATE VIEW cur AS SELECT * EXCLUDE (rn, is_reversal) FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC, row_id DESC) rn
+                 FROM f WHERE NOT is_reversal AND restaurant_id <> 'R000000') WHERE rn = 1""")
+    c.execute('CREATE VIEW "dev.compass_synthetic_food_delivery.orders_current" AS SELECT * FROM cur')
+    c.execute("""CREATE VIEW "dev.compass_synthetic_food_delivery.orders_usd_gross" AS SELECT * FROM cur WHERE currency = 'USD' AND status <> 'cancelled'""")
+    tripled = workload.build(workload.load_contract(), c, CATALOG, SCHEMA)
+    scaled = workload.build(workload.load_contract(), con, CATALOG, SCHEMA, copies=3)
+    for a, b in zip(tripled, scaled):
+        assert workload.compare(b, a.expected[: b.limit]) is None, a.key
