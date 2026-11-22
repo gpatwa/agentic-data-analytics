@@ -35,6 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--cap-minutes", type=float, default=30.0)
     p.add_argument("--max-statements", type=int, default=450)
     p.add_argument("--usd-per-dbu", type=float, help="the assumed price; never defaulted")
+    p.add_argument("--experiment", choices=("warmup",), help="run the warm-up experiment instead of the size matrix (needs --baseline-warehouse-name)")
     p.add_argument("--execute", action="store_true")
     p.add_argument("--profile")
     p.add_argument("--host")
@@ -75,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
         contract = workload.load_contract()
         statements = workload.build(contract, workload.local_connection(Path(tmp)), args.catalog, args.schema)
     n = plan.statement_count(len(statements))
+    if args.experiment:
+        return _experiment_main(args, statements)
     if not args.execute:
         _dry_run(plan, statements, args)
         return 0
@@ -176,6 +179,54 @@ class _Preflighted:
 
     def close(self, size: str) -> float:
         return self._inner.close(size)
+
+
+
+
+EXPERIMENT_STATEMENTS = 2 + 2 * 32 + 2  # two view checks, two rounds of the 32, the two warm-up statements
+
+
+def _experiment_main(args: argparse.Namespace, statements: list[workload.Statement]) -> int:
+    name = args.baseline_warehouse_name
+    if not name:
+        print("refused: the experiment needs --baseline-warehouse-name (an existing warehouse; nothing is created)", file=sys.stderr)
+        return 2
+    if not args.execute:
+        print(f"DRY RUN: nothing was executed and no network call was made. Warm-up experiment on the existing warehouse {name!r}, target {args.catalog}.{args.schema}")
+        print(f"statements: {EXPERIMENT_STATEMENTS} in all (2 view checks, the {len(statements)} workload statements twice, 2 certified warm-up statements); wall-clock cap {args.cap_minutes:g} min")
+        print("each of the 2 rounds first waits (read-only polling) until the warehouse has stopped by itself; nothing is created, resized, stopped or deleted")
+        print("round 1 control: the workload; round 2 warmed: the Warmer on order_count and gross_order_value (no dimension), then the same workload")
+        return 0
+    if not (args.profile and args.host and args.approval_id and args.out):
+        print("refused: --execute needs --profile, --host, --approval-id and --out", file=sys.stderr)
+        return 2
+    try:
+        check_approval(args.approval_id, args.host, args.catalog, args.schema, name, args.cap_minutes, also=("warmup_experiment", "orders_current", "orders_usd_gross"), max_cap_minutes=MAX_CAP_MINUTES)
+    except ApprovalError as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
+    from reference_stack.loaders.databricks_cli import DatabricksCliSession, EngineError, find_warehouse_id
+    from reference_stack.scale_test.warmup_experiment import run_experiment
+    cap = args.cap_minutes * 60
+    run_id = uuid.uuid4().hex[:8]
+    api = DatabricksCliSession(args.profile, "", cap)
+    code, result = 0, {}
+    try:
+        wid = find_warehouse_id(args.profile, name)
+        session = DatabricksCliSession(args.profile, wid, cap)
+        budget = Budget(args.max_statements, time.monotonic() + cap)
+        for view in ("orders_current", "orders_usd_gross"):
+            budget.take()
+            session.query_with_id(f"SELECT COUNT(*) FROM `{args.catalog}`.`{args.schema}`.`{view}`")
+        result = run_experiment(statements, session, api, wid, args.catalog, args.schema, run_id, budget, lambda rows: fetch(api, [r.statement_id for r in rows]))
+    except (Stop, EngineError) as exc:
+        print(f"STOPPED: {exc}", file=sys.stderr)
+        code = 3
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"warmup-experiment-{run_id}.json").write_text(json.dumps({"run_id": run_id, "stopped": code != 0, **result}, indent=1))
+    print(f"report written to {out}/warmup-experiment-{run_id}.json; verdict: {result.get('verdict', 'none')}")
+    return code
 
 
 if __name__ == "__main__":

@@ -276,3 +276,66 @@ def test_each_run_has_its_own_plan_by_a_constant_column_and_the_answer_check_ign
     check_statement(a, CATALOG, SCHEMA)
     out, prov = go(con, statements[:3], small_plan(sizes=("2X-Small",)))
     assert all(r.mismatch is None for r in out.rows) and "AS scale_tag" in prov.warehouses["2X-Small"].sent[0]
+
+
+class IdleApi:
+    """A warehouse that reports RUNNING a few times, then STOPPED, each time it is asked after a round."""
+
+    def __init__(self, running_polls=2):
+        self.running_polls, self.left, self.calls = running_polls, running_polls, []
+
+    def api(self, method, path, body=None):
+        self.calls.append((method, path))
+        if self.left > 0:
+            self.left -= 1
+            return {"state": "RUNNING"}
+        self.left = self.running_polls
+        return {"state": "STOPPED"}
+
+
+def _experiment(con, statements, control_ms, warmed_ms):
+    from reference_stack.scale_test.warmup_experiment import run_experiment
+    prov, api, t = FakeProvider(con), IdleApi(), [0.0]
+    session = prov.open("2X-Small")
+    ms = iter([control_ms, warmed_ms])
+    state = {"round": -1}
+
+    def history_for(rows):
+        state["round"] += 1
+        first = next(ms)
+        return {r.statement_id: HistoryRow(500.0, first if i == 0 else 350.0, 0.0, None, 1.0, 1.0, False, 1.0 if i == 0 else 0.0) for i, r in enumerate(rows)}
+    result = run_experiment(statements, session, api, "w1", CATALOG, SCHEMA, "x", Budget(100, 1e18), history_for, poll=1.0, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s))
+    return result, session, api
+
+
+def test_the_experiment_waits_for_idle_twice_warms_only_the_second_round_and_never_touches_the_warehouse(world):
+    con, statements = world
+    result, session, api = _experiment(con, statements, 5400.0, 400.0)
+    assert [r["arm"] for r in result["rounds"]] == ["control", "warmed"] and result["verdict"] == "warm-up removed the delay"
+    assert all(m == "get" for m, _ in api.calls)  # read-only: it only asks the warehouse's state
+    control, warmed = result["rounds"]
+    assert control["warm_up"] is None and warmed["warm_up"]["code"] == "warmed" and warmed["warm_up"]["statements_run"] == 2
+    assert len(session.sent) == 2 + 32 * 2 and control["statements"] == warmed["statements"] == 32 and control["mismatches"] == warmed["mismatches"] == 0
+    # the control round's 32 come first; then the two warm-up statements (no dimension, one per dataset), then the warmed round's first measured statement
+    assert "COUNT(*)" in session.sent[32] and "SUM(" in session.sent[33] and all("GROUP BY" not in q for q in session.sent[32:34]) and "AS scale_tag" in session.sent[32]
+
+
+def test_the_verdicts_are_honest_when_the_control_does_not_show_the_delay_or_the_warm_up_does_not_help(world):
+    from reference_stack.scale_test.warmup_experiment import verdict
+    assert verdict(400.0, 380.0).startswith("inconclusive: the control round did not show")
+    assert verdict(5400.0, 4800.0) == "warm-up did not remove the delay" and verdict(None, 300.0).startswith("inconclusive")
+
+
+def test_it_gives_up_if_the_warehouse_never_goes_idle():
+    from reference_stack.scale_test.warmup_experiment import wait_until_stopped
+    t = [0.0]
+    never = type("A", (), {"api": lambda self, m, p, b=None: {"state": "RUNNING"}})()
+    with pytest.raises(Stop, match="warehouse_did_not_go_idle"):
+        wait_until_stopped(never, "w", poll=30.0, max_wait=300.0, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s))
+
+
+def test_the_experiment_refuses_without_an_existing_warehouse_and_dry_runs_with_no_call(capsys):
+    assert main(["--tier", "T", "--experiment", "warmup"]) == 2
+    assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W"]) == 0
+    out = capsys.readouterr().out
+    assert "DRY RUN" in out and "68 in all" in out and "nothing is created, resized, stopped or deleted" in out
