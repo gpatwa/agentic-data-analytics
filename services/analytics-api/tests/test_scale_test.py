@@ -54,7 +54,7 @@ class FakeWarehouse:
             rows = self.con.execute(sql.replace("`", '"').replace("DATE_TRUNC", "date_trunc")).fetchall()
             out = [tuple(None if c is None else str(c) for c in r) for r in rows]
             if self.tamper and out and self.tamper in sql:
-                out[0] = (*out[0][:-1], str(float(out[0][-1]) + 1))
+                out[0] = (*out[0][:-2], str(float(out[0][-2]) + 1), out[0][-1])
             return f"stmt-{next(_IDS)}", out
 
 
@@ -265,3 +265,14 @@ def test_release_deletes_one_warehouse_now_and_reports_how_long_it_was_up():
 def test_a_borrowed_baseline_needs_the_smallest_size_and_its_name_in_the_approval(capsys):
     assert main(["--tier", "T", "--sizes", "Small,Medium", "--baseline-warehouse-name", "Serverless Starter Warehouse"]) == 2
     assert "smallest size must be 2X-Small" in capsys.readouterr().err
+
+
+def test_each_run_has_its_own_plan_by_a_constant_column_and_the_answer_check_ignores_it(world):
+    from reference_stack.scale_test.guard import check_statement
+    from reference_stack.scale_test.runner import unique
+    con, statements = world
+    a, b = unique(statements[0].sql, "r-1"), unique(statements[0].sql, "r-2")
+    assert a != b and "'r-1' AS scale_tag" in a and a.count("scale_tag") == 1 and a.split("*/", 1)[1].count("\nFROM ") == 1
+    check_statement(a, CATALOG, SCHEMA)
+    out, prov = go(con, statements[:3], small_plan(sizes=("2X-Small",)))
+    assert all(r.mismatch is None for r in out.rows) and "AS scale_tag" in prov.warehouses["2X-Small"].sent[0]

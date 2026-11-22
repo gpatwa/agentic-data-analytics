@@ -37,3 +37,31 @@ Against the proposed thresholds (5 s for no or one dimension, 10 s for two dimen
 - Ask whether the workspace allows larger warehouses (an edition or quota limit), or use another workspace for the size comparison.
 - For an uncached warm number: add a harmless unique output (for example a constant column the check ignores) so each run has its own plan, or measure with the cache disabled at the workspace level (a setting change, which needs approval).
 - Phase 2 (in-warehouse replication of tier M) for a scale signal.
+
+## Second run: an uncached warm figure (approval `scale_test_uncached_rerun`, 2026-11-21)
+
+Run `ab892222`, the borrowed 2X-Small only, 104 statements, 0 wrong answers, no warehouse created, nothing stopped. Each statement now carries a constant output column unique to the run (the answer check ignores it), so each run has its own plan. **0 of 104 were answered from the result cache** (the first run had 72), so these are real executions, from the warehouse's own history.
+
+| shape | phase | runs | execution p50 / p95 (ms) | wall p50 / p95 (ms) | read (MB) |
+|---|---|---|---|---|---|
+| no dimension | cold | 7 | 354 / 372 | 1,242 / 1,309 | 11.1 |
+| no dimension | warm | 14 | 326 / 416 | 1,187 / 1,329 | 11.1 |
+| one high-cardinality | cold | 7 | 393 / 481 | 1,290 / 1,390 | 11.9 |
+| one high-cardinality | warm | 14 | 360 / 417 | 1,225 / 1,373 | 11.9 |
+| one low-cardinality | cold | 7 | 402 / **5,370** | 1,296 / **6,637** | 11.2 |
+| one low-cardinality | warm | 14 | 342 / 354 | 1,213 / 1,301 | 11.3 |
+| two dimensions | cold | 7 | 383 / 651 | 1,273 / 1,551 | 11.3 |
+| two dimensions | warm | 14 | 358 / 381 | 1,233 / 1,525 | 11.3 |
+| time grain | cold | 4 | 368 / 525 | 1,305 / 1,545 | 17.0 |
+| time grain | warm | 8 | 332 / 353 | 1,202 / 1,218 | 17.2 |
+
+Concurrency 4 (8 statements): no-dimension and high-cardinality executed in 346 and 426 ms median; the other three shapes' history rows had no execution time yet when read (wall-clock 1.5 to 1.6 s against 1.2 to 1.5 s alone).
+
+**Against the proposed thresholds** (criteria for reading the report, not enforced):
+- Warm p95 at most 5 s (none or one dimension) and 10 s (two dimensions or a time grain): **met**, the worst warm p95 is 417 ms.
+- Concurrency 4 p95 at most 3 times the single-run p95: **met on wall-clock** (no queueing visible at 4); exact execution times are missing for three shapes.
+- Cold at most 3 times the warm median: **met for every shape except one outlier**. One cold run of the one-low-cardinality statements took 5.4 s (execution) against a 0.34 s warm median. It happened once in 32 cold runs; the cause is unknown (a warehouse or disk-cache hiccup is likely, not shown). Rerun to see whether it repeats before reading anything into it.
+
+**What it says.** On 1.1 million orders the 2X-Small answers every certified statement in about 0.35 s of execution, nearly flat across shapes (the scan of 11 to 17 MB dominates, and a group-by adds almost nothing). The wall-clock of about 1.2 s is mostly the command line's own overhead, not the warehouse. The cold-to-warm gap is small because the data is already in the disk cache. Still **no size comparison** (larger warehouses were refused) and still **nothing about 50 million orders**.
+
+Not verified: the cause of the outlier; why three concurrent shapes lacked execution times in history (probably the read came before the record was final).
