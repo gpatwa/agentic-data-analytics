@@ -113,3 +113,20 @@ Built and tested with fakes only: `python -m reference_stack.scale_test --tier M
 ### Revision after the cost review (sequential mode)
 
 The first draft kept all four warehouses live to interleave runs. Because billing is by uptime that costs about four times as much as running them one after another, so the harness now runs sizes sequentially with a conditional escalation (above). Defaults: 2 warm runs, concurrency 4 only, 2-minute auto-stop, 30-minute cap, budget 450. Cost ceiling printed by the dry run: 12.0 DBU if the whole cap were spent on Medium, 5.8 DBU if split evenly (assumed rates, to be checked).
+
+
+## Phase 2 as built (2026-11-22): in-warehouse replication
+
+Status: **built and proved on DuckDB; nothing run live, nothing approved.** `python -m reference_stack.loaders replicate --data <tier M keys dir> --engine databricks --catalog dev --schema <new target> --source-schema compass_synthetic_food_delivery_m --copies N --dry-run`.
+
+**What it does.** A new schema gets the three dimension tables (restaurants, couriers, customers) copied once and the four fact tables (`orders`, `orders_flat`, `order_items`, `payments`) copied N times in one `CREATE TABLE ... AS SELECT ... CROSS JOIN (VALUES (0),(1),...)` each. Copy 0 is the original; in copy k, `row_id` is shifted by the source's own maximum plus one (a subquery, so no assumption about its range) and `order_id` and `payment_id` get `.k` appended. Foreign keys to the dimensions are unchanged, so the test restaurant stays excluded in every copy. Nothing is generated or uploaded, so the laptop is not involved.
+
+**Why the answers are exact.** Every measure is computed over the latest row of each order, and each order lives in exactly one copy, so every value and every group in the answer key is exactly N times the source's. This is proved, not assumed: the tests run the real plan and all 28 checks (counts, sums, day-boundary orders, the net value, the three breakdowns) on DuckDB at N = 2 and 3 against the scaled key, show ids are unique, show the test restaurant is excluded in every copy, and show a wrong N is caught. The scaled manifest and key can also be written out (`write_scaled_keys`), so the existing `--view-only` and `--usd-view-only` loaders create and check the two views on the new schema.
+
+**Guard.** The loader's statement guard learned one thing: a plan can name `read_schemas`, which a statement may read after `FROM` or `JOIN` and never write. Anything else outside the target schema is still refused (tested: a write to the source, a mention in a comment, a join to a third schema, another catalog).
+
+**What it does not give.** No new skew, values or customers: repeated data compresses and caches better than real data, so a timing here flatters the warehouse. Distinct customers and restaurants are not multiplied and have no check.
+
+**Size.** Tier M's four fact tables are about 160 MB of Parquet, so 45 copies is roughly 7 GB. The dry run for N = 2 is 1 preflight, 8 steps and 28 checks (37 statements); the checks run window functions over the whole replicated table, so they are the slow part at large N (`--light-checks` keeps only counts, key uniqueness and three headline values).
+
+**Proposed approval ladder (none given).** A pilot at N = 2 (2.2 million orders) with the full checks, a 15-minute cap and the starter warehouse, to measure the real time and whether the warehouse accepts the statements; then N = 10 if the pilot's time extrapolates under its cap; then N = 45 (about 50 million orders) only on its own approval with a cap set from the pilot. Each step is its own new schema (`..._m_x2`, `..._m_x10`, `..._m_x45`), rollback is `DROP SCHEMA ... CASCADE` by you, and a failed step leaves a schema you can drop. Vendor syntax (`VALUES` as a derived table, `CONCAT`, `CAST AS STRING`, a scalar subquery in a join) is standard and expected to work on Databricks, but **has not been run on a workspace**; the pilot is where that gets found out.

@@ -52,6 +52,7 @@ class LoadPlan:
     checks: tuple[Check, ...]
     cleanup: tuple[str, ...]
     notes: tuple[str, ...] = field(default_factory=tuple)
+    read_schemas: tuple[str, ...] = ()  # schemas in the same catalog a statement may READ from (after FROM or JOIN), never write to
 
     @property
     def prefix(self) -> tuple[str, str]:
@@ -65,7 +66,10 @@ def guard(plan: LoadPlan, sql: str) -> None:
         raise PlanError("statement_not_allowed")
     for match in _QUALIFIED.finditer(sql):
         catalog, schema = match.group(2), match.group(4)
-        if (catalog.casefold(), schema.casefold()) != (plan.catalog.casefold(), plan.schema.casefold()):
+        if (catalog.casefold(), schema.casefold()) == (plan.catalog.casefold(), plan.schema.casefold()):
+            continue
+        reads = catalog.casefold() == plan.catalog.casefold() and schema.casefold() in {r.casefold() for r in plan.read_schemas}
+        if not (reads and re.search(r"\b(FROM|JOIN)\s*$", sql[: match.start()], re.I)):
             raise PlanError("statement_outside_schema")
     if not _QUALIFIED.search(sql):
         raise PlanError("statement_has_no_qualified_name")
