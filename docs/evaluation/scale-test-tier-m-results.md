@@ -88,3 +88,9 @@ Approval `replication_n10_views_and_latency`. Views `orders_current` and `orders
 Against the accepted thresholds: warm p95 at most 5 s (met: 2.45 s, including two dimensions and the time grain, whose limit is 10 s); concurrency 4 p95 at most 3 times single p95 (met: about 1.3 times); cold at most 3 times warm median (met, for the reason above).
 
 Limits: replicated data compresses and caches better than real data, so this flatters the warehouse; the group sets are the same as tier M's (same cardinalities); one shared 2X-Small, no size comparison. The cold-after-idle question at this size is still open.
+
+## Correction (2026-11-22): the warehouse was not idle
+
+The section above says the first read was slow because the warehouse's disk cache was empty "since the warehouse auto-stops when idle". That mechanism is **not supported**. The first warm-up experiment waited 15 minutes for the starter warehouse to stop and it never did: other scheduled jobs in the workspace (a statement every 5 or so minutes) keep it running, and it was RUNNING when both outliers happened. So the measured fact stands (a first read of the tier M file came from remote storage, 0% from the disk cache, 5 to 6 s, the same 11,185,427 bytes twice), but the cause is **the table's data not being in the disk cache after about 13 minutes without a read, on a running warehouse** (the gap between the two outlier queries was about 16 minutes, with a run between them). Why it left the cache (eviction by the other jobs' work, a time limit, or something else) is **not known**.
+
+The first warm-up experiment (`warmup_experiment`, 2026-11-22) therefore stopped with `warehouse_did_not_go_idle` and produced no result. Nothing was changed on the workspace.

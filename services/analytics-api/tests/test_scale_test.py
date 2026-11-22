@@ -369,3 +369,21 @@ def test_replicated_data_gives_exactly_n_times_the_answers(world, tmp_path):
     scaled = workload.build(workload.load_contract(), con, CATALOG, SCHEMA, copies=3)
     for a, b in zip(tripled, scaled):
         assert workload.compare(b, a.expected[: b.limit]) is None, a.key
+
+def test_a_fixed_idle_gap_and_a_warmed_only_round_use_the_earlier_control_and_label_it(world):
+    from reference_stack.scale_test.warmup_experiment import run_experiment
+    con, statements = world
+    prov, t = FakeProvider(con), [0.0]
+    session = prov.open("2X-Small")
+    api = type("A", (), {"api": lambda self, m, p, b=None: (_ for _ in ()).throw(AssertionError("no warehouse call while sleeping"))})()
+    hist = lambda rows: {r.statement_id: HistoryRow(500.0, 400.0 if i == 0 else 350.0, 0.0, None, 1.0, 1.0, False, 0.0) for i, r in enumerate(rows)}  # noqa: E731
+    res = run_experiment(statements, session, api, "w", CATALOG, SCHEMA, "x", Budget(100, 1e18), hist, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s),
+                         idle_minutes=20, arms=("warmed",), control_first_ms=5400.0)
+    assert [r["arm"] for r in res["rounds"]] == ["warmed"] and res["rounds"][0]["waited_for_idle_s"] == 1200 and len(session.sent) == 2 + 32
+    assert res["control_source"] == "earlier runs (not measured here)" and res["verdict"] == "warm-up removed the delay"
+
+
+def test_the_idle_gap_dry_run_says_what_it_sleeps_and_sends(capsys):
+    assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W", "--idle-minutes", "20", "--warmed-only", "--control-first-ms", "5400"]) == 0
+    out = capsys.readouterr().out
+    assert "36 in all" in out and "sleeps 20 minutes since the last read (no call)" in out and "once (warmed round only" in out
