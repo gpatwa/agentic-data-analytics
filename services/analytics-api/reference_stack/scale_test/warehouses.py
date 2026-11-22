@@ -18,14 +18,14 @@ class Api(Protocol):
 
 
 class WarehouseAdmin:
-    def __init__(self, api: Api, *, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep, start_timeout: float = 600.0) -> None:
-        self._api, self._clock, self._sleep, self._start_timeout = api, clock, sleep, start_timeout
+    def __init__(self, api: Api, *, auto_stop_mins: int = 2, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep, start_timeout: float = 600.0) -> None:
+        self._api, self._clock, self._sleep, self._start_timeout, self._auto_stop = api, clock, sleep, start_timeout, auto_stop_mins
         self.created: dict[str, tuple[str, float]] = {}  # id -> (size, created_at)
 
     def create(self, size: str, run_id: str) -> str:
         if size not in DBU_PER_HOUR:
             raise EngineError("unknown_size")
-        body = {"name": f"{PREFIX}{size.lower()}-{run_id}", "cluster_size": size, "min_num_clusters": 1, "max_num_clusters": 1, "auto_stop_mins": 5,
+        body = {"name": f"{PREFIX}{size.lower()}-{run_id}", "cluster_size": size, "min_num_clusters": 1, "max_num_clusters": 1, "auto_stop_mins": self._auto_stop,
                 "enable_serverless_compute": True, "warehouse_type": "PRO"}
         wid = str(self._api.api("post", "/api/2.0/sql/warehouses", body)["id"])
         self.created[wid] = (size, self._clock())
@@ -45,6 +45,12 @@ class WarehouseAdmin:
         except EngineError as exc:
             if str(exc) != "cli_output_not_json":  # a delete may answer with an empty body
                 raise
+
+    def release(self, wid: str) -> float:
+        """Delete one warehouse now; the seconds from its creation to its deletion (what it could have been billed for)."""
+        _size, at = self.created.pop(wid)
+        self.delete(wid)
+        return self._clock() - at
 
     def remaining(self) -> list[str]:
         """Names of any scale-test warehouse still present, whoever made it."""

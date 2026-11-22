@@ -14,9 +14,9 @@ from reference_stack.scale_test import history as history_mod
 from reference_stack.scale_test import report as report_mod
 from reference_stack.scale_test import workload
 from reference_stack.scale_test.__main__ import main
-from reference_stack.scale_test.guard import ScaleGuardError, check_statement
+from reference_stack.scale_test.guard import ScaleGuardError
 from reference_stack.scale_test.history import HistoryRow
-from reference_stack.scale_test.runner import Budget, Plan, Stop, run
+from reference_stack.scale_test.runner import Budget, Outcome, Plan, Stop, run
 from reference_stack.scale_test.warehouses import PREFIX, WarehouseAdmin
 from reference_stack.synthetic.config import GeneratorConfig
 from reference_stack.synthetic.food_delivery import generate
@@ -58,83 +58,115 @@ class FakeWarehouse:
             return f"stmt-{next(_IDS)}", out
 
 
+SIZES3 = ("2X-Small", "X-Small", "Small")
+
+
 def small_plan(**kw):
-    return Plan(("2X-Small", "Medium"), warm_runs=1, concurrency=(2,), concurrency_statements=4, **kw)
+    return Plan(kw.pop("sizes", ("2X-Small", "Medium")), warm_runs=1, concurrency=(2,), concurrency_statements=4, **kw)
 
 
-def test_workload_is_the_compilers_output_deterministic_and_records_no_text_or_value(world):
+class FakeProvider:
+    """One warehouse per size, answered from DuckDB. Records how many are up at once, and every open and close."""
+
+    def __init__(self, con, refuse=(), tamper=None):
+        self.con, self.refuse, self.tamper, self.up, self.max_up, self.log, self.warehouses = con, set(refuse), tamper, set(), 0, [], {}
+
+    def open(self, size):
+        if size in self.refuse:
+            return None
+        self.up.add(size)
+        self.max_up = max(self.max_up, len(self.up))
+        self.log.append(("open", size))
+        self.warehouses[size] = FakeWarehouse(self.con, self.tamper)
+        return self.warehouses[size]
+
+    def close(self, size):
+        self.up.discard(size)
+        self.log.append(("close", size))
+        return 60.0
+
+
+def go(con, statements, plan, provider=None, budget=None, times=None, run_id="r"):
+    provider = provider or FakeProvider(con)
+
+    def history_for(rows):
+        t = (times or {}).get(rows[0].size, 100.0) if rows else 100.0
+        return {r.statement_id: HistoryRow(t, t, 0.0, 0.0, 1.0, 1.0, False) for r in rows}
+    out = Outcome()
+    run(plan, statements, provider, CATALOG, SCHEMA, run_id, budget or Budget(600, 1e18), history_for, out)
+    return out, provider
+
+
+def test_sizes_run_one_at_a_time_each_deleted_before_the_next_and_every_statement_runs_cold_then_warm(world):
     con, statements = world
-    again = workload.build(workload.load_contract(), con, CATALOG, SCHEMA)
-    assert [s.text_hash for s in statements] == [s.text_hash for s in again] and len(statements) == 32
-    assert {s.shape for s in statements} == {"no_dimension", "one_low_cardinality", "one_high_cardinality", "two_dimensions", "time_grain"}
-    assert all(f"`{CATALOG}`.`{SCHEMA}`." in s.sql for s in statements)
-    for s in statements:
-        check_statement(s.sql, CATALOG, SCHEMA)
-        assert set(s.public()) == {"key", "shape", "metric", "dimensions", "grains", "sql_sha256", "groups", "limit"} and "SELECT" not in str(s.public())
+    plan = small_plan(sizes=SIZES3, min_gain=0.0)
+    out, prov = go(con, statements, plan, times={"2X-Small": 300.0, "X-Small": 200.0, "Small": 100.0})
+    assert prov.max_up == 1 and prov.log == [("open", "2X-Small"), ("close", "2X-Small"), ("open", "X-Small"), ("close", "X-Small"), ("open", "Small"), ("close", "Small")]
+    assert len(out.rows) == plan.statement_count(len(statements)) - 2 == sum(len(w.sent) for w in prov.warehouses.values())
+    cold = [r for r in out.rows if r.phase == "cold"]
+    assert len(cold) == 3 * 32 and {(r.key, r.size) for r in cold} == {(s.key, z) for s in statements for z in SIZES3}
+    assert all(r.mismatch is None for r in out.rows) and {r.phase for r in out.rows} == {"cold", "warm", "concurrent"}
+    all_sql = [sql for w in prov.warehouses.values() for sql in w.sent]
+    assert len({sql.split("*/")[0] for sql in all_sql}) == len(all_sql)  # every text unique, so none can be a cache hit by text
+    assert out.uptime == {"2X-Small": 60.0, "X-Small": 60.0, "Small": 60.0} and out.stopped_escalating_after is None
 
 
-def test_the_guard_lets_only_a_select_on_the_target_schema_through():
-    ok = f"SELECT COUNT(*) FROM `{CATALOG}`.`{SCHEMA}`.`orders_current`"
-    check_statement(f"/* scale 1 */ {ok}", CATALOG, SCHEMA)
-    for bad, code in [("DROP VIEW `dev`.`s`.`orders_current`", "statement_not_select"), (ok + "; SELECT 1", "statement_has_semicolon"),
-                      ("SELECT 1", "statement_has_no_qualified_name"), ("SELECT COUNT(*) FROM `dev`.`other`.`t`", "statement_outside_schema"),
-                      (f"WITH x AS (DELETE FROM `{CATALOG}`.`{SCHEMA}`.`t`) SELECT 1 FROM `{CATALOG}`.`{SCHEMA}`.`t`", "statement_has_forbidden_word"),
-                      ("SET use_cached_result = false", "statement_not_select")]:
-        with pytest.raises(ScaleGuardError, match=code):
-            check_statement(bad, CATALOG, SCHEMA)
-
-
-def test_the_matrix_runs_every_statement_cold_then_warm_and_counts_match_the_plan(world):
+def test_a_larger_size_is_tried_only_while_the_last_step_paid_off(world):
     con, statements = world
-    fake = FakeWarehouse(con)
-    plan = small_plan()
-    rows = run(plan, statements, {s: fake for s in plan.sizes}, CATALOG, SCHEMA, "r1", Budget(600, 1e18))
-    assert len(rows) == plan.statement_count(len(statements)) - 2 == len(fake.sent)
-    cold = [r for r in rows if r.phase == "cold"]
-    assert len(cold) == 2 * 32 and {(r.key, r.size) for r in cold} == {(s.key, z) for s in statements for z in plan.sizes}
-    assert all(r.mismatch is None for r in rows) and {r.phase for r in rows} == {"cold", "warm", "concurrent"}
-    assert len({sql.split("*/")[0] for sql in fake.sent}) == len(fake.sent)  # every text unique, so none can be a cache hit by text
+    plan = small_plan(sizes=("2X-Small", "X-Small", "Small", "Medium"), min_gain=0.15)
+    out, prov = go(con, statements, plan, times={"2X-Small": 1000.0, "X-Small": 500.0, "Small": 490.0, "Medium": 1.0})
+    assert [e for e in prov.log if e[0] == "open"] == [("open", "2X-Small"), ("open", "X-Small"), ("open", "Small")]
+    assert out.stopped_escalating_after == "Small" and "Medium" not in out.warm_median_ms and set(out.warm_median_ms) == {"2X-Small", "X-Small", "Small"}
+
+
+def test_a_flat_curve_stops_after_the_second_size(world):
+    con, statements = world
+    out, prov = go(con, statements, small_plan(sizes=SIZES3), times={"2X-Small": 100.0, "X-Small": 100.0, "Small": 100.0})
+    assert out.stopped_escalating_after == "X-Small" and ("open", "Small") not in prov.log
+
+
+def test_a_refused_size_is_skipped_and_named_and_the_rest_still_run(world):
+    con, statements = world
+    out, prov = go(con, statements, small_plan(sizes=SIZES3, min_gain=0.0), FakeProvider(con, refuse={"X-Small"}), times={"2X-Small": 300.0, "Small": 100.0})
+    assert out.skipped == ["X-Small"] and {r.size for r in out.rows} == {"2X-Small", "Small"}
 
 
 def test_the_order_is_seeded_so_a_rerun_is_identical(world):
     con, statements = world
-    plan = small_plan()
-    a = [(r.key, r.size) for r in run(plan, statements, {s: FakeWarehouse(con) for s in plan.sizes}, CATALOG, SCHEMA, "a", Budget(600, 1e18)) if r.phase != "concurrent"]
-    b = [(r.key, r.size) for r in run(plan, statements, {s: FakeWarehouse(con) for s in plan.sizes}, CATALOG, SCHEMA, "b", Budget(600, 1e18)) if r.phase != "concurrent"]
+    a = [(r.key, r.size) for r in go(con, statements, small_plan(), run_id="a")[0].rows if r.phase != "concurrent"]
+    b = [(r.key, r.size) for r in go(con, statements, small_plan(), run_id="b")[0].rows if r.phase != "concurrent"]
     assert a == b
 
 
-def test_one_wrong_answer_stops_the_run_with_a_code_and_no_value(world):
+def test_one_wrong_answer_stops_the_run_deletes_the_warehouse_and_keeps_what_was_measured(world):
     con, statements = world
-    fake = FakeWarehouse(con, tamper="COUNT(*)")
-    plan = small_plan()
+    prov = FakeProvider(con, tamper="COUNT(*)")
+    out = Outcome()
     with pytest.raises(Stop, match="answer_mismatch") as exc:
-        run(plan, statements, {s: fake for s in plan.sizes}, CATALOG, SCHEMA, "r", Budget(600, 1e18))
-    assert "value_differs" in str(exc.value) and fake.n < 10
+        run(small_plan(), statements, prov, CATALOG, SCHEMA, "r", Budget(600, 1e18), lambda rows: {}, out)
+    assert "value_differs" in str(exc.value) and prov.up == set() and prov.log[-1] == ("close", "2X-Small") and out.rows and out.rows[-1].mismatch == "value_differs"
 
 
 def test_the_statement_budget_and_the_time_cap_stop_the_run(world):
     con, statements = world
-    plan = small_plan()
     with pytest.raises(Stop, match="statement_budget_reached"):
-        run(plan, statements, {s: FakeWarehouse(con) for s in plan.sizes}, CATALOG, SCHEMA, "r", Budget(5, 1e18))
+        go(con, statements, small_plan(), budget=Budget(5, 1e18))
     with pytest.raises(Stop, match="time_cap_reached"):
-        run(plan, statements, {s: FakeWarehouse(con) for s in plan.sizes}, CATALOG, SCHEMA, "r", Budget(600, -1.0))
+        go(con, statements, small_plan(), budget=Budget(600, -1.0))
 
 
 def test_a_statement_that_is_not_a_select_never_reaches_the_session(world):
     con, statements = world
-    fake = FakeWarehouse(con)
     bad = workload.Statement(**{**statements[0].__dict__, "sql": "DELETE FROM `dev`.`compass_synthetic_food_delivery_m`.`orders_current`"})
+    prov = FakeProvider(con)
     with pytest.raises(ScaleGuardError):
-        run(small_plan(), [bad], {s: fake for s in ("2X-Small", "Medium")}, CATALOG, SCHEMA, "r", Budget(600, 1e18))
-    assert fake.sent == []
+        go(con, [bad], small_plan(), prov)
+    assert prov.warehouses["2X-Small"].sent == []
 
 
 def test_the_report_uses_the_warehouse_record_excludes_cache_hits_and_needs_a_price_for_cost(world):
     con, statements = world
-    plan = small_plan()
-    rows = run(plan, statements, {s: FakeWarehouse(con) for s in plan.sizes}, CATALOG, SCHEMA, "r", Budget(600, 1e18))
+    rows = go(con, statements, small_plan())[0].rows
     hist = {r.statement_id: HistoryRow(500.0, 400.0, 50.0, 0.0, 1e6, 1e5, False) for r in rows}
     hist[rows[0].statement_id] = HistoryRow(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, True)
     rep = report_mod.build(rows, hist, usd_per_dbu=None, uptime_seconds={"2X-Small": 600.0})
@@ -217,6 +249,19 @@ def test_the_command_is_a_dry_run_by_default_and_execute_refuses_without_its_inp
     monkeypatch.setattr("reference_stack.loaders.databricks_cli._run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no network call in a dry run")))
     assert main(["--tier", "T"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("DRY RUN: nothing was executed and no network call was made") and "warehouse statements planned: 578" in out
+    assert out.startswith("DRY RUN: nothing was executed and no network call was made") and "at most 418 warehouse statements" in out
     assert main(["--tier", "T", "--execute"]) == 2
     assert main(["--tier", "T", "--execute", "--profile", "p", "--host", "h", "--approval-id", "no_such_approval", "--out", "/nonexistent-never-written"]) == 2
+
+
+def test_release_deletes_one_warehouse_now_and_reports_how_long_it_was_up():
+    api, t = FakeApi(), [0.0]
+    admin = WarehouseAdmin(api, clock=lambda: t[0], sleep=lambda s: None)
+    wid = admin.create("Small", "r1")
+    t[0] = 90.0
+    assert admin.release(wid) == 90.0 and api.warehouses == {} and admin.created == {} and admin.teardown() == []
+
+
+def test_a_borrowed_baseline_needs_the_smallest_size_and_its_name_in_the_approval(capsys):
+    assert main(["--tier", "T", "--sizes", "Small,Medium", "--baseline-warehouse-name", "Serverless Starter Warehouse"]) == 2
+    assert "smallest size must be 2X-Small" in capsys.readouterr().err

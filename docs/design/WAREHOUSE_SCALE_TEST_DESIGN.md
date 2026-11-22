@@ -39,11 +39,12 @@ The workload file records each statement's text hash, the metric and dimension i
 ### 3.2 Matrix and control of the variables
 
 - **Sizes:** 2X-Small (baseline, matches the load), X-Small, Small, Medium. Stop at Medium: a larger size on 1.1M rows is cost with no information.
-- **One dedicated, temporary warehouse per size, all four live together** (so runs can be interleaved), named `compass-scale-<size>-<run id>`, serverless, auto-stop 5 minutes, created and deleted by the run. We do **not** resize the shared Serverless Starter Warehouse: that changes a resource other work depends on and makes runs unrepeatable.
-- **Cold vs warm:** each statement runs once cold (the first run on that warehouse), then 3 warm runs. Cold and warm are reported separately and never averaged. Cold is per statement, not per table: earlier statements may already have warmed the table's data.
+- **One dedicated, temporary warehouse per size, one at a time, smallest first.** Billing is by uptime, so four warehouses live together cost about four times one at a time (46 DBU/h against about 11.5 on average); each size is deleted before the next opens. Optionally the existing starter warehouse (2X-Small) is borrowed for the baseline: read-only use, never resized or deleted, and the approval must name it, named `compass-scale-<size>-<run id>`, serverless, auto-stop 2 minutes, created and deleted by the run. We do **not** resize the shared Serverless Starter Warehouse: that changes a resource other work depends on and makes runs unrepeatable.
+- **Cold vs warm:** each statement runs once cold (the first run on that warehouse), then 2 warm runs. Cold and warm are reported separately and never averaged. Cold is per statement, not per table: earlier statements may already have warmed the table's data.
 - **Result cache:** every statement carries a unique leading comment so identical text is never answered from the cache, and the warehouse's own record (`result_from_cache`) is checked afterwards: any statement it served from the cache is excluded and counted in the report. No `SET` is sent.
 - **Concurrency:** 1, 4 and 8 simultaneous statements per size, same statements, to see queueing. The Connect principal's real limit is the warehouse's, so this is what a team of analysts would meet.
-- **Order:** statements and sizes interleaved in a seeded random order within each pass (one cold, three warm), so time-of-day noise on a shared cloud does not look like a size effect.
+- **Order:** within a size, statements run in a seeded random order (one cold pass, two warm passes). Sizes are no longer interleaved in time, so time-of-day noise could look like a size effect: the report shows the cold-to-warm spread per size as a noise indicator, and a second run can be compared with the first.
+- **Escalation is conditional.** A larger size is tried only if the last step cut the warm median (from the warehouse's record, else wall-clock) by at least 15%. On 1.1 million orders the curve will probably go flat early, and the run then stops without paying for Small or Medium. The stop is reported as a finding.
 
 ### 3.3 Measurement: the warehouse's own record, not a stopwatch
 
@@ -71,7 +72,7 @@ Tests (fakes only, no cloud): workload determinism and expected-result correctne
 
 ### 3.6 Caps and stop rules (proposed)
 
-- At most **600 statements** (the plan as built sends 578: 32 statements x 4 sizes x 4 runs, plus 8 statements at concurrency 4 and 8 per size, plus 2 preflight checks), **45 minutes** wall-clock, four warehouses live at once.
+- At most **450 statements** (the plan as built sends at most 418: 32 statements x 4 sizes x 3 runs, plus 8 statements at concurrency 4 per size, plus 2 preflight checks; it can stop earlier), a budget of **450**, **30 minutes** wall-clock (45 is the ceiling), one warehouse live at a time.
 - Stop at once on: an answer mismatch, any non-`SELECT` attempt, the budget or the cap, a statement that took over 5 minutes (checked when it returns; the run's own cap bounds a hung one), a warehouse not stopping, or the cost estimate passing the cap the owner sets.
 - **Teardown always runs** (a `finally`): delete every `compass-scale-*` warehouse the run created, then list to prove none remain. A warehouse we cannot delete is reported loudly with its name.
 
@@ -86,8 +87,8 @@ Tests (fakes only, no cloud): workload determinism and expected-result correctne
 | Gate | What | Why it is a gate |
 |---|---|---|
 | Live write | create the two views in the tier M schema (8 + 5 statements, loader view-only modes) | a write to the workspace; prerequisite |
-| Live cloud mutation | create and delete 4 temporary warehouses | creates billable compute |
-| Live read | about 600 `SELECT`s on the tier M schema, via the owner's `databricks` login | warehouse time |
+| Live cloud mutation | create and delete up to 4 temporary warehouses, one at a time (and optionally borrow the starter warehouse for the baseline) | creates billable compute |
+| Live read | up to 418 `SELECT`s on the tier M schema, via the owner's `databricks` login | warehouse time |
 | Thresholds | what counts as acceptable p95 latency and cost per answer | a human gate; the numbers in this design are proposals |
 | Price table | the DBU rate and price to assume | an input we must not invent |
 
@@ -104,6 +105,11 @@ Reach a real scale signal **without generating anything on the laptop**: replica
 3. **Thresholds and the price table**: you supply them, or approve the proposed ones after seeing the dry-run plan.
 4. **Phase 2**: defer until Phase 1 shows a flat curve.
 
-Changes from the first draft, found while building: no `SET` is sent (cache is avoided by a unique comment and verified from the warehouse record); the run is 1 cold + 3 warm per statement, not 5 warm; all four warehouses are live together; the views prerequisite above; the statement budget is 578 of 600.
+Changes from the first draft, found while building: no `SET` is sent (cache is avoided by a unique comment and verified from the warehouse record); the run is 1 cold + 2 warm per statement, not 5 warm; one warehouse is live at a time (see the revision at the end); the views prerequisite above; the statement budget is 450 (the plan sends at most 418).
 
 Built and tested with fakes only: `python -m reference_stack.scale_test --tier M` prints the dry run. Nothing in this note is approved or measured live.
+
+
+### Revision after the cost review (sequential mode)
+
+The first draft kept all four warehouses live to interleave runs. Because billing is by uptime that costs about four times as much as running them one after another, so the harness now runs sizes sequentially with a conditional escalation (above). Defaults: 2 warm runs, concurrency 4 only, 2-minute auto-stop, 30-minute cap, budget 450. Cost ceiling printed by the dry run: 12.0 DBU if the whole cap were spent on Medium, 5.8 DBU if split evenly (assumed rates, to be checked).
