@@ -30,3 +30,30 @@ What this does and does not show:
 ## Tier M views for the scale test (2026-11-21)
 
 Approval `scale_test_views_tier_m`. In `dev.compass_synthetic_food_delivery_m` the loader created `orders_current` (8 statements; all 6 checks equal to the tier M answer key: 999,488 orders, 0 duplicate `order_id`, 899,711 delivered, 59,990 cancelled, 24,898 refunded, 14,889 partially refunded) and then `orders_usd_gross` (5 statements; 0 duplicate `order_id`, gross USD 5,422,256,408 cents equal to the answer key, 0 cancelled). No failure, no stop, 13 statements in all. No table, grant or other schema was touched. Rollback is a manual `DROP VIEW` of each. The scale test itself has not run and is not approved.
+
+## Phase 2 replication pilot, N = 2 (2026-11-22)
+
+Approval `replication_pilot_n2`. Through the loader's `replicate` mode on the Serverless Starter Warehouse (shared with other scheduled jobs), `dev.compass_synthetic_food_delivery_m_x2` was created from `dev.compass_synthetic_food_delivery_m` with the four fact tables twice and the three dimension tables once. **36 statements** (the approval said 37: the derived net-value check needs no statement), **0 failures, no stop**: all 8 create steps ran and all 28 checks equal the answer key scaled by 2 (for example 2,224,808 rows in `orders` and `orders_flat`, 5,155,476 in `order_items`, 1,959,558 in `payments`, 1,998,976 distinct orders, gross USD 10,844,512,816 cents, the net value, and the three breakdowns). Ids are unique and the shared dimensions were not multiplied. The source schema was only read.
+
+Timings from the warehouse's own history: the whole run took about 87 s from the first to the last statement (about 63 s of statement time). The fact-table `CREATE TABLE AS` statements took 3.4 to 6.1 s of execution each (`orders` 5.7 s, `orders_flat` 5.7 s, `order_items` 3.7 s, `payments` 3.4 s); the 28 checks 0.1 to 1.7 s each. Every standard-SQL construct in the plan ran on Databricks as expected.
+
+Rough extrapolation to 45 copies (22.5 times the pilot), **not measured and assuming linear scaling**: the four fact-table builds about 5 to 6 minutes in all, the checks several minutes (window functions over 50 million rows may scale worse than linearly, and the starter warehouse is shared), so roughly 10 to 15 minutes. A wrong guess costs time, not correctness: every check is exact. N = 10 and N = 45 are **not approved**; the new schema stays until the owner drops it (`DROP SCHEMA dev.compass_synthetic_food_delivery_m_x2 CASCADE`).
+
+## Phase 2 replication, N = 10 (2026-11-22)
+
+Approval `replication_n10`. `dev.compass_synthetic_food_delivery_m_x10` was created from `dev.compass_synthetic_food_delivery_m` with the four fact tables ten times and the three dimension tables once: **36 statements, 0 failures, no stop**, all 8 create steps and all 28 checks equal to the answer key scaled by 10 (11,124,040 rows in `orders` and `orders_flat`, 25,777,380 in `order_items`, 9,797,790 in `payments`, 9,994,880 distinct orders, gross USD 54,222,564,080 cents, net 52,371,532,800 cents, and the three breakdowns). The source schema was only read; the x2 schema was untouched.
+
+Timings from the warehouse's own history, against the N = 2 pilot (5 times the data):
+
+| | N = 2 | N = 10 | ratio |
+|---|---|---|---|
+| whole run, first to last statement | 87 s | 104 s | 1.2 |
+| `orders` build, execution | 5.7 s | 9.7 s | 1.7 |
+| `orders_flat` build | 5.7 s | 11.9 s | 2.1 |
+| `order_items` build | 3.7 s | 5.7 s | 1.5 |
+| `payments` build | 3.4 s | 5.0 s | 1.5 |
+| check, median / max execution | 0.5 / 1.7 s | 1.25 / 5.1 s | about 2.5 / 3 |
+
+Five times the data took about 1.5 to 2.5 times the time: **sublinear** on this shared 2X-Small. Extrapolating the same trend, 45 copies (4.5 times more than this) would be roughly 2 times slower again for the builds and a few times for the heaviest check, so on the order of 5 minutes or less. That is a trend through three points (1.1 million, 2.2 million and 11 million orders' worth), **not a measurement at 50 million**, and the starter warehouse is shared, so a busy moment adds noise.
+
+The new schema stays until the owner drops it (`DROP SCHEMA dev.compass_synthetic_food_delivery_m_x10 CASCADE`; the x2 schema likewise). No views exist on it yet; the latency test on it needs those views and its own approvals.

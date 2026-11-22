@@ -513,11 +513,35 @@ milestones:
       approved_at: 2026-11-21
       scope: "Repeat the uncached tier M scale-test run once, to see whether the 5.4 s cold outlier on the one-low-cardinality statements recurs, on the borrowed Serverless Starter Warehouse (2X-Small) ONLY, on https://dbc-b8672746-8e43.cloud.databricks.com against dev.compass_synthetic_food_delivery_m (views orders_current and orders_usd_gross), through the owner's signed-in databricks profile: the same read-only SELECTs with a run-unique constant output column, the same limits as scale_test_uncached_rerun (at most 150 statements, a 10-minute cap, stop on any wrong answer, any non-SELECT, a statement over 5 minutes, or the cap). No warehouse is created (create_warehouses is not used, no compass-scale- warehouse is made); the starter warehouse is never resized or deleted. It does NOT approve any write, grant, other schema or table, a workspace setting change, Phase 2, or certifying anything."
       record: "The user answered \"Rerun the cold outlier to see if it repeats\" on 2026-11-21, after the agent reported one 5.4 s cold run in 32."
+    replication_pilot_n2:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, run the Phase 2 replication pilot through the loader's replicate mode (the replication plan), using the Serverless Starter Warehouse and the owner's signed-in databricks profile. It reads dev.compass_synthetic_food_delivery_m (the source schema, read only) and creates the new schema dev.compass_synthetic_food_delivery_m_x2 with 2 copies of the four fact tables and the three dimension tables once: 37 statements (a schema-empty preflight, 8 create steps, 28 checks against the scaled answer key), with a 15-minute cap, stopping on any failed statement or check mismatch. Rollback is DROP SCHEMA ... CASCADE by the owner. It does NOT approve more than 2 copies, any other schema or table, any grant, the views on the new schema, or certifying anything."
+      record: "The agent prepared this approval with the replication dry run; the user answered \"Approved, run the replication pilot\" on 2026-11-22."
+    replication_n10:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, run the Phase 2 replication through the loader's replicate mode (the replication plan), using the Serverless Starter Warehouse and the owner's signed-in databricks profile. It reads dev.compass_synthetic_food_delivery_m (the source schema, read only) and creates the new schema dev.compass_synthetic_food_delivery_m_x10 with 10 copies of the four fact tables and the three dimension tables once: 36 statements (a schema-empty preflight, 8 create steps, 27 query checks against the scaled answer key), with a 15-minute cap, stopping on any failed statement or check mismatch. Rollback is DROP SCHEMA ... CASCADE by the owner. It does NOT approve more than 10 copies, any other schema or table, any grant, the views on the new schema, or certifying anything."
+      record: "The agent prepared this approval with the replication dry run; the user answered \"Approved, run the N=10 replication\" on 2026-11-22."
+    replication_n10_views_and_latency:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, using the Serverless Starter Warehouse and the owner's signed-in databricks profile, on dev.compass_synthetic_food_delivery_m_x10: (1) create the view orders_current through the loader's --view-only mode (8 statements: a view-absent preflight, the CREATE VIEW, six checks against the answer key scaled by 10), then the view orders_usd_gross through --usd-view-only (5 statements: a preflight, the CREATE VIEW, three checks), each with a 5-minute cap, stopping on any failed statement or check mismatch; (2) run the uncached latency test (the scale test with --copies 10) on the starter warehouse (2X-Small) ONLY: read-only SELECTs with a run-unique constant output column, at most 106 statements (budget 150) and a 10-minute cap, stopping on any wrong answer, any non-SELECT, a statement over 5 minutes, or the cap. No warehouse is created (create_warehouses is not used, no compass-scale- warehouse is made); the starter warehouse is never resized or deleted. Rollback is a DROP VIEW by the owner. It does NOT approve any other table, view or schema, any grant, a larger N, the warm-up experiment, or certifying anything."
+      record: "The agent prepared this approval with the dry runs; the user answered \"Approved, run both\" on 2026-11-22."
     warmup_experiment:
       status: approved
       approved_by: user
       approved_at: 2026-11-22
       scope: "Run the warm-up experiment on the existing Serverless Starter Warehouse, on https://dbc-b8672746-8e43.cloud.databricks.com, against dev.compass_synthetic_food_delivery_m (views orders_current and orders_usd_gross), through the owner's signed-in databricks profile. This is the warmup_experiment: it waits, by read-only polling, until the warehouse has stopped by itself, runs the 32 workload statements as a control, waits for it to go idle again, runs the two certified warm-up statements, then the same 32 statements, with a run-unique constant column on each. At most 80 SELECT statements and a 40-minute cap, stopping on a wrong answer, any non-SELECT, a statement over 5 minutes, the budget or cap, or a warehouse that does not go idle. It does NOT approve creating, resizing, stopping or deleting any warehouse, any write, grant, setting change, other schema or table, or wiring the warm-up into the product."
+      record: "The agent prepared this approval with the experiment's dry run; the user answered \"Approved, run the warm-up experiment\" on 2026-11-22."
+    warmup_experiment_x10:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "Run the warmup_experiment in its warmed-only form on the existing Serverless Starter Warehouse, on https://dbc-b8672746-8e43.cloud.databricks.com, against dev.compass_synthetic_food_delivery_m_x10 (views orders_current and orders_usd_gross, answers scaled by 10), through the owner's signed-in databricks profile: sleep 20 minutes after the last read with no call, run the two certified warm-up statements, then the same 32 workload statements, each with a run-unique constant column. At most 36 SELECT statements and a 45-minute cap, stopping on a wrong answer, any non-SELECT, a statement over 5 minutes, or the budget or cap. It does NOT approve creating, resizing, stopping or deleting any warehouse, any write, grant, setting change, other schema or table, wiring the Warmer into the product, or certifying anything."
       record: "The agent prepared this approval with the experiment's dry run; the user answered \"Approved, run the warm-up experiment\" on 2026-11-22."
     intent_coverage_k0:
       status: approved

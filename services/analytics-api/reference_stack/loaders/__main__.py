@@ -13,7 +13,7 @@ from reference_stack.loaders.plan import render_dry_run
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="reference_stack.loaders")
-    p.add_argument("dataset", choices=("synthetic", "online_retail"))
+    p.add_argument("dataset", choices=("synthetic", "online_retail", "replicate"))
     p.add_argument("--data", required=True, type=Path, help="the generator or converter output directory")
     p.add_argument("--engine", required=True, choices=("databricks", "snowflake"))
     p.add_argument("--catalog", required=True)
@@ -24,6 +24,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--with-curated-view", action="store_true", help="synthetic only: also create the orders_current view (needs its own approval to execute)")
     p.add_argument("--view-only", action="store_true", help="synthetic only: create just the orders_current view on a schema that already holds the tables")
     p.add_argument("--usd-view-only", action="store_true", help="synthetic only: create just the orders_usd_gross view (needs orders_current to exist)")
+    p.add_argument("--source-schema", help="replicate: the loaded schema to copy from (read only); --schema is the NEW target schema")
+    p.add_argument("--copies", type=int, help="replicate: how many copies of the fact tables (2 to 100)")
+    p.add_argument("--light-checks", action="store_true", help="replicate: only counts, key uniqueness and three headline values")
     p.add_argument("--max-statements", type=int, help="execute: stop after this many statements")
     p.add_argument("--profile", help="execute: the databricks CLI profile")
     p.add_argument("--host", help="execute: the workspace host, which must be named in the approval")
@@ -36,6 +39,13 @@ def main(argv: list[str] | None = None) -> int:
             from reference_stack.loaders.synthetic import synthetic_plan
 
             plan = synthetic_plan(args.data, args.engine, args.catalog, args.schema, with_curated_view=args.with_curated_view or args.view_only, view_only=args.view_only, usd_view_only=args.usd_view_only)
+        elif args.dataset == "replicate":
+            from reference_stack.loaders.replicate import replication_plan
+
+            if not (args.source_schema and args.copies):
+                print("refused: replicate needs --source-schema and --copies", file=sys.stderr)
+                return 2
+            plan = replication_plan(args.data, args.engine, args.catalog, args.source_schema, args.schema, args.copies, light_checks=args.light_checks)
         else:
             from reference_stack.loaders.online_retail import retail_plan
 
@@ -58,7 +68,9 @@ def _execute(plan, args) -> int:  # noqa: ANN001
         print("refused: --execute needs --engine databricks, --profile, --host, --warehouse-name and --approval-id", file=sys.stderr)
         return 2
     try:
-        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes, also=("orders_usd_gross",) if args.usd_view_only else (("orders_current",) if (args.with_curated_view or args.view_only) else ()))
+        replicate = args.dataset == "replicate"
+        also = ("replication", args.source_schema, f"{args.copies} copies") if replicate else ("orders_usd_gross",) if args.usd_view_only else (("orders_current",) if (args.with_curated_view or args.view_only) else ())
+        check_approval(args.approval_id, args.host, args.catalog, args.schema, args.warehouse_name, args.cap_minutes, also=also, max_cap_minutes=60.0 if replicate else 15.0)
         session = DatabricksCliSession(args.profile, find_warehouse_id(args.profile, args.warehouse_name), args.cap_minutes * 60, max_statements=args.max_statements)
     except (ApprovalError, EngineError) as exc:
         print(f"refused: {exc}", file=sys.stderr)

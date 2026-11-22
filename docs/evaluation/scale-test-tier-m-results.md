@@ -76,8 +76,31 @@ Which statement pays the cost is decided by the run order, and the order is seed
 
 **What it means:** the first question after the warehouse has been idle costs about 5 to 6 s on tier M, then about 0.35 s. That is a real product behaviour (a user's first question after a quiet period), not noise. Mitigations, none built: keep the warehouse warm, or send a cheap read when a session opens. Larger data would make the first read longer. Untested here: whether a bigger warehouse changes it (none could be created).
 
+## Tier M times 10 (in-warehouse replication), 2026-11-22
+
+Approval `replication_n10_views_and_latency`. Views `orders_current` and `orders_usd_gross` were created on `dev.compass_synthetic_food_delivery_m_x10` (8 and 5 statements, 0 failures, every check equal to the answer key scaled by 10, e.g. 9,994,880 rows in `orders_current`). Then run `4b5dd3a8` of the same uncached scale test (`--copies 10`: expected values scaled by 10, proved on DuckDB) on the borrowed Serverless Starter Warehouse (2X-Small).
+
+- **104 statements, not stopped (so no wrong answer), 0 served from the result cache.**
+- **Warm execution median about 1.8 to 2.1 s, p95 at most 2.45 s** (tier M: about 0.35 s, p95 at most 0.42 s). Ten times the data cost about 5 to 6 times the execution time: sublinear, but not flat.
+- **Concurrency 4:** execution p50 1.7 to 2.8 s, p95 at most 2.83 s, 1.3 times the single-run p95 on the same shape.
+- **Cold runs were not slower than warm** (cold p50 1.8 to 2.2 s). The 5 to 6 s remote-read outlier did NOT appear. Caution: the loader's view checks had just read this data, so it was in the disk cache; this run does not show what a first read after the data leaves the cache costs at 10 times the size.
+
+Against the accepted thresholds: warm p95 at most 5 s (met: 2.45 s, including two dimensions and the time grain, whose limit is 10 s); concurrency 4 p95 at most 3 times single p95 (met: about 1.3 times); cold at most 3 times warm median (met, for the reason above).
+
+Limits: replicated data compresses and caches better than real data, so this flatters the warehouse; the group sets are the same as tier M's (same cardinalities); one shared 2X-Small, no size comparison. The cold-after-idle question at this size is still open.
+
 ## Correction (2026-11-22): the warehouse was not idle
 
 The section above says the first read was slow because the warehouse's disk cache was empty "since the warehouse auto-stops when idle". That mechanism is **not supported**. The first warm-up experiment waited 15 minutes for the starter warehouse to stop and it never did: other scheduled jobs in the workspace (a statement every 5 or so minutes) keep it running, and it was RUNNING when both outliers happened. So the measured fact stands (a first read of the tier M file came from remote storage, 0% from the disk cache, 5 to 6 s, the same 11,185,427 bytes twice), but the cause is **the table's data not being in the disk cache after about 13 minutes without a read, on a running warehouse** (the gap between the two outlier queries was about 16 minutes, with a run between them). Why it left the cache (eviction by the other jobs' work, a time limit, or something else) is **not known**.
 
 The first warm-up experiment (`warmup_experiment`, 2026-11-22) therefore stopped with `warehouse_did_not_go_idle` and produced no result. Nothing was changed on the workspace.
+
+## Warm-up experiment at 10 times the data, 2026-11-22
+
+Approval `warmup_experiment_x10`. Run `4889e9af` on the Serverless Starter Warehouse against `dev.compass_synthetic_food_delivery_m_x10`, warmed round only (the control is the tier M figure of 5.4 s from earlier runs, not measured here). 36 statements, not stopped, **0 wrong answers**.
+
+- Waited 20 minutes since the last read, then the two certified warm-up statements (`order_count`, `gross_order_value`) took **17.3 s together** (wall, about 8.6 s each), against about 2 s for the same kind of statement when the data is cached. That is where the cold read landed.
+- The first workload statement after the warm-up (`discount_total`, no dimension) ran in **2.94 s** (execution), reading 761,486 bytes from remote storage; the other 31 had a **median of 2.05 s**. So the first one cost about 0.9 s more, 1.4 times the median, not the 3 to 5 times seen at tier M.
+- The harness printed "warm-up did not remove the delay". **Do not read that as a finding.** Its threshold (first statement at most 1.5 s) was set for tier M, where a warm statement takes 0.35 s; at 10 times the data a normal statement takes 2 s, so nothing could pass it. The number that matters is 1.4 times the median.
+
+What it shows: after 20 minutes idle at 10 times the data, a cold read costs about 8.6 s per warm-up statement, and a warm-up pass of two statements (17 s) leaves the next statements within about 1.4 times of normal. What it does not show: no control round was run at this size, so "the warm-up helped" is not proved here; it is consistent with it. The 17 s would be paid by the Warmer, not by the user, if it ran in the background.
