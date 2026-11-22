@@ -92,6 +92,14 @@ class Outcome:
 _SERIAL = itertools.count()
 
 
+def unique(sql: str, tag: str) -> str:
+    """The same statement with a constant output column unique to this run. A comment alone does not change the warehouse's result-cache key (the first live run: 72 of 104
+    runs were cache hits); a differing output does. The answer check reads the columns by position and ignores the extra one. Nothing else changes."""
+    if "\nFROM " not in sql:
+        raise Stop("statement_shape_unexpected")
+    return f"/* scale {tag} */ " + sql.replace("\nFROM ", f", '{tag}' AS scale_tag\nFROM ", 1)
+
+
 def warm_median_ms(rows: list[Row], history: dict[str, Any]) -> float:
     """The decision metric: median time of the sequential warm runs, from the warehouse's record where it exists, else wall-clock."""
     values = []
@@ -107,7 +115,8 @@ def run_size(plan: Plan, statements: list[Statement], session: Session, size: st
     lock = threading.Lock()
 
     def one(st: Statement, phase: str, level: int) -> None:
-        sql = f"/* scale {run_id} {next(_SERIAL)} */ {st.sql}"  # a unique comment per run, so an identical text is not answered from a cache
+        check_statement(st.sql, catalog, schema)
+        sql = unique(st.sql, f"{run_id}-{next(_SERIAL)}")
         check_statement(sql, catalog, schema)
         budget.take()
         t0 = clock()

@@ -19,11 +19,10 @@ def _p95(values: list[float]) -> float:
 
 def build(rows: list[Row], history: dict[str, HistoryRow], *, usd_per_dbu: float | None, uptime_seconds: dict[str, float]) -> dict[str, Any]:
     cached = [r for r in rows if history.get(r.statement_id) and history[r.statement_id].from_cache]
-    excluded = {id(r) for r in cached}
+    served = {id(r) for r in cached}
     cells: dict[tuple[str, str, str, int], list[Row]] = defaultdict(list)
-    for r in rows:
-        if id(r) not in excluded:
-            cells[(r.size, r.shape, r.phase, r.concurrency)].append(r)
+    for r in rows:  # a run the warehouse answered from its result cache measures the cache, not execution: it gets its own phase
+        cells[(r.size, r.shape, "cached_repeat" if id(r) in served else r.phase, r.concurrency)].append(r)
     table = []
     for (size, shape, phase, level), group in sorted(cells.items()):
         recorded = [history[r.statement_id] for r in group if r.statement_id in history and history[r.statement_id].execution_ms is not None]
@@ -42,16 +41,19 @@ def build(rows: list[Row], history: dict[str, HistoryRow], *, usd_per_dbu: float
     cost = None
     if usd_per_dbu is not None:
         cost = {size: round(sec / 3600 * DBU_PER_HOUR[size] * usd_per_dbu, 4) for size, sec in uptime_seconds.items()}
-    return {"statements_run": len(rows), "excluded_served_from_cache": len(cached), "no_warehouse_record": sum(1 for r in rows if r.statement_id not in history),
+    slowest = [{"key": r.key, "size": r.size, "phase": r.phase, "wall_ms": round(r.wall_ms), "execution_ms": getattr(history.get(r.statement_id), "execution_ms", None),
+                "compile_ms": getattr(history.get(r.statement_id), "compile_ms", None)} for r in sorted(rows, key=lambda r: -r.wall_ms)[:5]]
+    return {"slowest_runs": slowest, "statements_run": len(rows), "served_from_result_cache": len(cached), "no_warehouse_record": sum(1 for r in rows if r.statement_id not in history),
             "table": table, "uptime_cost_usd_upper_bound": cost,
             "notes": ["Execution time comes from the warehouse's query history where it was found; otherwise only wall-clock is shown, which includes this tool's own overhead.",
+                      "A unique comment does not defeat the warehouse's result cache, so repeated runs are answered from it; those are labelled cached_repeat and are not execution times.",
                       "Cold means the first run of a statement on that warehouse; earlier statements may already have warmed the table's data.",
                       "Tier M is about 1.1 million orders: a flat curve across sizes is a result, not evidence about larger data.",
                       "DBU rates by size are assumed placeholders and the price is supplied by the owner; uptime cost is an upper bound, attributable cost counts execution time only."]}
 
 
 def markdown(report: dict[str, Any]) -> str:
-    lines = ["# Warehouse scale test", "", f"Statements run: {report['statements_run']}; served from cache and excluded: {report['excluded_served_from_cache']}; with no warehouse record: {report['no_warehouse_record']}.", "",
+    lines = ["# Warehouse scale test", "", f"Statements run: {report['statements_run']}; answered from the result cache (reported as cached_repeat, not as execution): {report['served_from_result_cache']}; with no warehouse record: {report['no_warehouse_record']}.", "",
              "| size | shape | phase | conc | runs | exec ms p50 | exec ms p95 | wall ms p50 | wall ms p95 |", "|---|---|---|---|---|---|---|---|---|"]
     for e in report["table"]:
         f = lambda k: f"{e[k]:.0f}" if k in e else "n/a"  # noqa: E731
