@@ -95,6 +95,15 @@ class DatabricksCliSession:
             raise EngineError(f"statement_{state}:{code}")
         return resp
 
+    def api(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        """One call to the workspace REST API through the owner's command line (used for warehouse admin and query history)."""
+        return self._api(method, path, body)
+
+    def query_with_id(self, sql: str) -> tuple[str, list[tuple[Any, ...]]]:
+        resp = self._execute(sql)
+        rows = (resp.get("result") or {}).get("data_array") or []
+        return str(resp.get("statement_id", "")), [tuple(r) for r in rows]
+
     def run(self, sql: str) -> None:
         self._execute(sql)
 
