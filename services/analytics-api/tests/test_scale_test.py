@@ -170,7 +170,7 @@ def test_the_report_uses_the_warehouse_record_excludes_cache_hits_and_needs_a_pr
     hist = {r.statement_id: HistoryRow(500.0, 400.0, 50.0, 0.0, 1e6, 1e5, False) for r in rows}
     hist[rows[0].statement_id] = HistoryRow(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, True)
     rep = report_mod.build(rows, hist, usd_per_dbu=None, uptime_seconds={"2X-Small": 600.0})
-    assert rep["served_from_result_cache"] == 1 and any(e["phase"] == "cached_repeat" for e in rep["table"]) and rep["uptime_cost_usd_upper_bound"] is None and rep["no_warehouse_record"] == 0
+    assert len(rep["slowest_runs"]) == 5 and rep["slowest_runs"][0]["wall_ms"] >= rep["slowest_runs"][-1]["wall_ms"] and rep["served_from_result_cache"] == 1 and any(e["phase"] == "cached_repeat" for e in rep["table"]) and rep["uptime_cost_usd_upper_bound"] is None and rep["no_warehouse_record"] == 0
     assert all("attributable_usd_per_answer" not in e for e in rep["table"]) and report_mod.build(rows, hist, usd_per_dbu=None, uptime_seconds={}) == rep | {"uptime_cost_usd_upper_bound": None}
     priced = report_mod.build(rows, hist, usd_per_dbu=0.5, uptime_seconds={"2X-Small": 3600.0})
     assert priced["uptime_cost_usd_upper_bound"] == {"2X-Small": 2.0} and "attributable_usd_per_answer" in priced["table"][0]

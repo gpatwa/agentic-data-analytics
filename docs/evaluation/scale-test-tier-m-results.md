@@ -60,8 +60,18 @@ Concurrency 4 (8 statements): no-dimension and high-cardinality executed in 346 
 **Against the proposed thresholds** (criteria for reading the report, not enforced):
 - Warm p95 at most 5 s (none or one dimension) and 10 s (two dimensions or a time grain): **met**, the worst warm p95 is 417 ms.
 - Concurrency 4 p95 at most 3 times the single-run p95: **met on wall-clock** (no queueing visible at 4); exact execution times are missing for three shapes.
-- Cold at most 3 times the warm median: **met for every shape except one outlier**. One cold run of the one-low-cardinality statements took 5.4 s (execution) against a 0.34 s warm median. It happened once in 32 cold runs; the cause is unknown (a warehouse or disk-cache hiccup is likely, not shown). Rerun to see whether it repeats before reading anything into it.
+- Cold at most 3 times the warm median: **met for every shape except one outlier**. One cold run of the one-low-cardinality statements took 5.4 s (execution) against a 0.34 s warm median. It happened once in 32 cold runs. It repeated in a rerun, and the cause is a cold storage read: see the last section.
 
 **What it says.** On 1.1 million orders the 2X-Small answers every certified statement in about 0.35 s of execution, nearly flat across shapes (the scan of 11 to 17 MB dominates, and a group-by adds almost nothing). The wall-clock of about 1.2 s is mostly the command line's own overhead, not the warehouse. The cold-to-warm gap is small because the data is already in the disk cache. Still **no size comparison** (larger warehouses were refused) and still **nothing about 50 million orders**.
 
-Not verified: the cause of the outlier; why three concurrent shapes lacked execution times in history (probably the read came before the record was final).
+Not verified: why three concurrent shapes lacked execution times in history (probably the read came before the record was final).
+
+## The cold outlier repeats, and the cause is a cold storage read (approval `scale_test_outlier_rerun`, 2026-11-21)
+
+Run `ab892222`'s 5.4 s outlier recurred in a repeat run (the same plan, 104 statements, 0 cache hits, 0 wrong answers): one cold run of `one_low_cardinality:delivery_fee_total:usd_country` took **6.2 s** of execution (7.5 s wall), against a 0.35 s median for everything else. The report now lists its five slowest runs.
+
+The warehouse's record explains it. Both slow queries (5.37 s and 6.16 s) read the same **11,185,427 bytes, all of it remote storage, 0% from the disk cache**. Every other query read about 11.7 MB with 100% from the disk cache. So the slow run is the first one to read the table's data file after the warehouse's disk cache was empty (the warehouse auto-stops when idle): it fetched the file from cloud storage once, then every later statement was served from the cache. Compile time was normal (about 0.5 s), so it is not planning.
+
+Which statement pays the cost is decided by the run order, and the order is seeded and identical in both runs, which is why the same statement was hit twice. That the slow statement is the first one to touch the data is **consistent with the evidence but not proven**: the run order was not recorded alongside the timings.
+
+**What it means:** the first question after the warehouse has been idle costs about 5 to 6 s on tier M, then about 0.35 s. That is a real product behaviour (a user's first question after a quiet period), not noise. Mitigations, none built: keep the warehouse warm, or send a cheap read when a session opens. Larger data would make the first read longer. Untested here: whether a bigger warehouse changes it (none could be created).

@@ -41,7 +41,9 @@ def build(rows: list[Row], history: dict[str, HistoryRow], *, usd_per_dbu: float
     cost = None
     if usd_per_dbu is not None:
         cost = {size: round(sec / 3600 * DBU_PER_HOUR[size] * usd_per_dbu, 4) for size, sec in uptime_seconds.items()}
-    return {"statements_run": len(rows), "served_from_result_cache": len(cached), "no_warehouse_record": sum(1 for r in rows if r.statement_id not in history),
+    slowest = [{"key": r.key, "size": r.size, "phase": r.phase, "wall_ms": round(r.wall_ms), "execution_ms": getattr(history.get(r.statement_id), "execution_ms", None),
+                "compile_ms": getattr(history.get(r.statement_id), "compile_ms", None)} for r in sorted(rows, key=lambda r: -r.wall_ms)[:5]]
+    return {"slowest_runs": slowest, "statements_run": len(rows), "served_from_result_cache": len(cached), "no_warehouse_record": sum(1 for r in rows if r.statement_id not in history),
             "table": table, "uptime_cost_usd_upper_bound": cost,
             "notes": ["Execution time comes from the warehouse's query history where it was found; otherwise only wall-clock is shown, which includes this tool's own overhead.",
                       "A unique comment does not defeat the warehouse's result cache, so repeated runs are answered from it; those are labelled cached_repeat and are not execution times.",

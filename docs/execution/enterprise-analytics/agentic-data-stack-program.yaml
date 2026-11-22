@@ -507,6 +507,12 @@ milestones:
       approved_at: 2026-11-21
       scope: "Re-run the tier M scale test to get an uncached warm figure, on the borrowed Serverless Starter Warehouse (2X-Small) ONLY, on https://dbc-b8672746-8e43.cloud.databricks.com against dev.compass_synthetic_food_delivery_m (views orders_current and orders_usd_gross), through the owner's signed-in databricks profile: read-only SELECTs, each with a constant output column unique to the run so the result cache is not hit. No warehouse is created (create_warehouses is not used, no compass-scale- warehouse is made) and the starter warehouse is never resized or deleted. At most 150 statements and a 10-minute cap, stopping on any wrong answer, any non-SELECT, a statement over 5 minutes, or the cap. It does NOT approve any write, grant, other schema or table, any warehouse creation, a workspace setting change, Phase 2, or certifying anything. Interpreted by the agent from the owner's request within the earlier scale_test_tier_m_run approval's limits."
       record: "The user answered \"Try the uncached warm figure\" on 2026-11-21, after the agent listed this option (a constant output column per run) as the way to get an uncached warm number."
+    scale_test_outlier_rerun:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "Repeat the uncached tier M scale-test run once, to see whether the 5.4 s cold outlier on the one-low-cardinality statements recurs, on the borrowed Serverless Starter Warehouse (2X-Small) ONLY, on https://dbc-b8672746-8e43.cloud.databricks.com against dev.compass_synthetic_food_delivery_m (views orders_current and orders_usd_gross), through the owner's signed-in databricks profile: the same read-only SELECTs with a run-unique constant output column, the same limits as scale_test_uncached_rerun (at most 150 statements, a 10-minute cap, stop on any wrong answer, any non-SELECT, a statement over 5 minutes, or the cap). No warehouse is created (create_warehouses is not used, no compass-scale- warehouse is made); the starter warehouse is never resized or deleted. It does NOT approve any write, grant, other schema or table, a workspace setting change, Phase 2, or certifying anything."
+      record: "The user answered \"Rerun the cold outlier to see if it repeats\" on 2026-11-21, after the agent reported one 5.4 s cold run in 32."
     intent_coverage_k0:
       status: approved
       approved_by: user
