@@ -1,8 +1,11 @@
-"""The matrix: sizes x statements x (1 cold + warm runs), then concurrency. One answer mismatch stops everything."""
+"""Sequential by size: one warehouse is up at a time (billing is by uptime, so interleaving four would cost about four times as much). Each size runs every statement once cold, then warm,
+then a concurrency batch, and is deleted before the next opens. A larger size is tried only while the last step still paid off. One answer mismatch stops everything."""
 
 from __future__ import annotations
 
+import itertools
 import random
+import statistics
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -25,16 +28,17 @@ class Session(Protocol):
 
 @dataclass(frozen=True)
 class Plan:
-    sizes: tuple[str, ...]
-    warm_runs: int = 3
-    concurrency: tuple[int, ...] = (4, 8)
+    sizes: tuple[str, ...]  # ascending
+    warm_runs: int = 2
+    concurrency: tuple[int, ...] = (4,)
     concurrency_statements: int = 8
     seed: int = 1
-    max_statements: int = 600
-    max_minutes: float = 45.0
+    max_statements: int = 450
+    max_minutes: float = 30.0
+    min_gain: float = 0.15  # a larger size is tried only if the last step cut the warm median by at least this fraction
 
     def statement_count(self, n_statements: int) -> int:
-        """Warehouse statements this plan sends, preflight included (two checks that the views exist)."""
+        """Warehouse statements this plan sends at most (it can stop early), preflight included (two checks that the views exist)."""
         return 2 + len(self.sizes) * (n_statements * (1 + self.warm_runs) + len(self.concurrency) * min(self.concurrency_statements, n_statements))
 
 
@@ -67,44 +71,89 @@ class Budget:
                 raise Stop("time_cap_reached")
 
 
-def run(plan: Plan, statements: list[Statement], sessions: dict[str, Session], catalog: str, schema: str, run_id: str, budget: Budget,
-        clock: Callable[[], float] = time.monotonic) -> list[Row]:
-    rows: list[Row] = []
-    lock = threading.Lock()
-    serial = iter(range(1_000_000))
+class Provider(Protocol):
+    def open(self, size: str) -> Session | None:
+        """A running warehouse of this size, or None when the workspace refuses it."""
 
-    def one(st: Statement, size: str, phase: str, level: int) -> None:
-        sql = f"/* scale {run_id} {next(serial)} */ {st.sql}"  # a unique comment per run, so an identical text is not answered from a cache
+    def close(self, size: str) -> float:
+        """Delete it (never for a borrowed one); seconds it was up."""
+
+
+@dataclass
+class Outcome:
+    rows: list[Row] = field(default_factory=list)
+    history: dict[str, Any] = field(default_factory=dict)
+    uptime: dict[str, float] = field(default_factory=dict)
+    skipped: list[str] = field(default_factory=list)
+    stopped_escalating_after: str | None = None
+    warm_median_ms: dict[str, float] = field(default_factory=dict)
+
+
+_SERIAL = itertools.count()
+
+
+def warm_median_ms(rows: list[Row], history: dict[str, Any]) -> float:
+    """The decision metric: median time of the sequential warm runs, from the warehouse's record where it exists, else wall-clock."""
+    values = []
+    for r in rows:
+        if r.phase == "warm":
+            h = history.get(r.statement_id)
+            values.append(h.execution_ms if h is not None and h.execution_ms is not None else r.wall_ms)
+    return statistics.median(values)
+
+
+def run_size(plan: Plan, statements: list[Statement], session: Session, size: str, catalog: str, schema: str, run_id: str, budget: Budget, out: list[Row],
+             clock: Callable[[], float] = time.monotonic) -> None:
+    lock = threading.Lock()
+
+    def one(st: Statement, phase: str, level: int) -> None:
+        sql = f"/* scale {run_id} {next(_SERIAL)} */ {st.sql}"  # a unique comment per run, so an identical text is not answered from a cache
         check_statement(sql, catalog, schema)
         budget.take()
         t0 = clock()
-        sid, got = sessions[size].query_with_id(sql)
+        sid, got = session.query_with_id(sql)
         wall = (clock() - t0) * 1000
         bad = compare(st, got)
         with lock:
-            rows.append(Row(st.key, st.shape, size, phase, level, wall, sid, bad))
+            out.append(Row(st.key, st.shape, size, phase, level, wall, sid, bad))
         if bad:
             raise Stop(f"answer_mismatch:{st.key}:{size}:{bad}")
         if wall / 1000 > MAX_STATEMENT_SECONDS:
             raise Stop(f"statement_too_slow:{st.key}:{size}")
 
-    rng = random.Random(plan.seed)
+    rng = random.Random(f"{plan.seed}:{size}")
     for pass_no in range(1 + plan.warm_runs):
         order = list(statements)
         rng.shuffle(order)
         for st in order:
-            sizes = list(plan.sizes)
-            rng.shuffle(sizes)
-            for size in sizes:
-                one(st, size, "cold" if pass_no == 0 else "warm", 1)
+            one(st, "cold" if pass_no == 0 else "warm", 1)
     ranked = sorted(statements, key=lambda s: s.key)
-    step = max(1, len(ranked) // max(1, plan.concurrency_statements))
-    chosen = ranked[::step][: plan.concurrency_statements]
-    sizes = list(plan.sizes)
-    rng.shuffle(sizes)
-    for size in sizes:
-        for level in plan.concurrency:
-            with ThreadPoolExecutor(level) as pool:
-                for future in [pool.submit(one, st, size, "concurrent", level) for st in chosen]:
-                    future.result()
-    return rows
+    chosen = ranked[:: max(1, len(ranked) // max(1, plan.concurrency_statements))][: plan.concurrency_statements]
+    for level in plan.concurrency:
+        with ThreadPoolExecutor(level) as pool:
+            for future in [pool.submit(one, st, "concurrent", level) for st in chosen]:
+                future.result()
+
+
+def run(plan: Plan, statements: list[Statement], provider: Provider, catalog: str, schema: str, run_id: str, budget: Budget,
+        history_for: Callable[[list[Row]], dict[str, Any]], out: Outcome, clock: Callable[[], float] = time.monotonic) -> Outcome:
+    """`out` is filled as it goes, so a stop still leaves everything measured so far."""
+    previous: float | None = None
+    for size in plan.sizes:
+        session = provider.open(size)
+        if session is None:
+            out.skipped.append(size)
+            continue
+        mine: list[Row] = []
+        try:
+            run_size(plan, statements, session, size, catalog, schema, run_id, budget, mine, clock)
+        finally:
+            out.rows += mine
+            out.uptime[size] = out.uptime.get(size, 0.0) + provider.close(size)
+        out.history |= history_for(mine)
+        current = out.warm_median_ms[size] = warm_median_ms(mine, out.history)
+        if previous is not None and current > previous * (1 - plan.min_gain):
+            out.stopped_escalating_after = size
+            break
+        previous = current
+    return out
