@@ -75,3 +75,16 @@ The warehouse's record explains it. Both slow queries (5.37 s and 6.16 s) read t
 Which statement pays the cost is decided by the run order, and the order is seeded and identical in both runs, which is why the same statement was hit twice. That the slow statement is the first one to touch the data is **consistent with the evidence but not proven**: the run order was not recorded alongside the timings.
 
 **What it means:** the first question after the warehouse has been idle costs about 5 to 6 s on tier M, then about 0.35 s. That is a real product behaviour (a user's first question after a quiet period), not noise. Mitigations, none built: keep the warehouse warm, or send a cheap read when a session opens. Larger data would make the first read longer. Untested here: whether a bigger warehouse changes it (none could be created).
+
+## Tier M times 10 (in-warehouse replication), 2026-11-22
+
+Approval `replication_n10_views_and_latency`. Views `orders_current` and `orders_usd_gross` were created on `dev.compass_synthetic_food_delivery_m_x10` (8 and 5 statements, 0 failures, every check equal to the answer key scaled by 10, e.g. 9,994,880 rows in `orders_current`). Then run `4b5dd3a8` of the same uncached scale test (`--copies 10`: expected values scaled by 10, proved on DuckDB) on the borrowed Serverless Starter Warehouse (2X-Small).
+
+- **104 statements, not stopped (so no wrong answer), 0 served from the result cache.**
+- **Warm execution median about 1.8 to 2.1 s, p95 at most 2.45 s** (tier M: about 0.35 s, p95 at most 0.42 s). Ten times the data cost about 5 to 6 times the execution time: sublinear, but not flat.
+- **Concurrency 4:** execution p50 1.7 to 2.8 s, p95 at most 2.83 s, 1.3 times the single-run p95 on the same shape.
+- **Cold runs were not slower than warm** (cold p50 1.8 to 2.2 s). The 5 to 6 s remote-read outlier did NOT appear. Caution: the loader's view checks had just read this data, so it was in the disk cache; this run does not show what a first read after the data leaves the cache costs at 10 times the size.
+
+Against the accepted thresholds: warm p95 at most 5 s (met: 2.45 s, including two dimensions and the time grain, whose limit is 10 s); concurrency 4 p95 at most 3 times single p95 (met: about 1.3 times); cold at most 3 times warm median (met, for the reason above).
+
+Limits: replicated data compresses and caches better than real data, so this flatters the warehouse; the group sets are the same as tier M's (same cardinalities); one shared 2X-Small, no size comparison. The cold-after-idle question at this size is still open.
