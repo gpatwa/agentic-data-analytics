@@ -4,7 +4,7 @@ Status: **the component is built and tested with fakes; it is not wired into any
 
 ## The problem, as measured
 
-After a warehouse has been idle, the first read of a table comes from cloud storage: **5.4 s and 6.2 s** in two runs (11.2 MB read, 0% from the disk cache), against **0.35 s** once the data is in the warehouse's disk cache. The cache lives only while the warehouse runs, and the starter warehouse auto-stops after 10 minutes. So the first question after a quiet period is slow, and every question after it is fast. Larger tables make the first read longer. Compile time (about 0.2 to 0.5 s) is not the cause.
+After a table has not been read for a while, its first read comes from cloud storage: **5.4 s and 6.2 s** in two runs (11.2 MB read, 0% from the disk cache), against **0.35 s** once the data is in the warehouse's disk cache. **Correction (2026-11-22):** this is not only a stopped-warehouse effect. The starter warehouse is kept running by other jobs and it still happened, about 13 to 16 minutes after the table's last read. The cause is the data leaving the disk cache, for a reason not yet known. So the first question after a quiet period is slow and every question after it is fast, whether or not the warehouse stopped. Larger tables make the first read longer. Compile time (about 0.2 to 0.5 s) is not the cause.
 
 ## Options
 
@@ -24,7 +24,7 @@ A trivial `SELECT 1 ... LIMIT 1` (what the connection health check runs) keeps a
 - **Off unless the connection turns it on.** A tenant that does nothing behaves as today.
 - **Certified statements only.** The caller compiles them from the certified contract, the way a question is compiled (for example, one no-dimension aggregate per dataset, which reads the columns a question reads). The warmer adds no privilege: the same read-only principal, the same allow-list as an answer. It never sends anything to a model.
 - **Results discarded.** Nothing is stored, logged or put in the evidence chain except an audit record the caller chooses to write: a code, a count and a duration, never a statement or a value.
-- **Skipped when the warehouse is probably still running.** If the last warm-up or a real answer was less than `idle_after` ago (default 8 minutes, under the starter's 10), nothing runs. A busy connection pays nothing.
+- **Skipped when the warehouse is probably still running.** If the last warm-up or a real answer was less than `idle_after` ago (default 8 minutes, under the roughly 13 minutes in which the data was seen to leave the cache), nothing runs. A busy connection pays nothing.
 - **Never breaks the request.** Any error becomes the stable code `failed`, with no driver message; a failed warm-up does not count, so the next session tries again. The deadline (30 s) and the statement cap (4) bound it. The caller should run it in the background and not wait for it.
 - **One warm-up at a time per connection**, so two sessions opening together warm once, and one tenant never warms or learns of another's connection.
 
@@ -35,7 +35,10 @@ A trivial `SELECT 1 ... LIMIT 1` (what the connection health check runs) keeps a
 - **Statement choice.** One no-dimension statement per dataset is a guess; the disk cache is per column and file, so a question that reads other columns can still hit storage. This must be measured, not assumed.
 - **Snowflake.** Its cache behaviour differs and is not measured at all.
 
-## A live experiment to validate it (needs your approval, not run)
+## A live experiment to validate it (the first attempt failed; the redesigned one needs your approval)
+
+The first version waited for the warehouse to stop; the starter warehouse never stops (other jobs), so it ended with `warehouse_did_not_go_idle` and no result. The redesign sleeps a fixed gap (20 minutes) since the last read, runs only the warmed round, and takes the control from the two earlier observations (5.4 s and 6.2 s), labelled as such: `--idle-minutes 20 --warmed-only --control-first-ms 5400`, 36 statements. The original text follows.
+
 
 On the starter warehouse only, no creation: leave it idle past its 10-minute auto-stop, run the warm-up statements (the Warmer, with the statements from the scale test's workload), then the 32 statements. Pass if the first question's execution is about 0.35 s instead of 5 to 6 s. About 40 `SELECT`s, the 2X-Small, a 10-minute cap. The idle wait is the only slow part. It would also show whether one statement per dataset is enough.
 

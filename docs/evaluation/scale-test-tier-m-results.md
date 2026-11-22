@@ -75,3 +75,9 @@ The warehouse's record explains it. Both slow queries (5.37 s and 6.16 s) read t
 Which statement pays the cost is decided by the run order, and the order is seeded and identical in both runs, which is why the same statement was hit twice. That the slow statement is the first one to touch the data is **consistent with the evidence but not proven**: the run order was not recorded alongside the timings.
 
 **What it means:** the first question after the warehouse has been idle costs about 5 to 6 s on tier M, then about 0.35 s. That is a real product behaviour (a user's first question after a quiet period), not noise. Mitigations, none built: keep the warehouse warm, or send a cheap read when a session opens. Larger data would make the first read longer. Untested here: whether a bigger warehouse changes it (none could be created).
+
+## Correction (2026-11-22): the warehouse was not idle
+
+The section above says the first read was slow because the warehouse's disk cache was empty "since the warehouse auto-stops when idle". That mechanism is **not supported**. The first warm-up experiment waited 15 minutes for the starter warehouse to stop and it never did: other scheduled jobs in the workspace (a statement every 5 or so minutes) keep it running, and it was RUNNING when both outliers happened. So the measured fact stands (a first read of the tier M file came from remote storage, 0% from the disk cache, 5 to 6 s, the same 11,185,427 bytes twice), but the cause is **the table's data not being in the disk cache after about 13 minutes without a read, on a running warehouse** (the gap between the two outlier queries was about 16 minutes, with a run between them). Why it left the cache (eviction by the other jobs' work, a time limit, or something else) is **not known**.
+
+The first warm-up experiment (`warmup_experiment`, 2026-11-22) therefore stopped with `warehouse_did_not_go_idle` and produced no result. Nothing was changed on the workspace.
