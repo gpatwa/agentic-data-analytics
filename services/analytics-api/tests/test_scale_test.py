@@ -17,7 +17,7 @@ from reference_stack.scale_test.__main__ import main
 from reference_stack.scale_test.guard import ScaleGuardError, check_statement
 from reference_stack.scale_test.history import HistoryRow
 from reference_stack.scale_test.runner import Budget, Plan, Stop, run
-from reference_stack.scale_test.warehouses import PREFIX, WarehouseAdmin
+from reference_stack.scale_test.warehouses import PREFIX, WarehouseAdmin, create_available
 from reference_stack.synthetic.config import GeneratorConfig
 from reference_stack.synthetic.food_delivery import generate
 
@@ -220,3 +220,15 @@ def test_the_command_is_a_dry_run_by_default_and_execute_refuses_without_its_inp
     assert out.startswith("DRY RUN: nothing was executed and no network call was made") and "warehouse statements planned: 578" in out
     assert main(["--tier", "T", "--execute"]) == 2
     assert main(["--tier", "T", "--execute", "--profile", "p", "--host", "h", "--approval-id", "no_such_approval", "--out", "/nonexistent-never-written"]) == 2
+
+
+def test_a_size_the_workspace_refuses_is_skipped_and_named_not_fatal():
+    class Refusing(FakeApi):
+        def api(self, method, path, body=None):
+            if method == "post" and body["cluster_size"] != "2X-Small":
+                raise EngineError("cli_call_failed")
+            return super().api(method, path, body)
+    api = Refusing()
+    admin = WarehouseAdmin(api, sleep=lambda s: None)
+    made, skipped = create_available(admin, ("2X-Small", "Small", "Medium"), "r1")
+    assert list(made) == ["2X-Small"] and skipped == ["Small", "Medium"] and admin.teardown() == []

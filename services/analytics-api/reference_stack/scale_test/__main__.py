@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 import tempfile
@@ -15,7 +16,7 @@ from reference_stack.scale_test import report as report_mod
 from reference_stack.scale_test import workload
 from reference_stack.scale_test.history import fetch
 from reference_stack.scale_test.runner import Budget, Plan, Stop, run
-from reference_stack.scale_test.warehouses import DBU_PER_HOUR, PREFIX, SIZES, WarehouseAdmin
+from reference_stack.scale_test.warehouses import DBU_PER_HOUR, PREFIX, SIZES, WarehouseAdmin, create_available
 
 MAX_CAP_MINUTES = 45.0
 
@@ -91,7 +92,12 @@ def _execute(args: argparse.Namespace, plan: Plan, statements: list[workload.Sta
     out.mkdir(parents=True, exist_ok=True)
     rows, history, uptime, code = [], {}, {}, 0
     try:
-        ids = {size: admin.create(size, run_id) for size in plan.sizes}
+        ids, skipped = create_available(admin, plan.sizes, run_id)
+        if skipped:
+            print(f"NOTE: the workspace refused these sizes, so they were skipped: {', '.join(skipped)}", file=sys.stderr)
+        if not ids:
+            raise EngineError("no_warehouse_could_be_created")
+        plan = dataclasses.replace(plan, sizes=tuple(ids))
         for wid in ids.values():
             admin.wait_running(wid)
         sessions = {size: DatabricksCliSession(args.profile, wid, cap) for size, wid in ids.items()}
@@ -116,7 +122,7 @@ def _execute(args: argparse.Namespace, plan: Plan, statements: list[workload.Sta
             print(f"WARNING: scale-test warehouses still present, delete them yourself: {', '.join(left)}", file=sys.stderr)
             code = 4
     rep = report_mod.build(rows, history, usd_per_dbu=args.usd_per_dbu, uptime_seconds=uptime)
-    rep["run_id"], rep["stopped"] = run_id, code != 0
+    rep["run_id"], rep["stopped"], rep["sizes_run"] = run_id, code != 0, list(plan.sizes)
     (out / f"scale-{run_id}.json").write_text(json.dumps(rep, indent=1))
     (out / f"scale-{run_id}.md").write_text(report_mod.markdown(rep))
     print(f"report written to {out}/scale-{run_id}.(json|md); teardown {'clean' if code != 4 else 'INCOMPLETE'}")

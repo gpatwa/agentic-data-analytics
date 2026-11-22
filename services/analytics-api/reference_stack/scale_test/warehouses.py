@@ -64,3 +64,15 @@ class WarehouseAdmin:
         except EngineError:
             left = ["<could not list warehouses>"]
         return left if (left or failures) else []
+
+
+def create_available(admin: WarehouseAdmin, sizes: tuple[str, ...], run_id: str) -> tuple[dict[str, str], list[str]]:
+    """Create each size; one the workspace refuses (an edition or quota limit) is skipped and named, not fatal. The caller stops if none could be made."""
+    made: dict[str, str] = {}
+    skipped: list[str] = []
+    for size in sizes:
+        try:
+            made[size] = admin.create(size, run_id)
+        except EngineError:
+            skipped.append(size)
+    return made, skipped
