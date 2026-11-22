@@ -170,7 +170,7 @@ def test_the_report_uses_the_warehouse_record_excludes_cache_hits_and_needs_a_pr
     hist = {r.statement_id: HistoryRow(500.0, 400.0, 50.0, 0.0, 1e6, 1e5, False) for r in rows}
     hist[rows[0].statement_id] = HistoryRow(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, True)
     rep = report_mod.build(rows, hist, usd_per_dbu=None, uptime_seconds={"2X-Small": 600.0})
-    assert rep["excluded_served_from_cache"] == 1 and rep["uptime_cost_usd_upper_bound"] is None and rep["no_warehouse_record"] == 0
+    assert rep["served_from_result_cache"] == 1 and any(e["phase"] == "cached_repeat" for e in rep["table"]) and rep["uptime_cost_usd_upper_bound"] is None and rep["no_warehouse_record"] == 0
     assert all("attributable_usd_per_answer" not in e for e in rep["table"]) and report_mod.build(rows, hist, usd_per_dbu=None, uptime_seconds={}) == rep | {"uptime_cost_usd_upper_bound": None}
     priced = report_mod.build(rows, hist, usd_per_dbu=0.5, uptime_seconds={"2X-Small": 3600.0})
     assert priced["uptime_cost_usd_upper_bound"] == {"2X-Small": 2.0} and "attributable_usd_per_answer" in priced["table"][0]
@@ -222,7 +222,7 @@ def test_history_is_polled_until_every_statement_appears():
         def api(self, method, path, body=None):
             self.n += 1
             ids = [p.split("=")[1] for p in path.split("&") if p.startswith("filter_by.statement_ids")]
-            return {"res": [{"query_id": i, "duration": 10, "metrics": {"execution_total_time_ms": 7, "read_bytes": 100, "result_from_cache": False}} for i in ids[: self.n]]}
+            return {"res": [{"query_id": i, "duration": 10, "metrics": {"execution_time_ms": 7, "read_bytes": 100, "result_from_cache": False}} for i in ids[: self.n]]}
     api, t = Api(), [0.0]
     got = history_mod.fetch(api, ["a", "b"], sleep=lambda s: t.__setitem__(0, t[0] + s), clock=lambda: t[0])
     assert set(got) == {"a", "b"} and got["a"].execution_ms == 7 and got["a"].from_cache is False

@@ -1,7 +1,7 @@
 """The warehouse's own record of each statement (duration, compile, queue, bytes read, cache hit), joined to ours by statement id.
 
-Field names are from the vendor's query-history reference as recalled and are NOT verified on this workspace: every field is read defensively, and a statement with no record is
-reported as such, with the wall-clock time used instead and labelled."""
+Field names were confirmed against one real response from this workspace on 2026-11-21 (the first run read the wrong execution field and found none): `metrics.execution_time_ms`,
+`compilation_time_ms`, `total_time_ms`, `read_bytes`, `rows_read_count`, `result_from_cache`. There is no queue duration, only a timestamp, so queue time is left out. Every field is read defensively."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def _num(v: Any) -> float | None:
 def parse(entry: dict[str, Any]) -> HistoryRow:
     m = entry.get("metrics") or {}
     cache = m.get("result_from_cache")
-    return HistoryRow(_num(entry.get("duration", m.get("total_time_ms"))), _num(m.get("execution_total_time_ms")), _num(m.get("compilation_time_ms")),
-                      _num(m.get("queue_time_ms")), _num(m.get("read_bytes")), _num(m.get("rows_read_count")),
+    return HistoryRow(_num(entry.get("duration", m.get("total_time_ms"))), _num(m.get("execution_time_ms")), _num(m.get("compilation_time_ms")),
+                      None, _num(m.get("read_bytes")), _num(m.get("rows_read_count")),
                       cache if isinstance(cache, bool) else None)
 
 
