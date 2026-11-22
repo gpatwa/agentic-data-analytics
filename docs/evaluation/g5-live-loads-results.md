@@ -26,3 +26,7 @@ What this does and does not show:
 - Not shown: whether the Databricks load of 50 million rows works. The loader's upload timeout (three minutes, a statement's) was a real blocker for any multi-gigabyte file and is fixed in this change (an upload now gets the run's remaining cap).
 - Options if tier L still matters, none built: (a) generate on a machine with at least 64 GB RAM and 100 GB free disk; (b) generate in chunks by order-number range (the generator keys every random draw by row number, so chunks are deterministic in principle, but its tables, ledger and answer keys are not built to be assembled from chunks); (c) accept tier M as the largest tier and test performance by loading it more than once, or load tier M into a larger warehouse size.
 - The cost estimate for the warehouse side is still not measured: tier M took about two minutes end to end on the 2X-Small warehouse.
+
+## Tier M views for the scale test (2026-11-21)
+
+Approval `scale_test_views_tier_m`. In `dev.compass_synthetic_food_delivery_m` the loader created `orders_current` (8 statements; all 6 checks equal to the tier M answer key: 999,488 orders, 0 duplicate `order_id`, 899,711 delivered, 59,990 cancelled, 24,898 refunded, 14,889 partially refunded) and then `orders_usd_gross` (5 statements; 0 duplicate `order_id`, gross USD 5,422,256,408 cents equal to the answer key, 0 cancelled). No failure, no stop, 13 statements in all. No table, grant or other schema was touched. Rollback is a manual `DROP VIEW` of each. The scale test itself has not run and is not approved.

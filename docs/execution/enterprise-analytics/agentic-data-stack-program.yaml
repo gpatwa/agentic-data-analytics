@@ -489,6 +489,12 @@ milestones:
       approved_at: 2026-11-21
       scope: "Load synthetic tier L (50,000,000 orders; seven tables) into a NEW schema dev.compass_synthetic_food_delivery_l on https://dbc-b8672746-8e43.cloud.databricks.com using the Serverless Starter Warehouse and the owner's own signed-in databricks profile, through the loader, with a 30-minute wall-clock cap (the cap the agent suggested), stop on any failed statement or count mismatch, no other object touched, nothing dropped by the run. Generated locally into a file-backed DuckDB that can spill to disk (16 GB RAM, about 50 GB free disk); the run is abandoned, and the owner told, if free disk falls below 12 GB. If the cap is reached the run stops and leaves whatever tables it had finished in that one new schema; cleanup is a DROP SCHEMA ... CASCADE on that schema only, on the owner's request. It does NOT approve tier XL, any other schema, any grant, any model call, any certification, or serving the data."
       record: "After the agent proposed a 30-minute cap and stop on any mismatch for tier L, the user answered \"approved\" on 2026-11-21; the agent read that as accepting those terms for tier L only. Snowflake, S6 and an environment name remain unapproved: the details they need were not given."
+    scale_test_views_tier_m:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-21
+      scope: "On https://dbc-b8672746-8e43.cloud.databricks.com, in dev.compass_synthetic_food_delivery_m, using the Serverless Starter Warehouse and the owner's signed-in databricks profile, create the view orders_current through the loader's --view-only mode (8 statements: a view-absent preflight, the CREATE VIEW, six checks against the tier M answer key), then the view orders_usd_gross through --usd-view-only (5 statements: a view-absent preflight, the CREATE VIEW, three checks), each with a 5-minute cap, stopping on any failed statement or check mismatch. Rollback is a DROP VIEW by the owner. It does NOT approve creating warehouses, running the scale test, any grant, any other table, view or schema, or certifying anything."
+      record: "The agent prepared this approval with the exact dry-run statements; the user answered \"Approved, run both views\" on 2026-11-21."
     intent_coverage_k0:
       status: approved
       approved_by: user
