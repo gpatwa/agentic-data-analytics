@@ -70,4 +70,3 @@ class WarehouseAdmin:
         except EngineError:
             left = ["<could not list warehouses>"]
         return left if (left or failures) else []
-

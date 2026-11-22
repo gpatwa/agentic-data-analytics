@@ -105,7 +105,7 @@ Reach a real scale signal **without generating anything on the laptop**: replica
 3. **Thresholds and the price table**: you supply them, or approve the proposed ones after seeing the dry-run plan.
 4. **Phase 2**: defer until Phase 1 shows a flat curve.
 
-Changes from the first draft, found while building: no `SET` is sent (cache is avoided by a unique comment and verified from the warehouse record); the run is 1 cold + 3 warm per statement, not 5 warm; all four warehouses are live together; the views prerequisite above; the statement budget is 450 (the plan sends at most 418).
+Changes from the first draft, found while building: no `SET` is sent (cache is avoided by a unique comment and verified from the warehouse record); the run is 1 cold + 2 warm per statement, not 5 warm; one warehouse is live at a time (see the revision at the end); the views prerequisite above; the statement budget is 450 (the plan sends at most 418).
 
 Built and tested with fakes only: `python -m reference_stack.scale_test --tier M` prints the dry run. Nothing in this note is approved or measured live.
 
