@@ -537,6 +537,12 @@ milestones:
       approved_at: 2026-11-22
       scope: "Run the warm-up experiment on the existing Serverless Starter Warehouse, on https://dbc-b8672746-8e43.cloud.databricks.com, against dev.compass_synthetic_food_delivery_m (views orders_current and orders_usd_gross), through the owner's signed-in databricks profile. This is the warmup_experiment: it waits, by read-only polling, until the warehouse has stopped by itself, runs the 32 workload statements as a control, waits for it to go idle again, runs the two certified warm-up statements, then the same 32 statements, with a run-unique constant column on each. At most 80 SELECT statements and a 40-minute cap, stopping on a wrong answer, any non-SELECT, a statement over 5 minutes, the budget or cap, or a warehouse that does not go idle. It does NOT approve creating, resizing, stopping or deleting any warehouse, any write, grant, setting change, other schema or table, or wiring the warm-up into the product."
       record: "The agent prepared this approval with the experiment's dry run; the user answered \"Approved, run the warm-up experiment\" on 2026-11-22."
+    warmup_experiment_x10:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-22
+      scope: "Run the warmup_experiment in its warmed-only form on the existing Serverless Starter Warehouse, on https://dbc-b8672746-8e43.cloud.databricks.com, against dev.compass_synthetic_food_delivery_m_x10 (views orders_current and orders_usd_gross, answers scaled by 10), through the owner's signed-in databricks profile: sleep 20 minutes after the last read with no call, run the two certified warm-up statements, then the same 32 workload statements, each with a run-unique constant column. At most 36 SELECT statements and a 45-minute cap, stopping on a wrong answer, any non-SELECT, a statement over 5 minutes, or the budget or cap. It does NOT approve creating, resizing, stopping or deleting any warehouse, any write, grant, setting change, other schema or table, wiring the Warmer into the product, or certifying anything."
+      record: "The agent prepared this approval with the experiment's dry run; the user answered \"Approved, run the warm-up experiment\" on 2026-11-22."
     intent_coverage_k0:
       status: approved
       approved_by: user
