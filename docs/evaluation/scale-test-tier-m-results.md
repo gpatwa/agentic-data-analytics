@@ -104,3 +104,18 @@ Approval `warmup_experiment_x10`. Run `4889e9af` on the Serverless Starter Wareh
 - The harness printed "warm-up did not remove the delay". **Do not read that as a finding.** Its threshold (first statement at most 1.5 s) was set for tier M, where a warm statement takes 0.35 s; at 10 times the data a normal statement takes 2 s, so nothing could pass it. The number that matters is 1.4 times the median.
 
 What it shows: after 20 minutes idle at 10 times the data, a cold read costs about 8.6 s per warm-up statement, and a warm-up pass of two statements (17 s) leaves the next statements within about 1.4 times of normal. What it does not show: no control round was run at this size, so "the warm-up helped" is not proved here; it is consistent with it. The 17 s would be paid by the Warmer, not by the user, if it ran in the background.
+
+## Control round at 10 times the data, 2026-11-22
+
+Approval `warmup_control_x10`. Run `2176150f`, control round only (no warm-up), same warehouse, same schema, same 32 statements, after the same 20-minute idle gap. 34 statements, not stopped, 0 wrong answers. Compared with the warmed run `4889e9af` (a separate run on a shared warehouse, so one pair, not a trial):
+
+| | Control (no warm-up) | Warmed (2 warm-up statements first) |
+|---|---|---|
+| first statement, the same one (`discount_total`, no dimension), execution | **8,502 ms** | 2,939 ms |
+| first statement, bytes read from remote storage | **30.5 MB** | 0.76 MB |
+| first statement, wall clock | 14,882 ms | 3,891 ms |
+| median of the other 31, execution | 2,118 ms | 2,053 ms |
+
+- The delay is real at 10 times the data: after 20 idle minutes the first statement took 8.5 s (4 times the 2.1 s median) and read 30.5 MB from remote storage.
+- Warming first removed most of it: the first user-visible statement dropped from 8.5 s to 2.9 s, and the other 31 were unchanged. The warm-up statements paid the cold read themselves (17.3 s for two), which in a product would be paid in the background, not by a user.
+- Caveats: one pair of runs on a shared warehouse; repeated data caches better than real data; the warm-up statements may have pulled in the same columns the first statement then used. Not tested: a different idle gap, or whether the cold read grows with real (non-replicated) data.
