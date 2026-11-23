@@ -24,6 +24,11 @@ PARTS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Extra pytest arguments per part. eval-ads056 holds one 59 s corpus test and a dozen short, independent ones, so two workers put the short ones beside the long one (99 s -> 71 s on a
+# laptop). Its corpus runner (reference_stack/evaluation_eval.py) is hashed into the release evidence manifest, so it is NOT changed to run its cases in parallel. The other parts share
+# session-scoped corpus fixtures, which every xdist worker would rebuild, so they stay single-process.
+EXTRA_ARGS: dict[str, tuple[str, ...]] = {"eval-ads056": ("-n", "2")}
+
 
 def all_test_files() -> list[str]:
     return sorted(p.name for p in TESTS.glob("test_*.py"))
@@ -35,7 +40,7 @@ def pytest_args(part: str) -> list[str]:
         return ["tests", *[f"--ignore=tests/{f}" for f in named], "-n", "auto"]
     if part not in PARTS:
         raise SystemExit(f"unknown part {part!r}; choose from {[*PARTS, REST]}")
-    return [f"tests/{f}" for f in PARTS[part]]
+    return [*[f"tests/{f}" for f in PARTS[part]], *EXTRA_ARGS.get(part, ())]
 
 
 if __name__ == "__main__":
