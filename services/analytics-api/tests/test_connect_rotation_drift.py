@@ -37,13 +37,21 @@ class RotatingAdmin(Admin):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.counter = 0
+        self.owner: dict[str, str] = {}
         self.service_principal_secrets_proxy = SimpleNamespace(create=self._new_secret, delete=lambda pid, sid: self.secrets.pop(sid, None),
                                                                list=lambda service_principal_id: [SimpleNamespace(id=sid) for sid in list(self.secrets)])
+
+    def _delete(self, pid):
+        super()._delete(pid)
+        for sid in [sid for sid, owner in self.owner.items() if owner == pid]:  # the real API deletes a principal's secrets with it
+            self.secrets.pop(sid, None)
+            del self.owner[sid]
 
     def _new_secret(self, service_principal_id, lifetime):
         self.counter += 1
         sid, value = f"sec-{self.counter}", f"{SECRET}-{self.counter}"
         self.secrets[sid] = value
+        self.owner[sid] = service_principal_id
         return SimpleNamespace(id=sid, secret=value)
 
 
