@@ -84,3 +84,15 @@ After a 20-minute gap with no reads, the first workload statement took **8.5 s**
 - `Warmer.recent()` (read only) so the call can answer without claiming anything.
 - A contract that needs policy values to compile fails to warm (code `failed`); it does not guess values.
 - Not done: a live check (needs a fresh approval); Snowflake; the browser CORS list allows only GET, POST and OPTIONS, so a browser calling the PUT switch directly would be refused (the same is true of the existing DELETE); the UI call to `/warm`.
+
+## Proposed live check of the wired warm-up (prepared 2026-11-22; NOT approved, nothing run)
+
+`python -m reference_stack.scale_test --experiment warmup_service` (code: `reference_stack/scale_test/service_check.py`, tested with fakes) runs the product's own `WarmUpService` and `Warmer` against the existing starter warehouse
+and the x10 schema, with these steps and pass conditions:
+
+1. Switch off: `request` answers `skipped_disabled` and sends nothing.
+2. Switch on, then a 20-minute gap with no call: `request` answers `warming` at once; the background warm-up finishes with code `warmed`, running the statements `warm_plans` chooses (three with this contract: one on `orders_current`, two on `orders_usd_gross`).
+3. A second `request` answers `skipped_recent`, and `on_question` sends nothing and records activity.
+4. The 32 workload statements run, all answers checked; the first read is compared with the earlier control (8,502 ms) and experiment (2,939 ms), which came from one pair of runs and are not re-measured here.
+
+What stands in for the real path: an in-memory connection record with no credential, and the owner's CLI profile instead of the OAuth connector, so the OAuth path itself is not exercised. At most 38 SELECT statements, 35-minute cap, nothing created, resized, stopped or deleted.

@@ -403,3 +403,34 @@ def test_control_only_round_sends_no_warm_up_and_says_so(world, capsys):
     assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W", "--idle-minutes", "20", "--control-only"]) == 0
     out = capsys.readouterr().out
     assert "34 in all" in out and "no warm-up statements" in out and "control round only" in out
+
+
+def _service_check(con, statements, **kw):
+    from reference_stack import synthetic_views_contract as sv
+    from reference_stack.scale_test.service_check import run_service_check
+    prov, t = FakeProvider(con), [0.0]
+    session = prov.open("2X-Small")
+    api = type("A", (), {"api": lambda self, m, p, b=None: (_ for _ in ()).throw(AssertionError("no warehouse call while sleeping"))})()
+    hist = lambda rows: {r.statement_id: HistoryRow(500.0, 2500.0 if i == 0 else 350.0, 0.0, None, 1.0, 1.0, False, 0.5) for i, r in enumerate(rows)}  # noqa: E731
+    res = run_service_check(statements, session, api, "w", sv.CERTIFIED.parents[1], CATALOG, SCHEMA, "x", Budget(100, 1e18), hist, idle_minutes=20, clock=lambda: t[0],
+                            sleep=lambda s: t.__setitem__(0, t[0] + s), **kw)
+    return res, session
+
+
+def test_the_wired_service_check_runs_the_real_service_and_its_steps_hold(world):
+    con, statements = world
+    res, session = _service_check(con, statements)
+    steps = res["steps"]
+    assert steps["switch_off"] == {"code": "skipped_disabled", "statements_sent": 0}  # nothing left the process while the switch was off
+    assert steps["request"]["code"] == "warming" and steps["warm_up"]["code"] == "warmed" and steps["warm_up"]["statements_run"] == steps["warm_up"]["statements_sent"] == 3  # orders_current has one metric, orders_usd_gross six: 1 + 2
+    assert steps["second_request"]["code"] == "skipped_recent" and steps["after_on_question"] == {"statements_sent_since": 0, "audits": 1}
+    assert res["wired_path_ok"] and res["verdict"] == "wired path behaved as designed" and res["waited_s"] == 1200 and res["mismatches"] == 0 and res["statements"] == 32
+    assert len(session.sent) == 3 + 32 and all("GROUP BY" not in q for q in session.sent[:3]) and all(q.lstrip().startswith(("/*", "SELECT", "WITH")) for q in session.sent)
+
+
+def test_the_service_check_dry_run_and_its_refusals(capsys):
+    assert main(["--tier", "T", "--experiment", "warmup_service", "--baseline-warehouse-name", "W", "--idle-minutes", "20"]) == 0
+    out = capsys.readouterr().out
+    assert "at most 38" in out and "skipped_disabled" in out and "no credential" in out and "DRY RUN" in out
+    assert main(["--tier", "T", "--experiment", "warmup_service"]) == 2  # needs an existing warehouse
+    assert main(["--tier", "T", "--experiment", "warmup_service", "--baseline-warehouse-name", "W", "--idle-minutes", "20", "--execute"]) == 2  # needs profile, host, approval
