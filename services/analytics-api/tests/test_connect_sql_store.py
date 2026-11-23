@@ -207,3 +207,13 @@ def test_the_setup_recorder_writes_to_the_durable_chain_and_its_ids_stay_unique_
     SetupRecorder(restarted, tenant_id="ta", connection_id="dbx-2", admin_id="admin").consent_shown(["GRANT y"], engine="databricks", host=HOST)
     events = restarted.events
     assert len(events) == 2 and len({e.event_id for e in events}) == 2 and restarted.verify()
+
+
+def test_the_warm_up_switch_round_trips_and_defaults_to_off(engine):
+    from dataclasses import replace
+
+    s = SqlConnectionStore(engine)
+    s.add(rec())
+    assert s.get("ta", "c1").warm_up is False
+    s.update(replace(s.get("ta", "c1"), warm_up=True))
+    assert s.get("ta", "c1").warm_up is True

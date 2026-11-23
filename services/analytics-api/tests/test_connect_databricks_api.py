@@ -246,3 +246,35 @@ def test_a_workspace_another_tenant_already_connected_is_refused_and_leaves_no_s
     view = begin(client)
     r = finish(client, view)
     assert r.status_code == 409 and r.json()["detail"] == "target_claimed" and not secrets.exists("ta", f"databricks/{view['connection_id']}")
+
+
+# ---- the warm-up switch ----------------------------------------------------------------------------------------------------------
+
+
+def _connected():
+    client, setups, store, secrets, chain, sessions = build()
+    view = begin(client)
+    assert finish(client, view).status_code == 200
+    return client, store, chain, view["connection_id"]
+
+
+def test_warm_up_is_off_by_default_and_a_manager_can_turn_it_on_and_off_with_an_audit_event():
+    client, store, chain, cid = _connected()
+    url = f"/api/v2/connect/databricks/connections/{cid}/warm-up"
+    assert client.get("/api/v2/connect/databricks/connections", headers=auth()).json()[0]["warm_up"] is False and store.get("ta", cid).warm_up is False
+    r = client.put(url, json={"enabled": True}, headers=auth())
+    assert r.status_code == 200 and r.json()["warm_up"] is True and store.get("ta", cid).warm_up is True
+    assert client.put(url, json={"enabled": True}, headers=auth()).status_code == 200  # no change, no second audit event
+    assert client.put(url, json={"enabled": False}, headers=auth()).json()["warm_up"] is False
+    events = [e for e in chain.events if e.event_type == "connect.warm_up_changed"]
+    assert [e.payload["enabled"] for e in events] == [True, False] and all(e.actor_id == "lead-a" and e.tenant_id == "ta" for e in events)
+
+
+def test_only_a_manager_of_the_same_tenant_can_change_warm_up():
+    client, store, _chain, cid = _connected()
+    url = f"/api/v2/connect/databricks/connections/{cid}/warm-up"
+    assert client.put(url, json={"enabled": True}, headers=auth("usr-a")).status_code == 403
+    assert client.put(url, json={"enabled": True}).status_code == 401
+    assert client.put(url, json={"enabled": True}, headers=auth("mgr-b")).status_code == 404  # another tenant cannot tell it exists
+    assert client.put(url, json={"enabled": "yes please"}, headers=auth()).status_code == 422
+    assert store.get("ta", cid).warm_up is False

@@ -1,6 +1,6 @@
 # Keeping the customer's warehouse warm: a design (2026-11-21)
 
-Status: **the component is built and tested with fakes; it is not wired into any request path and nothing was run live.** Evidence is the scale test on tier M (`docs/evaluation/scale-test-tier-m-results.md`).
+Status: **built and tested with fakes, wired into the request path behind a per-connection switch that is off by default; nothing was run live.** (Wiring plan, last section: steps 1 to 5 are built; see "As built".) The live evidence (below, and `docs/evaluation/scale-test-tier-m-results.md`) is in; the wiring plan is the last section and needs the owner's decisions. Evidence is the scale test on tier M (`docs/evaluation/scale-test-tier-m-results.md`).
 
 ## The problem, as measured
 
@@ -43,3 +43,44 @@ The first version waited for the warehouse to stop; the starter warehouse never 
 On the starter warehouse only, no creation: leave it idle past its 10-minute auto-stop, run the warm-up statements (the Warmer, with the statements from the scale test's workload), then the 32 statements. Pass if the first question's execution is about 0.35 s instead of 5 to 6 s. About 40 `SELECT`s, the 2X-Small, a 10-minute cap. The idle wait is the only slow part. It would also show whether one statement per dataset is enough.
 
 Nothing here is approved, wired or measured live.
+
+
+## What the live runs showed (2026-11-22, 10 times tier M, starter warehouse, one pair of runs)
+
+After a 20-minute gap with no reads, the first workload statement took **8.5 s** and read 30.5 MB from remote storage (control). After two warm-up statements (17.3 s, paid by the warm-up, not by a question) the same statement took **2.9 s** and read 0.76 MB; the other 31 statements were unchanged (2.1 s median either way). So warming works and moves the cost off the user. It is one pair on a shared warehouse with replicated data.
+
+## Wiring plan (a proposal; nothing here is built or approved)
+
+**Where it hooks in.** The API has no "session open" call, only `POST /api/v2/analytics/analyze`. Three options:
+
+| | Hook | Lead time | Cost | Weakness |
+|---|---|---|---|---|
+| 1 | A new `POST /api/v2/analytics/warm`, fire-and-forget, that the UI (or an agent) calls when a user opens the workspace or starts typing | seconds to minutes, best | one warm-up per idle gap | needs a client change; each client must call it |
+| 2 | Inside `/analyze`: start the warm-up in a background thread when the connection has been quiet, in parallel with interpretation (the model call takes seconds before any warehouse read) | 1 to 3 s | same | the first question still waits for the cold read (the warm-up and the answer read the same data); it helps only by overlapping them |
+| 3 | A timer that warms every ~8 minutes | none needed | the warehouse is up all day: **96 DBU a day on a 2X-Small** | that is option B in the table above, rejected |
+
+**Recommendation: 1, with 2 as a fallback for clients that cannot call it.** Option 1 is the only one that gives the warm-up time to finish (17 s) before the first question. Option 2 alone would not fix the 8.5 s.
+
+**The pieces, smallest first.**
+
+1. A `warm_up` flag on the connection record, **off by default**, stored with the connection (a migration beside 0013, kept equal to the store's table definition by the existing test). Setting it is an admin action on the connect API, with the cost stated in the call's description (one short burst of reads per idle gap, and a stopped warehouse is started).
+2. `app/connect/warmup_service.py`: given a tenant, take the connection (live, active, flag on), pick the statements, run them through the tenant's own gateway and compiler (the same ones a question uses, via `GovernedRuntime._tenant`), and hand each to `Warmer.warm` in a background thread. Results are discarded; the audit record is the `WarmResult` code, a count and a duration.
+3. The endpoint: authenticated like `/analyze`, tenant taken from the identity (never from the body), returns `202` and the code at once (`warming`, `skipped_recent`, `skipped_disabled`), never waits, never returns a value. It is rate-limited per tenant (the `Warmer`'s `idle_after` already makes the second call within 8 minutes a no-op, so it cannot be used to keep a warehouse alive).
+4. Option 2's hook as a call to the same service at the top of `/analyze`, behind the same flag.
+5. `note_activity` called after every real answer, so a busy connection is never warmed.
+
+**Statement choice.** The measured warm-up used `order_count` and `gross_order_value` with no dimension, and the first question afterwards still read 0.76 MB from storage, so the cache is per column and these two did not cover every column. Default: for each certified dataset in the tenant's contract, the no-dimension aggregate of its first two metrics, at most 4 statements. A later refinement could choose from the columns real questions touched; that needs data we do not have.
+
+**Limits to say out loud.** Per replica, not shared (each replica warms once per idle gap; the extra is a few reads). Snowflake is not measured. A warm-up wakes a stopped warehouse, so the customer pays for that start: the flag description says so. Repeated data caches better than real data, so the 8.5 s may be different on a customer's own data.
+
+**What I need from you before building.** (a) Hook: 1, 1 plus 2, or something else. (b) Admin-set flag per connection, or a tenant-wide default. (c) Whether the first release is Databricks only. Each build step above is small enough for one PR with fakes-only tests; nothing live is needed to build it, and a live check afterwards would need a fresh approval.
+
+
+## As built (fakes only; no live check yet)
+
+- `ConnectionRecord.warm_up` (default off), migration `0015_connect_warm_up`, and `PUT /api/v2/connect/databricks/connections/{id}/warm-up` (connection managers of the same tenant only; each change is a `connect.warm_up_changed` audit event). The connection list shows it.
+- `app/connect/warmup_service.py`: `WarmUpService.request(tenant)` answers `warming`, `skipped_recent`, `skipped_disabled`, `skipped_busy` or `failed` at once and does the warehouse work on a background thread (at most four queued or running at once). It warms only a tenant's single active Databricks connection with the switch on. Statements: for each certified dataset of the tenant's contract, the no-dimension aggregate of its first two metrics, at most four, compiled by the tenant's own certified compiler and run through its own gateway with a one-row limit; results discarded. Each run writes a `connect.warm_up_ran` audit event with a code, a count and a duration only.
+- `POST /api/v2/analytics/warm` (202 when warming, else 200 with the code; the tenant comes from the identity). `POST /analyze` calls `WarmUpService.on_question` first: it warms if the connection is idle and otherwise marks it busy so no warm-up is wasted; it never raises and never waits.
+- `Warmer.recent()` (read only) so the call can answer without claiming anything.
+- A contract that needs policy values to compile fails to warm (code `failed`); it does not guess values.
+- Not done: a live check (needs a fresh approval); Snowflake; the browser CORS list allows only GET, POST and OPTIONS, so a browser calling the PUT switch directly would be refused (the same is true of the existing DELETE); the UI call to `/warm`.

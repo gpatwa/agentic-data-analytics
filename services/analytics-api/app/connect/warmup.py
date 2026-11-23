@@ -32,7 +32,7 @@ class Warmer:
         self._last: dict[tuple[str, str], float] = {}
         self._lock = threading.Lock()
 
-    def warm(self, tenant_id: str, connection_id: str, statements: Sequence[str], execute: Callable[[str], Any], *, enabled: bool,
+    def warm(self, tenant_id: str, connection_id: str, statements: Sequence[Any], execute: Callable[[Any], Any], *, enabled: bool,
              on_done: Callable[[WarmResult], None] | None = None) -> WarmResult:
         """`execute` runs one statement on the connection's read-only session and consumes the result. The key is the tenant and the connection, so one tenant never warms (or learns of) another's."""
         result = self._warm((tenant_id, connection_id), list(statements)[: self.max_statements], execute, enabled)
@@ -43,7 +43,7 @@ class Warmer:
                 pass
         return result
 
-    def _warm(self, key: tuple[str, str], statements: list[str], execute: Callable[[str], Any], enabled: bool) -> WarmResult:
+    def _warm(self, key: tuple[str, str], statements: list[Any], execute: Callable[[Any], Any], enabled: bool) -> WarmResult:
         if not enabled:
             return WarmResult("skipped_disabled")
         if not statements:
@@ -66,6 +66,12 @@ class Warmer:
                 self._last.pop(key, None)  # a failed warm-up does not count, so the next session tries again
             return WarmResult("failed", run, self._clock() - start)
         return WarmResult("warmed", run, self._clock() - start)
+
+    def recent(self, tenant_id: str, connection_id: str) -> bool:
+        """True when a warm-up or a real answer ran less than `idle_after` ago, so a warm-up now would be skipped. Read only: it claims nothing."""
+        with self._lock:
+            last = self._last.get((tenant_id, connection_id))
+        return last is not None and self._clock() - last < self.idle_after
 
     def note_activity(self, tenant_id: str, connection_id: str) -> None:
         """A real answer just ran, so the warehouse is warm now: a warm-up right after it would be wasted."""

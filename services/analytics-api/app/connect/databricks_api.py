@@ -301,6 +301,7 @@ class DbxConnectionView(BaseModel):
     expires_at: str | None
     expires_in_days: int | None
     needs_rotation: bool
+    warm_up: bool = False
 
 
 ROTATE_WITHIN_DAYS = 14
@@ -312,8 +313,12 @@ def connection_view(record: ConnectionRecord, now: datetime | None = None) -> Db
     return DbxConnectionView(
         connection_id=record.connection_id, host=record.host, catalog=record.database, tables=list(record.allowed_tables), status=record.status,
         expires_at=record.secret_expires_at.isoformat() if record.secret_expires_at else None, expires_in_days=days,
-        needs_rotation=record.status != "active" or (days is not None and days <= ROTATE_WITHIN_DAYS),
+        needs_rotation=record.status != "active" or (days is not None and days <= ROTATE_WITHIN_DAYS), warm_up=record.warm_up,
     )
+
+
+class WarmUpRequest(BaseModel):
+    enabled: bool
 
 
 class StepView(BaseModel):
@@ -452,6 +457,22 @@ def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> A
         except ConnectionNotFound as exc:
             raise HTTPException(404, "connection_not_found") from exc
         return CompleteView(ok=result.ok, code=result.code, checks=[{"table": t, "passed": p} for t, p in result.checks], connection_status=result.connection_status)
+
+    @router.put("/connections/{connection_id}/warm-up", response_model=DbxConnectionView)
+    def set_warm_up(connection_id: str, body: WarmUpRequest, who: AnalyticsIdentity = Depends(manager)) -> DbxConnectionView:
+        """Turn warming on or off for one connection. Cost, said here and in the screen that calls this: when it is on, opening a workspace after a quiet period runs a few
+        short read-only queries on the customer's warehouse, and starts the warehouse if it was stopped. Off by default."""
+        try:
+            record = runtime.setups.store.get(who.tenant_id, connection_id)
+        except ConnectionNotFound as exc:
+            raise HTTPException(404, "connection_not_found") from exc
+        if record.engine != "databricks" or record.status == "removed":
+            raise HTTPException(404, "connection_not_found")
+        if record.warm_up != body.enabled:
+            record = runtime.setups.store.update(replace(record, warm_up=body.enabled))
+            runtime.setups.chain.append(f"{connection_id}:warm_up:{len(runtime.setups.chain.events) + 1}", "connect.warm_up_changed", who.tenant_id, who.user_id,
+                                        {"connection_id": connection_id, "enabled": body.enabled})
+        return connection_view(record)
 
     @router.delete("/connections/{connection_id}")
     def remove(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:

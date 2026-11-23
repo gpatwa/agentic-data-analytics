@@ -348,6 +348,7 @@ def test_openapi_documents_the_endpoints_and_strict_bodies(tmp_path, monkeypatch
     paths = spec["paths"]
     assert set(paths) == {
         "/api/v2/analytics/analyze",
+        "/api/v2/analytics/warm",  # answers a code at once; warms a connected warehouse only when an admin turned it on
         "/api/v2/analytics/runs/{run_id}",
         "/api/v2/analytics/runs/{run_id}/clarify",
         "/api/v2/analytics/runs/{run_id}/review",

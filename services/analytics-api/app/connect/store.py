@@ -43,6 +43,7 @@ class ConnectionRecord:
     teardown: tuple[str, ...] = ()  # the statements that remove what setup created; object names only, no secrets
     http_path: str = ""  # Databricks only: the SQL warehouse's HTTP path (not a secret)
     secret_expires_at: datetime | None = None  # when the stored secret stops working, if known (Databricks OAuth secrets expire)
+    warm_up: bool = False  # an admin turned on warming this warehouse before a user's first question (app.connect.warmup); off unless set
     status: str = "pending"
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
