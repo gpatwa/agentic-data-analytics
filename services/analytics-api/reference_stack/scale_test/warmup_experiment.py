@@ -87,6 +87,8 @@ def run_experiment(statements: list[Statement], session: Session, api: Api, ware
                        "first_execution_ms": getattr(h, "execution_ms", None), "first_remote_bytes": getattr(h, "read_remote_bytes", None),
                        "rest_execution_ms_median": sorted(rest)[len(rest) // 2] if rest else None, "statements": len(rows),
                        "mismatches": sum(1 for r in rows if r.mismatch)})
+    if all(r["arm"] == "control" for r in rounds):  # control only: the delay itself, to be compared with a warmed round from another run
+        return {"rounds": rounds, "control_first_execution_ms": rounds[0]["first_execution_ms"], "control_source": "measured in this run", "verdict": "control round only: compare with a warmed round"}
     warmed = next(r for r in rounds if r["arm"] == "warmed")
     measured = next((r["first_execution_ms"] for r in rounds if r["arm"] == "control"), None)
     control = measured if measured is not None else control_first_ms

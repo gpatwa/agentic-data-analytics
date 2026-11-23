@@ -387,3 +387,19 @@ def test_the_idle_gap_dry_run_says_what_it_sleeps_and_sends(capsys):
     assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W", "--idle-minutes", "20", "--warmed-only", "--control-first-ms", "5400"]) == 0
     out = capsys.readouterr().out
     assert "36 in all" in out and "sleeps 20 minutes since the last read (no call)" in out and "once (warmed round only" in out
+
+
+def test_control_only_round_sends_no_warm_up_and_says_so(world, capsys):
+    from reference_stack.scale_test.warmup_experiment import run_experiment
+    con, statements = world
+    prov, t = FakeProvider(con), [0.0]
+    session = prov.open("2X-Small")
+    api = type("A", (), {"api": lambda self, m, p, b=None: (_ for _ in ()).throw(AssertionError("no warehouse call while sleeping"))})()
+    hist = lambda rows: {r.statement_id: HistoryRow(500.0, 5000.0 if i == 0 else 350.0, 0.0, None, 1.0, 1.0, False, 1.0) for i, r in enumerate(rows)}  # noqa: E731
+    res = run_experiment(statements, session, api, "w", CATALOG, SCHEMA, "x", Budget(100, 1e18), hist, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s),
+                         idle_minutes=20, arms=("control",))
+    assert [r["arm"] for r in res["rounds"]] == ["control"] and res["rounds"][0]["warm_up"] is None and len(session.sent) == 32
+    assert res["control_first_execution_ms"] == 5000.0 and res["control_source"] == "measured in this run" and "control round only" in res["verdict"]
+    assert main(["--tier", "T", "--experiment", "warmup", "--baseline-warehouse-name", "W", "--idle-minutes", "20", "--control-only"]) == 0
+    out = capsys.readouterr().out
+    assert "34 in all" in out and "no warm-up statements" in out and "control round only" in out
