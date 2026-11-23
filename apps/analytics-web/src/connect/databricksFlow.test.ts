@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, expiryText, needsApplicationId, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
+import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 
 const ok = { host: 'dbc-1234abcd-5678.cloud.databricks.com', catalog: 'sales', warehouse: 'Starter', tablesText: 'data.orders\ndata.customers' };
 const view = (placeholder: boolean): DbxScriptView => ({
@@ -75,4 +75,19 @@ test('rotation clears the new secret from page state before the request is made'
   const source = readFileSync(`${process.cwd()}/src/connect/DatabricksWorkspace.tsx`, 'utf8');
   const fn = source.slice(source.indexOf('const submitRotation'));
   assert.ok(fn.indexOf("setRotateSecret('')") > 0 && fn.indexOf('rotateDbxSecret(cfg') > fn.indexOf("setRotateSecret('')"));
+});
+
+test('each state of the enrol file has plain words, and a refusal says nothing is left behind', () => {
+  assert.match(enrolStatusText(null), /Waiting for your admin/);
+  assert.match(enrolStatusText({ state: 'waiting', code: null, checks: [], expires_in_minutes: 1 }), /in 1 minute\./);
+  assert.match(enrolStatusText({ state: 'waiting', code: null, checks: [], expires_in_minutes: 29 }), /29 minutes/);
+  assert.match(enrolStatusText({ state: 'expired', code: null, checks: [], expires_in_minutes: 0 }), /expired/);
+  assert.match(enrolStatusText({ state: 'connected', code: null, checks: [], expires_in_minutes: 0 }), /Connected/);
+  assert.match(enrolStatusText({ state: 'refused', code: 'connection_test_failed', checks: [], expires_in_minutes: 0 }), /nothing is left behind/);
+});
+
+test('the remove command is offered only for a well-formed application id', () => {
+  assert.equal(removeCommand('0B1C2D3E-4F50-6172-8394-A5B6C7D8E9F0'), 'python3 compass-enrol.py --remove 0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0');
+  assert.equal(removeCommand(''), '');
+  assert.equal(removeCommand('x; rm -rf /'), '');
 });

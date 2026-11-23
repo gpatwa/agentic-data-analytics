@@ -85,6 +85,7 @@ class DatabricksSetups:
     chain: AuditChain
     tokens: EnrolmentTokens = field(default_factory=EnrolmentTokens)
     limiter: AttemptLimiter = field(default_factory=AttemptLimiter)
+    enrol_state: dict[str, dict[str, Any]] = field(default_factory=dict)  # what the screen shows while the admin runs the file: waiting, refused or connected (codes and counts only)
     _pending: dict[str, PendingDatabricks] = field(default_factory=dict)
     _recorders: dict[str, SetupRecorder] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -306,6 +307,7 @@ class DbxConnectionView(BaseModel):
     expires_in_days: int | None
     needs_rotation: bool
     warm_up: bool = False
+    application_id: str = ""  # the principal's id (not a secret): the screen shows the file's --remove command with it
 
 
 ROTATE_WITHIN_DAYS = 14
@@ -317,7 +319,7 @@ def connection_view(record: ConnectionRecord, now: datetime | None = None) -> Db
     return DbxConnectionView(
         connection_id=record.connection_id, host=record.host, catalog=record.database, tables=list(record.allowed_tables), status=record.status,
         expires_at=record.secret_expires_at.isoformat() if record.secret_expires_at else None, expires_in_days=days,
-        needs_rotation=record.status != "active" or (days is not None and days <= ROTATE_WITHIN_DAYS), warm_up=record.warm_up,
+        needs_rotation=record.status != "active" or (days is not None and days <= ROTATE_WITHIN_DAYS), warm_up=record.warm_up, application_id=record.user,
     )
 
 
@@ -405,13 +407,20 @@ def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
             report = check_readback(pending, application_id, body.get("grants"), body.get("warehouse_acl"))
         except EnrolRefused as exc:
             raise HTTPException(422, exc.code) from exc
+        def note(state: str, code: str | None, checks: list[dict[str, Any]]) -> None:
+            known = setups.enrol_state.get(pending.setup_id)
+            if known is not None:
+                known.update({"state": state, "code": code, "checks": checks})
+
         if not report.ok:
+            note("refused", report.code, [])
             audit("connect.enrol_refused", {"code": report.code})
             raise HTTPException(422, report.code or "registration_not_verified")
         try:
             result = setups.complete(pending, application_id=application_id, client_secret=client_secret, http_path=http_path, session_factory=runtime.session_factory)
         except Refused as exc:
             raise HTTPException(409 if exc.code in ("connection_id_taken", "target_claimed") else 422, exc.code) from exc
+        note("connected" if result.ok else "refused", result.code, [{"table": t, "passed": p} for t, p in result.checks])
         audit("connect.enrolled", {"ok": result.ok, "code": result.code})
         return {"ok": result.ok, "code": result.code, "connection_id": pending.connection_id, "connection_status": result.connection_status,
                 "checks": [{"table": t, "passed": p} for t, p in result.checks]}
@@ -497,10 +506,22 @@ def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> A
             file = render_enrol_file(pending.scope, suffix=pending.suffix, warehouse_name=pending.warehouse_name, host=pending.host, enrol_url=runtime.enrol_url, token=token)
         except EnrolRefused as exc:
             raise HTTPException(503 if exc.code == "enrol_url_invalid" else 422, exc.code) from exc
+        runtime.setups.enrol_state[pending.setup_id] = {"tenant_id": who.tenant_id, "state": "waiting", "code": None, "checks": [], "expires_at": expires_at}
         runtime.setups.chain.append(f"{pending.connection_id}:enrol_file:{len(runtime.setups.chain.events) + 1}", "connect.enrol_file_issued", who.tenant_id, who.user_id,
                                     {"connection_id": pending.connection_id, "file_digest": file.digest, "script_digest": pending.script.digest})
         return {"filename": file.filename, "content": file.content, "digest": file.digest, "expires_in_minutes": int((expires_at - runtime.setups.tokens._clock()) // 60),
                 "run": "python3 compass-enrol.py   (add --profile <name> to use a Databricks CLI profile; python3 compass-enrol.py --digest prints the digest above)"}
+
+    @router.get("/setups/{setup_id}/status")
+    def enrol_status(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:
+        """What the screen shows while the admin runs the enrol file: waiting, refused (with a code), connected (with the per-table checks) or expired. Codes and counts only."""
+        state = runtime.setups.enrol_state.get(setup_id)
+        if state is None or state["tenant_id"] != who.tenant_id:
+            raise HTTPException(404, "setup_not_found")
+        now = runtime.setups.tokens._clock()
+        expired = state["state"] == "waiting" and state["expires_at"] < now
+        return {"state": "expired" if expired else state["state"], "code": state["code"], "checks": state["checks"],
+                "expires_in_minutes": max(0, int((state["expires_at"] - now) // 60)) if state["state"] == "waiting" and not expired else 0}
 
     @router.post("/setups/{setup_id}/cancel", status_code=204, response_model=None)
     def cancel(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> None:

@@ -356,3 +356,52 @@ def test_issuing_a_second_file_revokes_the_first_and_the_audit_records_digests_o
     issued = [e for e in chain.events if e.event_type == "connect.enrol_file_issued"]
     assert len(issued) == 2 and all(set(e.payload) == {"connection_id", "file_digest", "script_digest"} for e in issued)
     assert second["expires_in_minutes"] in (29, 30)
+
+
+# ---- what the screen shows while the admin runs the file ----------------------------------------------------------------------------
+
+
+def _status(client, view, token="mgr-a"):
+    return client.get(f"/api/v2/connect/databricks/setups/{view['setup_id']}/status", headers=auth(token))
+
+
+def test_the_status_goes_from_waiting_to_connected_with_the_per_table_checks(tmp_path, monkeypatch, capsys):
+    client, *_ = build()
+    view = begin(client)
+    assert _status(client, view).status_code == 404  # no file issued yet
+    file = issue(client, view)
+    waiting = _status(client, view).json()
+    assert waiting["state"] == "waiting" and waiting["expires_in_minutes"] in (29, 30) and waiting["checks"] == []
+    assert run_file(tmp_path, monkeypatch, capsys, file, Admin(), client)[0] == 0
+    done = _status(client, view).json()
+    assert done["state"] == "connected" and done["code"] is None and {c["table"] for c in done["checks"]} == {"sales.data.customers", "sales.data.orders"}
+    assert all(c["passed"] for c in done["checks"]) and SECRET not in json.dumps(done)
+
+
+def test_the_status_shows_a_refusal_with_its_code_and_an_expired_file_as_expired(tmp_path, monkeypatch, capsys):
+    client, _, _, _, _, clock = build(fail_test=True)
+    view = begin(client)
+    file = issue(client, view)
+    run_file(tmp_path, monkeypatch, capsys, file, Admin(), client)
+    refused = _status(client, view).json()
+    assert refused["state"] == "refused" and refused["code"] == "connection_test_failed" and not any(c["passed"] for c in refused["checks"])
+    other = begin(client)
+    issue(client, other)
+    clock.now += 1801
+    assert _status(client, other).json()["state"] == "expired"
+
+
+def test_the_status_is_for_managers_of_the_same_tenant_only():
+    client, *_ = build()
+    view = begin(client)
+    issue(client, view)
+    assert _status(client, view, "usr-a").status_code == 403 and _status(client, view, "mgr-b").status_code == 404
+
+
+def test_the_connection_list_carries_the_principals_application_id_for_the_remove_command(tmp_path, monkeypatch, capsys):
+    client, *_ = build()
+    view = begin(client)
+    admin = Admin()
+    run_file(tmp_path, monkeypatch, capsys, issue(client, view), admin, client)
+    [row] = client.get("/api/v2/connect/databricks/connections", headers=auth()).json()
+    assert row["application_id"] == next(iter(admin.principals.values())).application_id and SECRET not in json.dumps(row)

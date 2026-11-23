@@ -148,6 +148,18 @@ Decided by the owner on 2026-11-23: **the enrol file is the default customer tra
 
 Not verified: the file against the real Databricks SDK on a customer's machine, notebook or CLI (its calls are the ones the 2026-11-23 live provision run used, plus `service_principals.list()` and `delete` for `--remove`); a deployed instance with a public address and TLS; whether Compass should also run its own check that a read outside the ceiling is denied. Pending enrolments live in memory, so a restart loses them and the admin asks for a new file. `app/config.py` and `app/main.py` are listed in the ADS-079 evidence manifest; the checked-in manifest was already generated at another commit and is regenerated at final sign-off.
 
+## Built: S3, the screens (2026-11-23), on fakes only
+
+`apps/analytics-web/src/connect/` (`DatabricksWorkspace.tsx`, `databricksViews.tsx`, `databricksFlow.ts`, `databricksApi.ts`, `copy.ts`) and, on the server, `GET /api/v2/connect/databricks/setups/{id}/status` plus the principal's `application_id` on the connection list. **The screens have not been looked at in a browser against a running server; they are covered by render tests and a type check and build.**
+
+- **Track chooser:** after the admin names the workspace and tables, "One file (recommended)" is selected; "Run the script yourself" is the earlier manual path, unchanged. If the server has no public address configured (`enrol_not_configured`) the screen says so and points to the manual path.
+- **The file:** "Get the file" shows the digest to compare with `python3 compass-enrol.py --digest`, the run command, a download button and "Get a new file" (which revokes the old one).
+- **Live status:** every 3 seconds the screen asks the status endpoint and shows waiting (with minutes left), connected (each table, "Can read"), refused (the plain-words error for its code, and that the file removed what it created) or expired. It stops when the file is spent or expired, and a failed poll is retried.
+- **Remove:** after "Remove" the screen says Compass can no longer connect and shows the exact `python3 compass-enrol.py --remove <application id>` command, only when the application id is well formed.
+- **Rotate:** unchanged (the admin pastes a new secret); the screen says plainly that rotating with one file is not built yet. That is S4.
+
+Not built in S3: rotation by the enrol file, the drift check and the 60-day reminder (S4); a live end-to-end run (S5).
+
 ## Relationship to earlier documents
 
 This supersedes the manual steps 1 to 3 and 5 of `WARMUP_DEPLOYMENT_CHECK_PLAN.md` once S1 is built; until then that plan's manual fallback is the only way to run the deployment check. It does not change the recorded approval `warmup_deployment_check` or any human gate.

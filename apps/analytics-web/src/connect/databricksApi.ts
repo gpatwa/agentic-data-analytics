@@ -60,6 +60,7 @@ export interface DbxConnection {
   expires_in_days: number | null;
   needs_rotation: boolean;
   warm_up: boolean;
+  application_id: string;
 }
 
 export interface DbxRemoval {
@@ -79,3 +80,22 @@ export const removeDbxConnection = (cfg: ConnectConfig, id: string) => call<DbxR
 /** Turn warming on or off for one connection (an admin action; off by default). Answers the updated connection. */
 export const setDbxWarmUp = (cfg: ConnectConfig, id: string, enabled: boolean) =>
   call<DbxConnection>(cfg, 'PUT', `${BASE}/connections/${encodeURIComponent(id)}/warm-up`, { enabled });
+
+/** The one file the admin runs (docs/design/SELF_SERVE_CONNECT_DESIGN.md). It carries a single-use token valid for 30 minutes; asking again revokes the old one. */
+export interface DbxEnrolFile {
+  filename: string;
+  content: string;
+  digest: string;
+  expires_in_minutes: number;
+  run: string;
+}
+
+export interface DbxEnrolStatus {
+  state: 'waiting' | 'refused' | 'connected' | 'expired';
+  code: string | null;
+  checks: { table: string; passed: boolean }[];
+  expires_in_minutes: number;
+}
+
+export const issueEnrolFile = (cfg: ConnectConfig, id: string) => call<DbxEnrolFile>(cfg, 'POST', `${BASE}/setups/${encodeURIComponent(id)}/enrol-file`);
+export const enrolStatus = (cfg: ConnectConfig, id: string) => call<DbxEnrolStatus>(cfg, 'GET', `${BASE}/setups/${encodeURIComponent(id)}/status`);
