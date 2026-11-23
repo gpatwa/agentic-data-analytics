@@ -104,3 +104,7 @@ What stands in for the real path: an in-memory connection record with no credent
 ### The switch UI (built 2026-11-22)
 
 `apps/analytics-web/src/connect`: each active Databricks connection shows a checkbox, off by default, that calls the admin `PUT /connections/{id}/warm-up`. The text beside it says the cost: a few short read-only queries on the customer's warehouse when Compass is opened after a quiet period, which starts a stopped warehouse and uses warehouse time on their account, with no added access. It is disabled for a viewer who cannot manage connections and hidden for a paused connection. The web app is served with `/api/` proxied on the same origin (nginx), so the API's GET/POST/OPTIONS-only CORS list does not stop the PUT there; a deployment that calls the API cross-origin would need PUT added. Typecheck and the 72 web tests pass; not exercised in a browser.
+
+### Policy values and CORS (built 2026-11-22)
+
+A metric whose compile needs a policy value (a required filter that takes its value from the person) is now skipped, and the dataset's next metric is tried, instead of failing the whole warm-up. A warm-up never invents a policy value and never drops a required filter. If nothing compiles the answer is `skipped_none`, nothing runs, and the idle slot is not claimed, so the next call tries again. The API's CORS list now allows PUT and DELETE, so the connection admin calls (the switch, removal) work for a cross-origin deployment too. Fakes only; the compiler's refusal is simulated, not a real policy-bound contract.
