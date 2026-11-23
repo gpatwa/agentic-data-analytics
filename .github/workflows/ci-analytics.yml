@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [eval-ads056, eval-ads057, eval-corpora-a, eval-corpora-b, synthetic, rest]
+        part: [eval-ads056, eval-ads057, eval-ads059, eval-ads071, eval-corpora-b, synthetic, rest]
     defaults:
       run:
         working-directory: services/analytics-api

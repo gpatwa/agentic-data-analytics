@@ -16,7 +16,8 @@ REST = "rest"
 PARTS: dict[str, tuple[str, ...]] = {
     "eval-ads056": ("test_ads056_evaluation.py",),
     "eval-ads057": ("test_ads057_rollout.py",),
-    "eval-corpora-a": ("test_ads059_poisoning.py", "test_ads071_correctness.py"),
+    "eval-ads059": ("test_ads059_poisoning.py",),
+    "eval-ads071": ("test_ads071_correctness.py",),
     "eval-corpora-b": ("test_ads049_golden_suite.py", "test_ads075_reliability.py", "test_ads076_performance.py", "test_ads077_provider.py"),
     "synthetic": (
         "test_synthetic_food_delivery.py", "test_scale_test.py", "test_loaders.py", "test_loaders_replicate.py", "test_orders_current_certified.py",
