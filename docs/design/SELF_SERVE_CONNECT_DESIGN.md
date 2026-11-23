@@ -20,7 +20,7 @@ Writing the warm-up deployment check we made the owner do five things by hand: i
 1. **No human is a transport.** A credential moves machine to machine, once, and is never typed, shown, put in an environment variable, a file, a URL or a log.
 2. **One action per person.** The admin does one thing (run one generated file or click one button); the operator runs one command. Everything after it is automatic and visible.
 3. **The sequence lives in code.** Every step, order, name and teardown is generated and tested, so nothing depends on memory.
-4. **Self-cleaning.** Anything created is tagged, listed in a ledger and removed in a `finally`; a sweep removes what a crash left.
+4. **Self-cleaning.** Anything created is listed in a ledger and removed in a `finally`; a sweep removes, by recorded id, what a crash left.
 5. **Self-verifying.** Each setup ends with the product's own checks (verifier, connection test), and a scheduled check later detects drift.
 6. **One code path for customers and for us.** Our own checks provision through the same runner a customer uses, so a passing check is evidence the customer path works.
 7. **Compass never holds an admin credential** (decision of 2026-11-18, unchanged).
@@ -37,7 +37,7 @@ Writing the warm-up deployment check we made the owner do five things by hand: i
 
 ### Layer 1: the registration runner (shared)
 
-One component, `RegistrationRunner`, that takes a `ConnectScope` (the ceiling) and an admin client and does what the owner's hand did: preflight (names free, rights sufficient, stop with a plain message otherwise), run the generated steps, read back and verify, return the principal's credential **in memory only**, and expose `teardown()` and `sweep()`. It wraps `E2E` and the provisioner's safety rules rather than duplicating them. It has two callers, below. It never writes a credential anywhere; a crash leaves tagged objects but no usable secret (the principal's name carries a fixed prefix, and a ledger of names, never secrets, lets `sweep` find them).
+One component, `RegistrationRunner`, that takes a `ConnectScope` (the ceiling) and an admin client and does what the owner's hand did: preflight (names free, rights sufficient, stop with a plain message otherwise), run the generated steps, read back and verify, return the principal's credential **in memory only**, and expose `teardown()` and `sweep()`. It wraps `E2E` and the provisioner's safety rules rather than duplicating them. It has two callers, below. It never writes a credential anywhere; a crash leaves objects but no usable secret. A ledger of ids and names (never secrets), written after each creation, lets `sweep` finish the job. **Sweep removes only the ids in the ledger, never by name prefix**: the principal carries the product's own `compass-conn-` name, and a customer's real connection in the same workspace uses the same prefix.
 
 ### Layer 2a: operator self-serve (our checks, demos, CI)
 
@@ -83,7 +83,7 @@ The admin does **one** thing and the screen does the rest. Tracks, chosen by wha
 ## Risks and open questions
 
 1. **Secret in transit to Compass** (track 1): equals today's paste in exposure, minus the human copy; still a security change, so it needs the owner's security review before any build is exposed to customers.
-2. **A crash between "create principal" and "teardown"** leaves a principal (without a usable secret). Mitigations are the tag, ledger and sweep; the preflight refuses to start while leftovers exist.
+2. **A crash between "create principal" and "teardown"** leaves a principal (without a usable secret). Mitigations are the ledger (ids, never secrets) and the sweep, which removes only recorded ids and never matches by the shared `compass-conn-` prefix; the preflight refuses to start while leftovers exist.
 3. **The admin's runtime** (notebook, CLI, or terminal) varies; the file must be self-contained and print only codes. Unverified on any customer environment.
 4. **Principal self-rotation and the account console** (above) are unverified.
 5. **Verifier trust.** In track 1 the read-back comes from the admin's side. Compass should also run its own negative check (a read outside the ceiling is denied) through the stored secret before showing "read-only". Unverified.
@@ -102,7 +102,7 @@ The admin does **one** thing and the screen does the rest. Tracks, chosen by wha
 
 ## Draft approval scope for S1-live (to record only on the owner's explicit yes)
 
-"Run the warm-up deployment check with `--provision` on this computer against https://dbc-b8672746-8e43.cloud.databricks.com, catalog and schema dev.compass_synthetic_food_delivery (views orders_current and orders_usd_gross), warehouse Serverless Starter Warehouse, using the owner's signed-in CLI profile to create one temporary service principal named with the prefix compass-check-, one OAuth secret held only in memory, `USE CATALOG`, `USE SCHEMA` and `SELECT` on those two views and `CAN_USE` on the named warehouse, and to remove all of it in the same run (and by `--sweep` if interrupted). At most four certified warm-up queries (each with the gateway's own EXPLAIN COST and two session SETs), one read-only listing of warehouses, a 20-minute cap. It does NOT approve any deployment or Azure change, changing any warehouse, any other schema or table, any grant or write beyond the list above, a model call, installing anything on the owner's behalf, or certifying anything."
+"Run the warm-up deployment check with `--provision` on this computer against https://dbc-b8672746-8e43.cloud.databricks.com, catalog and schema dev.compass_synthetic_food_delivery (views orders_current and orders_usd_gross), warehouse Serverless Starter Warehouse, using the owner's signed-in CLI profile to create one temporary service principal named compass-conn- followed by 8 random hex characters (the product's own registration script), one OAuth secret held only in memory, `USE CATALOG`, `USE SCHEMA` and `SELECT` on those two views and `CAN_USE` on the named warehouse, and to remove all of it in the same run (and by `--sweep` if interrupted). At most four certified warm-up queries (each with the gateway's own EXPLAIN COST and two session SETs), one read-only listing of warehouses, a 20-minute cap. It does NOT approve any deployment or Azure change, changing any warehouse, any other schema or table, any grant or write beyond the list above, a model call, installing anything on the owner's behalf, or certifying anything."
 
 ## Decisions for the owner
 
@@ -110,6 +110,19 @@ The admin does **one** thing and the screen does the rest. Tracks, chosen by wha
 2. Approve building S1 now (offline, no approval needed) so the deployment check becomes one command?
 3. Rotation: accept a "rotate by re-running the enrol file" first, and test principal self-rotation later?
 4. Is the 30-minute single-use enrolment token the right shape for the security review?
+
+## Built: S1 (2026-11-23), on fakes only
+
+`services/analytics-api/reference_stack/deployment_check/runner.py` (`RegistrationRunner`, `Ledger`, `run_sql`, `pick_warehouse`) and `--provision` / `--sweep` in `deployment_check/__main__.py`; `tests/test_deployment_check_provision.py` (17 tests against a fake admin client that keeps real state: principals, secrets, grants, the warehouse list). **None of it has touched a workspace.**
+
+- `python -m reference_stack.deployment_check --provision --profile <cli profile> --approval-id warmup_provision_check --out <dir> --execute ...`: preflight, the product's own generated script, verifier on the read-backs, the HTTP check, then teardown in a `finally`. No environment variables.
+- Refusals: no `--profile`, `--approval-id` or `--out`; no recorded approval (needle `warmup_provision_check`; **no such approval exists yet**, so a live run is refused); a profile for a different workspace; leftovers in the ledger; a taken name; an admin that cannot read grants; a driver not installed.
+- Only `GRANT`/`REVOKE` of `USE CATALOG`, `USE SCHEMA`, `SELECT` and `SHOW GRANTS`, naming the ceiling's catalog, can be sent as admin SQL (tested against `DROP`, `ALL PRIVILEGES`, `MANAGE`, `WITH GRANT OPTION` and another catalog).
+- The report records the verifier's counts, the teardown result and a leak-scan verdict; it is not ok if anything is left behind or a secret appears in the report or the ledger.
+- `--sweep` removes what a crashed run's ledger recorded, by id; it needs no approval because it only removes what an approved run created.
+- The manual environment-variable path still works as a fallback.
+
+Not verified: any behaviour on a real workspace, including the profile's rights, `SHOW GRANTS` and `delete` semantics for a principal that holds a warehouse entry (the 2026-11-18 live check showed the entry goes with the principal; the runner re-checks it and reports it if not).
 
 ## Relationship to earlier documents
 
