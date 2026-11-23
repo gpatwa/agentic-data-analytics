@@ -34,9 +34,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analytics-test:
-    name: Analytics API Lint & Test
+  lint:
+    name: Analytics API Lint
     runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/analytics-api/requirements.txt
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        working-directory: services/analytics-api
+        run: ruff check app tests ../../packages --output-format=github
+
+  # The tests run as parallel parts (services/analytics-api/ci_parts.py) so the slowest part sets the time and each part reports its own slowest tests.
+  analytics-test:
+    name: Analytics API Test (${{ matrix.part }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [eval-ads056, eval-ads057, eval-corpora-a, eval-corpora-b, synthetic, rest]
     defaults:
       run:
         working-directory: services/analytics-api
@@ -54,21 +79,18 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio ruff
+          pip install pytest pytest-asyncio pytest-xdist
           pip install -r requirements-reference-data.txt
 
-      - name: Lint
-        run: ruff check app tests ../../packages --output-format=github
-
-      - name: Run tests
+      - name: Run tests (${{ matrix.part }})
         env:
           PYTHONPATH: ${{ github.workspace }}/services/analytics-api:${{ github.workspace }}
-        run: pytest tests/ -v --tb=short
+        run: pytest $(python ci_parts.py ${{ matrix.part }}) -q --tb=short --durations=15 -p no:cacheprovider
 
   docker-build:
     name: Docker Build (analytics-api)
     runs-on: ubuntu-24.04
-    needs: [analytics-test]
+    needs: [lint, analytics-test]
     steps:
       - uses: actions/checkout@v4
 
