@@ -7,6 +7,8 @@ defence can fail by *changing behaviour* (for example switching a check off) sti
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 
@@ -48,3 +50,12 @@ def agreement_with(report: dict, case_id: str, expected: str) -> float:
     """The agreement a corpus run would have scored had one case's expectation been `expected` (no new run needed)."""
     cases = report["cases"]
     return sum((c["got"] == expected) if c["case_id"] == case_id else bool(c["passed"]) for c in cases) / len(cases)
+
+
+@pytest.fixture(autouse=True)
+def _sys_path_has_no_duplicates():
+    """Alembic's `prepend_sys_path = .` adds an entry on EVERY migration call and never removes it, so a long test session grew `sys.path` from 9 to 901 entries. Every failed import
+    (and DuckDB tries several per value it converts) then walks all of them: 46 us became 3.3 ms in CI and the synthetic-data tests took 26 minutes instead of 1.4. Removing duplicates
+    after each test keeps every real entry and its order, and stops the growth."""
+    yield
+    sys.path[:] = list(dict.fromkeys(sys.path))
