@@ -14,7 +14,7 @@ import threading
 from dataclasses import replace
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Column, DateTime, Integer, MetaData, String, Table, func, insert, select, update
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, MetaData, String, Table, func, insert, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -31,6 +31,7 @@ CONNECTIONS = Table(
     Column("database_name", _S(255)), Column("default_schema", _S(255)), Column("allowed_tables", JSON), Column("auth_method", _S(32)),
     Column("secret_name", _S(255), nullable=True), Column("teardown", JSON), Column("http_path", _S(512)),
     Column("secret_expires_at", DateTime(timezone=True), nullable=True), Column("status", _S(16)), Column("created_at", DateTime(timezone=True)),
+    Column("warm_up", Boolean, nullable=False, server_default="0"),
 )
 CLAIMS = Table("connect_target_claims", _META, Column("engine", _S(32), primary_key=True), Column("host", _S(255), primary_key=True),
                Column("tenant_id", _S(255)))
@@ -39,7 +40,7 @@ AUDIT = Table(
     Column("seq", Integer, primary_key=True, autoincrement=False), Column("event_id", _S(255)), Column("event_type", _S(100)),
     Column("tenant_id", _S(255)), Column("actor_id", _S(255)), Column("payload", JSON), Column("previous_hash", _S(64), nullable=True),
     Column("event_hash", _S(64), unique=True), Column("created_at", DateTime(timezone=True)),
-)  # mirrors migration 0013; a test keeps the two equal, and building them touches no database
+)  # mirrors migrations 0013 and 0015; a test keeps the two equal, and building them touches no database
 
 
 def _aware(value: datetime | None) -> datetime | None:
@@ -50,7 +51,7 @@ def _row(r: ConnectionRecord) -> dict:
     return {"tenant_id": r.tenant_id, "connection_id": r.connection_id, "engine": r.engine, "host": r.host, "account": r.account,
             "user_name": r.user, "role": r.role, "warehouse": r.warehouse, "database_name": r.database, "default_schema": r.default_schema,
             "allowed_tables": list(r.allowed_tables), "auth_method": r.auth_method, "secret_name": r.secret_name, "teardown": list(r.teardown),
-            "http_path": r.http_path, "secret_expires_at": r.secret_expires_at, "status": r.status, "created_at": r.created_at}
+            "http_path": r.http_path, "secret_expires_at": r.secret_expires_at, "status": r.status, "created_at": r.created_at, "warm_up": r.warm_up}
 
 
 def _record(m) -> ConnectionRecord:
@@ -58,7 +59,7 @@ def _record(m) -> ConnectionRecord:
                             user=m["user_name"], role=m["role"], warehouse=m["warehouse"], database=m["database_name"], default_schema=m["default_schema"],
                             allowed_tables=tuple(m["allowed_tables"]), auth_method=m["auth_method"], secret_name=m["secret_name"],
                             teardown=tuple(m["teardown"]), http_path=m["http_path"] or "", secret_expires_at=_aware(m["secret_expires_at"]),
-                            status=m["status"], created_at=_aware(m["created_at"]))
+                            status=m["status"], created_at=_aware(m["created_at"]), warm_up=bool(m["warm_up"]))
 
 
 class SqlConnectionStore:
