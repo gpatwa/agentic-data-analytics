@@ -172,6 +172,8 @@ export interface DbxConnectionsProps {
   onCheck: (id: string) => void;
   onAskRemove: (id: string | null) => void;
   onRemove: (id: string) => void;
+  onWarmUp?: (id: string, enabled: boolean) => void;
+  canManage?: boolean;
 }
 
 export function DbxConnections(p: DbxConnectionsProps) {
@@ -184,6 +186,18 @@ export function DbxConnections(p: DbxConnectionsProps) {
           <h3>{c.host}</h3>
           <p className="cn-small">{c.tables.join(', ')}</p>
           <p role={c.needs_rotation ? 'alert' : undefined}>{expiryText(c.status, c.expires_in_days)}</p>
+          {c.status === 'active' && p.onWarmUp && (
+            <div className="cn-warm" data-warm-up={c.warm_up}>
+              <label>
+                <input type="checkbox" checked={c.warm_up} disabled={p.busy || p.canManage === false} onChange={(e) => p.onWarmUp?.(c.connection_id, e.target.checked)} />
+                {' '}Warm this warehouse when someone opens Compass
+              </label>
+              <p className="cn-small">
+                When this is on, opening Compass after a quiet period runs a few short read-only queries on your warehouse, and starts it if it was stopped. That uses warehouse time
+                on your account. It is off unless you turn it on, and it adds no access: the queries use this connection's own read-only access.
+              </p>
+            </div>
+          )}
           <div className="cn-actions">
             <button onClick={() => p.onCheck(c.connection_id)} disabled={p.busy}>Check now</button>
             <button onClick={() => p.onRotate(p.rotating === c.connection_id ? null : c.connection_id)} disabled={p.busy}>Give a new secret</button>

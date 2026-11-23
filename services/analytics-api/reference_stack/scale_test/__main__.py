@@ -36,7 +36,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--cap-minutes", type=float, default=30.0)
     p.add_argument("--max-statements", type=int, default=450)
     p.add_argument("--usd-per-dbu", type=float, help="the assumed price; never defaulted")
-    p.add_argument("--experiment", choices=("warmup",), help="run the warm-up experiment instead of the size matrix (needs --baseline-warehouse-name)")
+    p.add_argument("--experiment", choices=("warmup", "warmup_service"), help="warmup: the warm-up experiment; warmup_service: a live check of the wired WarmUpService (both instead of the size matrix; need --baseline-warehouse-name)")
     p.add_argument("--idle-minutes", type=float, help="experiment: wait this long since the last read instead of waiting for the warehouse to stop (a shared warehouse may never stop)")
     p.add_argument("--control-only", action="store_true", help="experiment: only the control round (no warm-up), to measure the cold first read without it")
     p.add_argument("--warmed-only", action="store_true", help="experiment: skip the control round and use --control-first-ms from earlier runs")
@@ -189,6 +189,8 @@ class _Preflighted:
 
 
 def experiment_statements(args: argparse.Namespace) -> int:
+    if args.experiment == "warmup_service":
+        return 2 + 4 + 32  # two view checks, at most four certified warm-up statements chosen by the service, the 32 workload statements
     if args.control_only:
         return 2 + 32  # two view checks and the control round; no warm-up statements
     return 2 + (1 if args.warmed_only else 2) * 32 + 2  # two view checks, the rounds of the 32, the two warm-up statements
@@ -199,7 +201,15 @@ def _experiment_main(args: argparse.Namespace, statements: list[workload.Stateme
     if not name:
         print("refused: the experiment needs --baseline-warehouse-name (an existing warehouse; nothing is created)", file=sys.stderr)
         return 2
+    service = args.experiment == "warmup_service"
     if not args.execute:
+        if service:
+            print(f"DRY RUN: nothing was executed and no network call was made. Live check of the wired WarmUpService on the existing warehouse {name!r}, target {args.catalog}.{args.schema}")
+            print(f"statements: at most {experiment_statements(args)} (2 view checks, at most 4 certified warm-up statements the service chooses, the {len(statements)} workload statements); wall-clock cap {args.cap_minutes:g} min")
+            gap = f"sleeps {args.idle_minutes:g} minutes (no call)" if args.idle_minutes else "waits (read-only polling) until the warehouse has stopped"
+            print(f"steps: switch off answers skipped_disabled and sends nothing; the switch on, then {gap}; request must answer warming at once; a second request and on_question must send nothing; then the workload")
+            print("nothing is created, resized, stopped or deleted; the connection is in memory with no credential; the warehouse is reached through the owner's CLI profile")
+            return 0
         print(f"DRY RUN: nothing was executed and no network call was made. Warm-up experiment on the existing warehouse {name!r}, target {args.catalog}.{args.schema}")
         rounds = "once (warmed round only; the control is --control-first-ms from earlier runs)" if args.warmed_only else "once (control round only, no warm-up)" if args.control_only else "twice"
         warm = "no warm-up statements" if args.control_only else "2 certified warm-up statements"
@@ -212,7 +222,7 @@ def _experiment_main(args: argparse.Namespace, statements: list[workload.Stateme
         print("refused: --execute needs --profile, --host, --approval-id and --out", file=sys.stderr)
         return 2
     try:
-        check_approval(args.approval_id, args.host, args.catalog, args.schema, name, args.cap_minutes, also=("warmup_experiment", "orders_current", "orders_usd_gross"), max_cap_minutes=MAX_CAP_MINUTES)
+        check_approval(args.approval_id, args.host, args.catalog, args.schema, name, args.cap_minutes, also=(("warmup_service" if service else "warmup_experiment"), "orders_current", "orders_usd_gross"), max_cap_minutes=MAX_CAP_MINUTES)
     except ApprovalError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
@@ -229,8 +239,15 @@ def _experiment_main(args: argparse.Namespace, statements: list[workload.Stateme
         for view in ("orders_current", "orders_usd_gross"):
             budget.take()
             session.query_with_id(f"SELECT COUNT(*) FROM `{args.catalog}`.`{args.schema}`.`{view}`")
-        result = run_experiment(statements, session, api, wid, args.catalog, args.schema, run_id, budget, lambda rows: fetch(api, [r.statement_id for r in rows]),
-                                idle_minutes=args.idle_minutes, arms=("control",) if args.control_only else ("warmed",) if args.warmed_only else ("control", "warmed"), control_first_ms=args.control_first_ms)
+        if service:
+            from reference_stack.scale_test.service_check import run_service_check
+            if not args.idle_minutes:
+                raise Stop("service_check_needs_idle_minutes")
+            result = run_service_check(statements, session, api, wid, workload.sv.CERTIFIED.parents[1], args.catalog, args.schema, run_id, budget,
+                                       lambda rows: fetch(api, [r.statement_id for r in rows]), idle_minutes=args.idle_minutes)
+        else:
+            result = run_experiment(statements, session, api, wid, args.catalog, args.schema, run_id, budget, lambda rows: fetch(api, [r.statement_id for r in rows]),
+                                    idle_minutes=args.idle_minutes, arms=("control",) if args.control_only else ("warmed",) if args.warmed_only else ("control", "warmed"), control_first_ms=args.control_first_ms)
     except (Stop, EngineError) as exc:
         print(f"STOPPED: {exc}", file=sys.stderr)
         code = 3

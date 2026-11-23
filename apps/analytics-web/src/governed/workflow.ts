@@ -95,6 +95,19 @@ export const analyze = (config: GovernedConfig, requestText: string, key: string
     ),
   }).then(parse);
 
+/** Ask the server to warm this tenant's connected warehouse because a person is here. Fire-and-forget: it never throws and never waits on anything the person is doing.
+ * The server decides (switch off, nothing connected, or warmed recently all answer a code and do nothing), so calling it again is cheap. Not for the public demo (no connection to warm). */
+export async function warm(config: GovernedConfig, doFetch: Fetch = fetch): Promise<string> {
+  if (config.demoVisitor || !config.token) return 'skipped_not_signed_in';
+  try {
+    const response = await doFetch(`${base(config)}/warm`, { method: 'POST', headers: headers(config) });
+    const body = (await response.json()) as { code?: unknown };
+    return typeof body.code === 'string' ? body.code : 'failed';
+  } catch {
+    return 'failed';
+  }
+}
+
 export const getRun = (config: GovernedConfig, runId: string, doFetch: Fetch = fetch) =>
   doFetch(`${base(config)}/runs/${encodeURIComponent(runId)}${config.demoVisitor ? '' : `?purpose=${encodeURIComponent(config.purpose)}`}`, {
     headers: headers(config),

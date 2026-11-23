@@ -17,6 +17,7 @@ import {
   type ReplayVerdict,
   traceEntry,
   verifyReplay,
+  warm,
 } from './workflow';
 
 const BASE_URL = import.meta.env.VITE_ANALYTICS_API_URL ?? '';
@@ -43,6 +44,16 @@ export function GovernedWorkspace() {
       if (offered) setDemo(true);
     });
   }, []);
+
+  // A signed-in person is here: ask the server to warm their warehouse (it decides; a fire-and-forget call that never blocks or shows anything). Again when the tab comes back to the front.
+  useEffect(() => {
+    if (demo || !token) return;
+    const ask = () => void warm({ baseUrl: BASE_URL, token, purpose, apiKey: API_KEY || undefined });
+    ask();
+    const onVisible = () => document.visibilityState === 'visible' && ask();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [demo, token, purpose]);
 
   const config = (): GovernedConfig => ({
     baseUrl: BASE_URL,
