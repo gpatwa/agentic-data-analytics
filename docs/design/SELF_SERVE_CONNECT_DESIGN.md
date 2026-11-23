@@ -135,6 +135,19 @@ Three runs on the owner's workspace (`dev.compass_synthetic_food_delivery`, Serv
 
 What this shows: the self-provisioning path works end to end on the owner's workspace with no manual step, including the OAuth M2M connector, the real routes and the switch, and the profile has the rights to create and remove a principal and its grants. Not shown: Entra, a vault, a deployed instance, a real model answer; the delay itself (already measured); a customer's environment. Run once successfully, so no claim about repeatability.
 
+## Built: S2, the enrol file (2026-11-23), on fakes only
+
+Decided by the owner on 2026-11-23: **the enrol file is the default customer track**, and **the 30-minute single-use token is the right shape**.
+
+`app/connect/enrol.py` (tokens, limiter, the file generator), routes in `app/connect/databricks_api.py`, setting `ANALYTICS_CONNECT_PUBLIC_URL`, `tests/test_connect_enrol.py` (31 tests). **None of it has run against a workspace or a deployed instance.**
+
+- `POST /api/v2/connect/databricks/setups/{id}/enrol-file` (connection managers only): mints a token (single use, 30 minutes, bound to the tenant, the setup and the registration script's digest; only its hash is kept; a new file revokes the old token) and returns `compass-enrol.py` with the file's digest. 503 until `ANALYTICS_CONNECT_PUBLIC_URL` is set; the address must be https (or localhost for development).
+- The file is plain Python the admin can read first. Under the admin's own Databricks sign-in it checks the workspace, finds the warehouse by name, creates the principal and secret, grants `CAN_USE` and exactly the read grants, reads them back, posts the id, secret and read-back to Compass, and removes everything it created if any step fails. It prints codes only and writes nothing to disk. `--digest` prints its digest (the address and token lines are left out) for comparison with the screen; `--remove <application id>` removes the principal later.
+- `POST /api/v2/connect/databricks/enrol` is authorised by the token alone: failed attempts are limited per caller (10 per 5 minutes, then 429); the read-back goes through the product's verifier (a dangerous or unexpected grant is refused and nothing is stored); the secret goes straight to custody; then the existing connection test reads every named table as the principal. Answers are codes only; the body is read as a plain dict so no validation error echoes the secret. Audit events: `connect.enrol_file_issued` (digests), `connect.enrolled`, `connect.enrol_refused` (codes).
+- Tests run the generated file's own code against a fake admin client and the real endpoint over HTTP: success, a failed connection test, a replayed file, an expired file, another workspace, and `--remove`; each failure leaves nothing behind and no secret appears in output, the file, the audit chain or a response.
+
+Not verified: the file against the real Databricks SDK on a customer's machine, notebook or CLI (its calls are the ones the 2026-11-23 live provision run used, plus `service_principals.list()` and `delete` for `--remove`); a deployed instance with a public address and TLS; whether Compass should also run its own check that a read outside the ceiling is denied. Pending enrolments live in memory, so a restart loses them and the admin asks for a new file. `app/config.py` and `app/main.py` are listed in the ADS-079 evidence manifest; the checked-in manifest was already generated at another commit and is regenerated at final sign-off.
+
 ## Relationship to earlier documents
 
 This supersedes the manual steps 1 to 3 and 5 of `WARMUP_DEPLOYMENT_CHECK_PLAN.md` once S1 is built; until then that plan's manual fallback is the only way to run the deployment check. It does not change the recorded approval `warmup_deployment_check` or any human gate.
