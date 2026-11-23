@@ -17,6 +17,7 @@ import {
   pollUntilSettled,
   resolveCite,
   verifyReplay,
+  warm,
   viewKind,
 } from './workflow';
 
@@ -151,4 +152,27 @@ test('the demo is offered only when the server says so', async () => {
   assert.equal(await demoAvailable('http://api', undefined, reply({ enabled: false })), false);
   assert.equal(await demoAvailable('http://api', undefined, reply({}, false)), false);
   assert.equal(await demoAvailable('http://api', undefined, (async () => { throw new Error('down'); }) as unknown as typeof fetch), false);
+});
+
+test('warm asks the server once, never throws, and sends nothing in the public demo or when signed out', async () => {
+  const seen: { url: string; init: RequestInit }[] = [];
+  const doFetch = (async (url: string, init: RequestInit) => {
+    seen.push({ url, init });
+    return new Response(JSON.stringify({ code: 'warming' }), { status: 202 });
+  }) as unknown as typeof fetch;
+  const config: GovernedConfig = { baseUrl: 'http://api', token: 'tok', purpose: 'analytics' };
+  assert.equal(await warm(config, doFetch), 'warming');
+  assert.equal(seen[0].url, 'http://api/api/v2/analytics/warm');
+  assert.equal(seen[0].init.method, 'POST');
+  assert.equal((seen[0].init.headers as Record<string, string>).Authorization, 'Bearer tok');
+  assert.equal(seen[0].init.body, undefined);
+  assert.equal(await warm({ ...config, demoVisitor: 'visitor-1234567890abcdef' }, doFetch), 'skipped_not_signed_in');
+  assert.equal(await warm({ ...config, token: '' }, doFetch), 'skipped_not_signed_in');
+  assert.equal(seen.length, 1);
+  const broken = (async () => {
+    throw new Error('network down');
+  }) as unknown as typeof fetch;
+  assert.equal(await warm(config, broken), 'failed');
+  const html = (async () => new Response('<html>', { status: 502 })) as unknown as typeof fetch;
+  assert.equal(await warm(config, html), 'failed');
 });
