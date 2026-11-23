@@ -38,6 +38,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--usd-per-dbu", type=float, help="the assumed price; never defaulted")
     p.add_argument("--experiment", choices=("warmup",), help="run the warm-up experiment instead of the size matrix (needs --baseline-warehouse-name)")
     p.add_argument("--idle-minutes", type=float, help="experiment: wait this long since the last read instead of waiting for the warehouse to stop (a shared warehouse may never stop)")
+    p.add_argument("--control-only", action="store_true", help="experiment: only the control round (no warm-up), to measure the cold first read without it")
     p.add_argument("--warmed-only", action="store_true", help="experiment: skip the control round and use --control-first-ms from earlier runs")
     p.add_argument("--control-first-ms", type=float)
     p.add_argument("--execute", action="store_true")
@@ -188,6 +189,8 @@ class _Preflighted:
 
 
 def experiment_statements(args: argparse.Namespace) -> int:
+    if args.control_only:
+        return 2 + 32  # two view checks and the control round; no warm-up statements
     return 2 + (1 if args.warmed_only else 2) * 32 + 2  # two view checks, the rounds of the 32, the two warm-up statements
 
 
@@ -198,11 +201,12 @@ def _experiment_main(args: argparse.Namespace, statements: list[workload.Stateme
         return 2
     if not args.execute:
         print(f"DRY RUN: nothing was executed and no network call was made. Warm-up experiment on the existing warehouse {name!r}, target {args.catalog}.{args.schema}")
-        rounds = "once (warmed round only; the control is --control-first-ms from earlier runs)" if args.warmed_only else "twice"
-        print(f"statements: {experiment_statements(args)} in all (2 view checks, the {len(statements)} workload statements {rounds}, 2 certified warm-up statements); wall-clock cap {args.cap_minutes:g} min")
+        rounds = "once (warmed round only; the control is --control-first-ms from earlier runs)" if args.warmed_only else "once (control round only, no warm-up)" if args.control_only else "twice"
+        warm = "no warm-up statements" if args.control_only else "2 certified warm-up statements"
+        print(f"statements: {experiment_statements(args)} in all (2 view checks, the {len(statements)} workload statements {rounds}, {warm}); wall-clock cap {args.cap_minutes:g} min")
         wait = f"sleeps {args.idle_minutes:g} minutes since the last read (no call)" if args.idle_minutes else "waits (read-only polling) until the warehouse has stopped by itself"
         print(f"each round first {wait}; nothing is created, resized, stopped or deleted")
-        print("the warmed round: the Warmer on order_count and gross_order_value (no dimension), then the workload" + ("" if args.warmed_only else "; the control round runs first, without it"))
+        print("the control round: the workload with no warm-up" if args.control_only else "the warmed round: the Warmer on order_count and gross_order_value (no dimension), then the workload" + ("" if args.warmed_only else "; the control round runs first, without it"))
         return 0
     if not (args.profile and args.host and args.approval_id and args.out):
         print("refused: --execute needs --profile, --host, --approval-id and --out", file=sys.stderr)
@@ -226,7 +230,7 @@ def _experiment_main(args: argparse.Namespace, statements: list[workload.Stateme
             budget.take()
             session.query_with_id(f"SELECT COUNT(*) FROM `{args.catalog}`.`{args.schema}`.`{view}`")
         result = run_experiment(statements, session, api, wid, args.catalog, args.schema, run_id, budget, lambda rows: fetch(api, [r.statement_id for r in rows]),
-                                idle_minutes=args.idle_minutes, arms=("warmed",) if args.warmed_only else ("control", "warmed"), control_first_ms=args.control_first_ms)
+                                idle_minutes=args.idle_minutes, arms=("control",) if args.control_only else ("warmed",) if args.warmed_only else ("control", "warmed"), control_first_ms=args.control_first_ms)
     except (Stop, EngineError) as exc:
         print(f"STOPPED: {exc}", file=sys.stderr)
         code = 3
