@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { ConnectError } from './api';
-import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId, setDbxWarmUp } from './databricksApi';
-import type { DbxConnection, DbxResult, DbxScriptView } from './databricksApi';
+import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, enrolStatus, issueEnrolFile, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId, setDbxWarmUp } from './databricksApi';
+import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
 import { dbxRemovalText, dbxScriptFilename, dbxScriptText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
+import type { Track } from './databricksFlow';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
 import { save } from './download';
 import { parseTables } from './flow';
 import type { ConnectConfig } from './types';
@@ -28,6 +29,10 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
   const [rotateSecret, setRotateSecret] = useState('');
   const [rotateProblems, setRotateProblems] = useState<string[]>([]);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [track, setTrack] = useState<Track>('enrol');
+  const [file, setFile] = useState<DbxEnrolFile | null>(null);
+  const [status, setStatus] = useState<DbxEnrolStatus | null>(null);
+  const [removed, setRemoved] = useState<{ removal: DbxRemoval; applicationId: string } | null>(null);
 
   async function guard(work: () => Promise<void>) {
     setBusy(true);
@@ -48,14 +53,45 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  // While the admin runs the file, ask Compass every few seconds what happened. It stops when the file is spent, expired or the screen is closed.
+  useEffect(() => {
+    if (!view || !file || (status && status.state !== 'waiting')) return undefined;
+    const timer = setInterval(() => {
+      void enrolStatus(cfg, view.setup_id)
+        .then(async (next) => {
+          setStatus(next);
+          if (next.state === 'connected') await refresh();
+        })
+        .catch(() => undefined); // a failed poll is retried at the next tick
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.setup_id, file, status?.state]);
+
   const show = () => {
     const found = validateDbxDetails({ host, catalog, warehouse, tablesText });
     setProblems(found);
     if (found.length) return;
     void guard(async () => {
       setResult(null);
+      setFile(null);
+      setStatus(null);
+      setRemoved(null);
       setView(await beginDatabricks(cfg, { host: host.trim().toLowerCase(), catalog: catalog.trim(), warehouse_name: warehouse.trim(), tables: parseTables(tablesText).tables }));
     });
+  };
+
+  const issue = () =>
+    view &&
+    guard(async () => {
+      setStatus(null);
+      setFile(await issueEnrolFile(cfg, view.setup_id));
+    });
+
+  const done = () => {
+    setView(null);
+    setFile(null);
+    setStatus(null);
   };
 
   const apply = () =>
@@ -85,7 +121,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
     view &&
     guard(async () => {
       await cancelDatabricks(cfg, view.setup_id);
-      setView(null);
+      done();
       setSecret('');
     });
 
@@ -116,7 +152,8 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
 
   const remove = (id: string) =>
     guard(async () => {
-      await removeDbxConnection(cfg, id);
+      const applicationId = connections.find((c) => c.connection_id === id)?.application_id ?? '';
+      setRemoved({ removal: await removeDbxConnection(cfg, id), applicationId });
       setConfirming(null);
       setResult(null);
       await refresh();
@@ -136,7 +173,12 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
         <>
           <DbxDetailsForm host={host} catalog={catalog} warehouse={warehouse} tablesText={tablesText} problems={problems} busy={busy} canManage={canManage}
             onChange={(field, value) => ({ host: setHost, catalog: setCatalog, warehouse: setWarehouse, tablesText: setTablesText })[field](value)} onSubmit={show} />
-          {view && (
+          {view && <DbxTrackChooser track={track} onChoose={setTrack} />}
+          {view && track === 'enrol' && (
+            <DbxEnrolPanel view={view} file={file} status={status} busy={busy} onIssue={() => void issue()} onDownload={() => file && save(file.filename, file.content)}
+              onDone={done} onCancel={() => void cancel()} />
+          )}
+          {view && track === 'manual' && (
             <>
               <DbxScriptPanel view={view} applicationId={applicationId} busy={busy} onApplicationId={setApplicationId} onApply={() => void apply()} onDownload={download}
                 onCancel={() => void cancel()} />
@@ -144,6 +186,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
                 onChange={(field, value) => ({ applicationId: setApplicationId, secret: setSecret, httpPath: setHttpPath })[field](value)} onSubmit={connect} />
             </>
           )}
+          {removed && <DbxRemovedNote removal={removed.removal} applicationId={removed.applicationId} />}
           <DbxConnections connections={connections} rotating={rotating} secret={rotateSecret} problems={rotateProblems} confirming={confirming} busy={busy}
             onRotate={(id) => { setRotating(id); setRotateSecret(''); setRotateProblems([]); }} onSecret={setRotateSecret} onSubmitSecret={submitRotation}
             onCheck={(id) => void check(id)} onAskRemove={setConfirming} onRemove={(id) => void remove(id)} onWarmUp={(id, enabled) => void warmUp(id, enabled)} canManage={canManage} />

@@ -1,5 +1,5 @@
 import { parseTables } from './flow';
-import type { DbxScriptView } from './databricksApi';
+import type { DbxEnrolStatus, DbxScriptView } from './databricksApi';
 
 export const DBX_SUFFIXES = ['.cloud.databricks.com', '.azuredatabricks.net', '.gcp.databricks.com'];
 const APP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -81,3 +81,17 @@ export function expiryText(status: string, days: number | null): string {
 }
 
 export const validateSecret = (secret: string): string[] => (secret.length < 16 || /\s/.test(secret) ? ['Paste the whole OAuth secret, with no spaces'] : []);
+
+export type Track = 'enrol' | 'manual';
+
+/** Plain words for each state the enrol file's setup can be in. */
+export function enrolStatusText(status: DbxEnrolStatus | null): string {
+  if (!status) return 'Waiting for your admin to run the file.';
+  if (status.state === 'waiting') return `Waiting for your admin to run the file. It stops working in ${status.expires_in_minutes} minute${status.expires_in_minutes === 1 ? '' : 's'}.`;
+  if (status.state === 'expired') return 'The file expired before it was run. Get a new one.';
+  if (status.state === 'connected') return 'Connected. Compass read each table you named.';
+  return 'Not connected. The file removed what it had created, so nothing is left behind.';
+}
+
+/** The command that removes the principal and its grants later. Empty until the application id looks right, so a wrong value is never offered. */
+export const removeCommand = (applicationId: string) => (looksLikeApplicationId(applicationId) ? `python3 compass-enrol.py --remove ${applicationId.trim().toLowerCase()}` : '');

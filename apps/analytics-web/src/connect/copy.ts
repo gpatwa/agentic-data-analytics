@@ -67,6 +67,16 @@ export const ERROR_COPY: Record<string, ErrorCopy> = {
   missing_code: { title: 'Snowflake did not complete the sign-in.', action: 'Start the sign-in again.' },
   token_exchange_failed: { title: 'Compass could not finish the sign-in with Snowflake.', action: 'Start the sign-in again. If it repeats, ask your admin to check the Compass registration.' },
   callback_malformed: { title: 'The sign-in answer could not be read.', action: 'Start the sign-in again.' },
+  enrol_not_configured: { title: 'The enrol file is not available on this installation yet.', action: 'Use "Run the script yourself" instead. Nothing was created.' },
+  registration_dangerous: { title: 'The new identity had more access than it should.', action: 'The enrol file removed what it created. Nothing was stored. Ask your Compass contact before trying again.' },
+  registration_unexpected: { title: 'The new identity had access to something you did not name.', action: 'The enrol file removed what it created. Nothing was stored. Check which grants your workspace adds by default, then get a new file.' },
+  registration_missing: { title: 'The new identity is missing some of the access you named.', action: 'The enrol file removed what it created. Check the admin account can grant on these tables, then get a new file.' },
+  registration_warehouse: { title: 'The new identity does not have exactly the right access to the warehouse.', action: 'The enrol file removed what it created. Check the warehouse name, then get a new file.' },
+  setup_changed: { title: 'This setup changed after the file was made.', action: 'Get a new file and run that one.' },
+  token_used: { title: 'That file was already used.', action: 'Each file works once. Get a new file.' },
+  token_expired: { title: 'That file expired.', action: 'A file works for 30 minutes. Get a new one.' },
+  token_invalid: { title: 'Compass did not recognise that file.', action: 'Get a new file from this screen and run that one.' },
+  too_many_attempts: { title: 'Too many failed attempts from this computer.', action: 'Wait a few minutes, then get a new file.' },
   connection_test_failed: { title: 'The connection test did not pass.', action: 'The checks below say what is missing. Ask your admin to re-run the script, then test again.' },
 };
 

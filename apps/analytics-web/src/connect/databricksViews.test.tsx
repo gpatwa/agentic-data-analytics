@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { DbxScriptView } from './databricksApi';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
 
 const noop = () => undefined;
 const view: DbxScriptView = {
@@ -55,7 +55,7 @@ test('a failed check names each table and shows the plain-words error; a pass sa
 });
 
 const conn = (over: Partial<import('./databricksApi').DbxConnection> = {}) => ({
-  connection_id: 'dbx-1', host: 'dbc-1.cloud.databricks.com', catalog: 'sales', tables: ['sales.data.orders'], status: 'active', expires_at: null, expires_in_days: 80, needs_rotation: false, warm_up: false, ...over,
+  connection_id: 'dbx-1', host: 'dbc-1.cloud.databricks.com', catalog: 'sales', tables: ['sales.data.orders'], status: 'active', expires_at: null, expires_in_days: 80, needs_rotation: false, warm_up: false, application_id: '0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0', ...over,
 });
 const props = { rotating: null, secret: '', problems: [], confirming: null, busy: false, onRotate: noop, onSecret: noop, onSubmitSecret: noop, onCheck: noop, onAskRemove: noop, onRemove: noop };
 
@@ -91,4 +91,59 @@ test('the warm-up switch is off by default, says what it costs, and is off for a
   const viewer = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} onWarmUp={noop} canManage={false} />);
   assert.match(viewer, /type="checkbox"[^>]*disabled/);
   assert.doesNotMatch(renderToStaticMarkup(<DbxConnections {...props} connections={[conn({ status: 'suspended' })]} onWarmUp={noop} />), /checkbox/);
+});
+
+const file = { filename: 'compass-enrol.py', content: 'print("x")', digest: '1533e320a7cfd48a', expires_in_minutes: 30, run: 'python3 compass-enrol.py' };
+const enrolProps = { view, file: null, status: null, busy: false, onIssue: noop, onDownload: noop, onDone: noop, onCancel: noop };
+
+test('the chooser recommends the one file and says nobody copies the secret; the other choice stays available', () => {
+  const html = renderToStaticMarkup(<DbxTrackChooser track="enrol" onChoose={noop} />);
+  assert.match(html, /One file \(recommended\)/);
+  assert.match(html, /nobody copies or sees the secret/);
+  assert.match(html, /Run the script yourself/);
+  assert.match(html, /aria-checked="true"[^>]*data-selected="true"[^>]*>One file/);
+  assert.match(renderToStaticMarkup(<DbxTrackChooser track="manual" onChoose={noop} />), /paste the identity/);
+});
+
+test('before the file is issued the panel says what it does and offers only to get it', () => {
+  const html = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} />);
+  assert.match(html, /plain Python you can read first/);
+  assert.match(html, /removes everything it created/);
+  assert.match(html, /works once, for 30 minutes/);
+  assert.match(html, />Get the file</);
+  assert.doesNotMatch(html, /file-digest|enrol-status/);
+});
+
+test('once issued it shows the digest to compare, the run command and the live status', () => {
+  const waiting = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} status={{ state: 'waiting', code: null, checks: [], expires_in_minutes: 12 }} />);
+  assert.match(waiting, /data-testid="file-digest">1533e320a7cfd48a/);
+  assert.match(waiting, /--digest/);
+  assert.match(waiting, /stops working in 12 minutes/);
+  assert.match(waiting, /Download compass-enrol\.py/);
+  assert.doesNotMatch(waiting, />Done</);
+});
+
+test('a refusal shows its plain-words error and a connection shows each table with a Done button', () => {
+  const refused = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} status={{ state: 'refused', code: 'registration_dangerous', checks: [], expires_in_minutes: 0 }} />);
+  assert.match(refused, /data-code="registration_dangerous"/);
+  assert.match(refused, /more access than it should/);
+  assert.match(refused, /nothing is left behind/);
+  const connected = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} status={{ state: 'connected', code: null, checks: [{ table: 'sales.data.orders', passed: true }], expires_in_minutes: 0 }} />);
+  assert.match(connected, /Can read sales\.data\.orders/);
+  assert.match(connected, />Done</);
+  assert.doesNotMatch(connected, />Cancel</);
+});
+
+test('removal tells the admin the exact command, only when the application id is real', () => {
+  const removal = { connection_id: 'dbx-1', status: 'removed', credential_deleted: true, teardown: [], note: 'Compass can no longer connect.' };
+  const ok = renderToStaticMarkup(<DbxRemovedNote removal={removal} applicationId="0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0" />);
+  assert.match(ok, /data-testid="remove-command">python3 compass-enrol\.py --remove 0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0/);
+  const bad = renderToStaticMarkup(<DbxRemovedNote removal={removal} applicationId="rm -rf /" />);
+  assert.doesNotMatch(bad, /remove-command|rm -rf/);
+  assert.match(bad, /removal script/);
+});
+
+test('rotation says plainly that one-file rotation is not built yet', () => {
+  const html = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} rotating="dbx-1" />);
+  assert.match(html, /not built yet/);
 });

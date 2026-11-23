@@ -1,5 +1,6 @@
-import type { DbxConnection, DbxResult, DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, expiryText, needsApplicationId } from './databricksFlow';
+import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
+import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand } from './databricksFlow';
+import type { Track } from './databricksFlow';
 import { ErrorNotice } from './views';
 
 export function DatabricksStage() {
@@ -11,8 +12,8 @@ export function DatabricksStage() {
         have only run against fakes, and none of it has had a security review.
       </p>
       <p className="cn-small">
-        Your admin runs one script that creates a read-only service principal for exactly the tables you name. They give Compass its application id and
-        secret once. Compass holds no admin credential, and never sees anyone&apos;s password.
+        Your admin runs one file that creates a read-only service principal for exactly the tables you name and hands its secret straight to Compass, so
+        nothing is copied or pasted. Compass holds no admin credential, and never sees anyone&apos;s password.
       </p>
     </section>
   );
@@ -93,6 +94,83 @@ export function DbxScriptPanel(p: DbxScriptPanelProps) {
         <button onClick={() => p.onDownload('removal')} disabled={waiting}>Download removal script</button>
         <button onClick={p.onCancel} disabled={p.busy}>Cancel</button>
       </div>
+    </section>
+  );
+}
+
+export function DbxTrackChooser({ track, onChoose }: { track: Track; onChoose: (track: Track) => void }) {
+  return (
+    <section className="gv-card" data-view="dbx-track" aria-label="How your admin sets this up">
+      <h2>2. How will your admin set it up?</h2>
+      <div className="cn-actions" role="radiogroup" aria-label="Setup method">
+        <button role="radio" aria-checked={track === 'enrol'} data-selected={track === 'enrol'} onClick={() => onChoose('enrol')}>One file (recommended)</button>
+        <button role="radio" aria-checked={track === 'manual'} data-selected={track === 'manual'} onClick={() => onChoose('manual')}>Run the script yourself</button>
+      </div>
+      <p className="cn-small">
+        {track === 'enrol'
+          ? 'Your admin runs one file under their own Databricks sign-in. It creates the identity and sends its secret straight to Compass: nobody copies or sees the secret.'
+          : 'Your admin runs the script below, then you paste the identity\'s application id and secret here once.'}
+      </p>
+    </section>
+  );
+}
+
+export interface DbxEnrolPanelProps {
+  view: DbxScriptView;
+  file: DbxEnrolFile | null;
+  status: DbxEnrolStatus | null;
+  busy: boolean;
+  onIssue: () => void;
+  onDownload: () => void;
+  onDone: () => void;
+  onCancel: () => void;
+}
+
+export function DbxEnrolPanel(p: DbxEnrolPanelProps) {
+  const connected = p.status?.state === 'connected';
+  return (
+    <section className="gv-card" data-view="dbx-enrol" aria-label="The file your admin runs">
+      <h2>Your admin runs one file</h2>
+      <ul>{p.view.summary.map((line) => <li key={line}>{line}</li>)}</ul>
+      <ul className="cn-small">
+        <li>The file is plain Python you can read first. It runs under your admin&apos;s own Databricks sign-in and prints only short codes.</li>
+        <li>If any step fails it removes everything it created. It writes nothing to disk.</li>
+        <li>It works once, for 30 minutes. Asking for a new file cancels the old one.</li>
+      </ul>
+      {!p.file && <button onClick={p.onIssue} disabled={p.busy}>Get the file</button>}
+      {p.file && (
+        <>
+          <p>Digest <code data-testid="file-digest">{p.file.digest}</code>. Your admin can check it with <code>python3 {p.file.filename} --digest</code>; the two must match.</p>
+          <p>To run it: <code>{p.file.run}</code></p>
+          <div className="cn-actions">
+            <button onClick={p.onDownload}>Download {p.file.filename}</button>
+            <button onClick={p.onIssue} disabled={p.busy || connected}>Get a new file</button>
+          </div>
+          <div role="status" aria-live="polite" data-state={p.status?.state ?? 'waiting'} data-testid="enrol-status">
+            <p>{enrolStatusText(p.status)}</p>
+            {p.status?.code && <ErrorNotice code={p.status.code} />}
+            {p.status && p.status.checks.length > 0 && (
+              <ul>{p.status.checks.map((c) => <li key={c.table} data-passed={c.passed}>{c.passed ? 'Can read' : 'Cannot read'} {c.table}</li>)}</ul>
+            )}
+          </div>
+        </>
+      )}
+      <div className="cn-actions">
+        {connected && <button onClick={p.onDone}>Done</button>}
+        {!connected && <button onClick={p.onCancel} disabled={p.busy}>Cancel</button>}
+      </div>
+    </section>
+  );
+}
+
+export function DbxRemovedNote({ removal, applicationId }: { removal: DbxRemoval; applicationId: string }) {
+  const command = removeCommand(applicationId);
+  return (
+    <section className="gv-card" data-view="dbx-removed" aria-label="Access removed from Compass">
+      <h2>Compass can no longer connect</h2>
+      <p>{removal.note}</p>
+      {command ? <p>To remove the identity and its grants from Databricks, your admin runs <code data-testid="remove-command">{command}</code> with the enrol file, or the removal script.</p>
+        : <p>Your admin removes the identity and its grants with the removal script.</p>}
     </section>
   );
 }
@@ -209,7 +287,7 @@ export function DbxConnections(p: DbxConnectionsProps) {
                 <input type="password" value={p.secret} autoComplete="off" spellCheck={false} onChange={(e) => p.onSecret(e.target.value)} />
               </label>
               {p.problems.length > 0 && <ul className="cn-problems" data-testid="problems">{p.problems.map((x) => <li key={x}>{x}</li>)}</ul>}
-              <p className="cn-small">The old secret is kept until the new one is checked. If the check fails, the old one stays.</p>
+              <p className="cn-small">The old secret is kept until the new one is checked. If the check fails, the old one stays. Rotating with one file, with no secret to paste, is not built yet.</p>
               <button onClick={() => p.onSubmitSecret(c.connection_id)} disabled={p.busy}>Replace and check</button>
             </div>
           )}
