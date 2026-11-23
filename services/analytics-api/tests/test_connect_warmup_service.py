@@ -197,3 +197,46 @@ def test_analyze_warms_first_as_a_fallback_and_a_warm_up_error_never_breaks_the_
     client, service = _client(broken)
     client.post("/api/v2/analytics/analyze", json={"purpose": "p", "request_text": "how many orders"}, headers=_h())
     assert service.called == 1
+
+
+def test_a_metric_that_needs_policy_values_is_skipped_the_next_is_tried_and_none_means_nothing_runs():
+    from app.compiler.postgres import CompilationError
+
+    assets = _assets(Gateway())
+    real = assets.compiler
+    base = warm_plans(assets, TENANT)
+    documents = assets.contracts.documents()
+    metrics = [m for d in documents for m in d.contract.metrics]
+    victim = next(m for m in metrics if sum(1 for x in metrics if x.dataset_id == m.dataset_id) > 2)  # a dataset with a spare metric
+    refuse = {victim.id}
+
+    def compile_(intent, *, policy_values=None):
+        if intent.metrics[0].metric_id in refuse:
+            raise CompilationError("missing policy value for required filter f1")
+        return real.compile(intent, policy_values=policy_values)
+
+    assets.compiler = SimpleNamespace(compile=compile_)
+    plans = warm_plans(assets, TENANT)
+    assert len(plans) == len(base)  # the dataset's next metric took the refused one's place
+    svc, _, _ = _service([_record()], assets=lambda tenant: assets)
+    assert svc.request(TENANT) == "warming" and len(assets.gateway.plans) == len(base)  # the rest still warm
+    # nothing compiles: a stable code, no statement, and the idle slot is not claimed
+    seen = []
+    refuse.update(m.id for m in metrics)
+    assets.gateway.plans.clear()
+    svc, _, _ = _service([_record()], assets=lambda tenant: assets, audit=lambda *a: seen.append(a[2]))
+    assert svc.request(TENANT) == "warming" and assets.gateway.plans == [] and [r.code for r in seen] == ["skipped_none"]
+    assert svc.request(TENANT) == "warming"  # tries again next time
+
+
+def test_the_cors_list_allows_the_connection_admin_calls():
+    from fastapi.testclient import TestClient
+
+    from app.config import settings
+    from app.main import app
+
+    origin = settings.cors_origins[0] if settings.cors_origins and settings.cors_origins != ["*"] else "http://localhost:5173"
+    for method in ("PUT", "DELETE"):
+        r = TestClient(app).options("/api/v2/connect/databricks/connections/x/warm-up", headers={"Origin": origin, "Access-Control-Request-Method": method,
+                                                                                                  "Access-Control-Request-Headers": "authorization,content-type"})
+        assert r.status_code == 200 and method in r.headers["access-control-allow-methods"], method

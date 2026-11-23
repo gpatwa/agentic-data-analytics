@@ -5,7 +5,7 @@ code, and does any warehouse work on a background thread, so it never makes a re
 
 What it runs: for each certified dataset of the tenant's own contract, the no-dimension aggregate of its first two metrics (at most four statements in all), compiled by the tenant's own
 certified compiler and run through the tenant's own gateway, so it has exactly an answer's allow-list and the connection's read-only principal. The results are thrown away. Nothing is sent
-to a model, and nothing but a code, a count and a duration is recorded. A contract that needs policy values to compile simply fails to warm (a stable code), which is the safe outcome.
+to a model, and nothing but a code, a count and a duration is recorded. A metric whose compile needs policy values is skipped (never guessed, never unfiltered); if none compiles, the answer is `skipped_none` and nothing runs.
 
 When it does nothing: the connection's `warm_up` switch is off (the default), the tenant has no single active Databricks connection, or a warm-up or a real answer ran within the Warmer's
 `idle_after`. So a busy connection pays nothing, and calling it in a loop cannot keep a warehouse awake.
@@ -18,6 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+from app.compiler.postgres import CompilationError
 from app.connect.store import ConnectionRecord, ConnectionStore
 from app.connect.warmup import Warmer, WarmResult
 from app.execution.gateway import ExecutionLimits
@@ -30,16 +31,26 @@ WARM_LIMITS = ExecutionLimits(timeout_seconds=30.0, max_rows=10, max_bytes=100_0
 
 
 def warm_plans(assets: Any, tenant_id: str, *, per_dataset: int = PER_DATASET, cap: int = MAX_STATEMENTS) -> list[Any]:
-    """Compiled plans for the warm-up, from the tenant's certified contracts only, chosen in contract order so a rerun picks the same ones."""
+    """Compiled plans for the warm-up, from the tenant's certified contracts only, chosen in contract order so a rerun picks the same ones.
+
+    A metric the compiler refuses (for example a contract whose required filter takes a policy value, which a warm-up has no person to take from) is skipped and the next metric of
+    the dataset is tried: a warm-up never invents a policy value and never drops a required filter, so it simply warms what it can. If nothing compiles the result is empty."""
     plans: list[Any] = []
     for document in assets.contracts.documents():
         contract = document.contract
         for dataset in contract.datasets:
-            for metric in [m for m in contract.metrics if m.dataset_id == dataset.id][:per_dataset]:
+            taken = 0
+            for metric in [m for m in contract.metrics if m.dataset_id == dataset.id]:
+                if taken >= per_dataset:
+                    break
                 intent = AnalyticalIntent.model_validate({
                     "query_id": "warm-up", "tenant_id": tenant_id, "dataset_id": dataset.id, "metrics": [{"metric_id": metric.id}],
                     "semantic_contract": {"contract_id": contract.id, "contract_version": contract.version}})
-                plans.append(assets.compiler.compile(intent, policy_values=None))
+                try:
+                    plans.append(assets.compiler.compile(intent, policy_values=None))
+                except CompilationError:
+                    continue
+                taken += 1
                 if len(plans) >= cap:
                     return plans
     return plans
