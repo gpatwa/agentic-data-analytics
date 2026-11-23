@@ -84,4 +84,15 @@ def build_databricks_wiring(settings: Any, *, engine: Any | None = None, vault_c
     return DatabricksWiring(setups, session_factory, assets)
 
 
-__all__ = ["DatabricksWiring", "build_databricks_wiring", "registry_for_tenant"]
+def warm_up_for(wiring: DatabricksWiring) -> Any:
+    """The warm-up service over the wired connection store and audit chain: what start-up and the local deployment check both attach to the v2 runtime. Records a code, a count and a duration only."""
+    from app.connect.warmup_service import WarmUpService
+
+    chain = wiring.setups.chain
+    return WarmUpService(
+        wiring.setups.store, wiring.assets_for_tenant,
+        audit=lambda tenant, connection, r: chain.append(f"{connection}:warm:{len(chain.events) + 1}", "connect.warm_up_ran", tenant, "system",
+                                                        {"connection_id": connection, "code": r.code, "statements_run": r.statements_run, "seconds": round(r.seconds, 1)}))
+
+
+__all__ = ["DatabricksWiring", "build_databricks_wiring", "registry_for_tenant", "warm_up_for"]
