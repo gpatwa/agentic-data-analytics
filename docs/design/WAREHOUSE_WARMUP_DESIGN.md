@@ -100,3 +100,7 @@ What stands in for the real path: an in-memory connection record with no credent
 ### The UI call (built 2026-11-22)
 
 `apps/analytics-web`: `warm()` in `src/governed/workflow.ts` posts to `/api/v2/analytics/warm` with the signed-in token. `GovernedWorkspace` calls it once when a person signs in and again when the tab returns to the front. It is fire-and-forget: it never throws, shows nothing and sends no body, and does nothing in the public demo or when signed out. The server's idle gate makes repeats cheap. Typecheck and the 71 web tests pass; not exercised in a browser against a live API.
+
+### The switch UI (built 2026-11-22)
+
+`apps/analytics-web/src/connect`: each active Databricks connection shows a checkbox, off by default, that calls the admin `PUT /connections/{id}/warm-up`. The text beside it says the cost: a few short read-only queries on the customer's warehouse when Compass is opened after a quiet period, which starts a stopped warehouse and uses warehouse time on their account, with no added access. It is disabled for a viewer who cannot manage connections and hidden for a paused connection. The web app is served with `/api/` proxied on the same origin (nginx), so the API's GET/POST/OPTIONS-only CORS list does not stop the PUT there; a deployment that calls the API cross-origin would need PUT added. Typecheck and the 72 web tests pass; not exercised in a browser.
