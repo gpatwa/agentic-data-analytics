@@ -476,6 +476,7 @@ def test_approval_changes_nothing_else_and_there_is_no_review_endpoint(world):
         paths
         == {  # the review workflow added no endpoint (the run-level `/review` is ADS-045's, unrelated)
             "/api/v2/analytics/analyze",
+            "/api/v2/analytics/warm",  # the warm-up call (not a review endpoint)
             "/api/v2/analytics/runs/{run_id}",
             "/api/v2/analytics/runs/{run_id}/clarify",
             "/api/v2/analytics/runs/{run_id}/review",

@@ -31,6 +31,7 @@ class V2Runtime:
     feedback: FeedbackService | None = None
     resolver: IdentityResolver | None = None  # when set, it replaces the bare verifier (groups, delegation)
     briefs: Any = None  # a ReviewBriefService; reviewers and the review assistant read briefs through it
+    warm: Any = None  # a WarmUpService (app.connect.warmup_service) when Connect on Databricks is enabled; None otherwise
 
 
 def build_v2_router(runtime: V2Runtime, api_key_dependency) -> APIRouter:
@@ -55,6 +56,14 @@ def build_v2_router(runtime: V2Runtime, api_key_dependency) -> APIRouter:
         response.status_code = 202 if result.state == "running" else 200
         return result
 
+    @router.post("/warm", status_code=202)
+    def warm(response: Response, who: AnalyticsIdentity = Depends(identity)) -> dict[str, str]:
+        """Warm this tenant's connected warehouse because a user is opening the workspace. Answers at once with a code and never waits for the warehouse; a tenant with no
+        connection, or whose connection has warming off, gets `skipped_disabled` (no information about other tenants is possible: the tenant comes from the identity)."""
+        code = runtime.warm.request(who.tenant_id) if runtime.warm is not None else "skipped_disabled"
+        response.status_code = 202 if code == "warming" else 200
+        return {"code": code}
+
     @router.post("/analyze", response_model=AnalyzeRunResponse)
     def analyze(
         body: AnalyzeRequest,
@@ -62,6 +71,8 @@ def build_v2_router(runtime: V2Runtime, api_key_dependency) -> APIRouter:
         who: AnalyticsIdentity = Depends(identity),
         idempotency_key: str | None = Header(default=None),
     ):
+        if runtime.warm is not None:
+            runtime.warm.on_question(who.tenant_id)  # fallback for clients that never call /warm; never raises, never waits
         return respond(
             lambda: runtime.service.analyze(
                 who, purpose=body.purpose, idempotency_key=idempotency_key or "", request_text=body.request_text

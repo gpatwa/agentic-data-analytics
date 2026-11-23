@@ -38,6 +38,13 @@ async def lifespan(_: FastAPI):
         if wiring is not None:  # the setup routes share the governed runtime's identity check and the same connection store
             databricks_runtime.setups, databricks_runtime.session_factory = wiring.setups, wiring.session_factory
             databricks_runtime.verifier, databricks_runtime.resolver = built.verifier, built.resolver
+            from app.connect.warmup_service import WarmUpService
+
+            chain = wiring.setups.chain
+            v2_runtime.warm = WarmUpService(
+                wiring.setups.store, wiring.assets_for_tenant,
+                audit=lambda tenant, connection, r: chain.append(f"{connection}:warm:{len(chain.events) + 1}", "connect.warm_up_ran", tenant, "system",
+                                                                {"connection_id": connection, "code": r.code, "statements_run": r.statements_run, "seconds": round(r.seconds, 1)}))
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT not in built.governed.contexts:
             raise RuntimeError("ANALYTICS_DEMO_ENABLED needs a certified contract for ANALYTICS_DEMO_TENANT")
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT in (settings.entra_tenant_targets()):

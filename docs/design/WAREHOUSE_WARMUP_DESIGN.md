@@ -1,6 +1,6 @@
 # Keeping the customer's warehouse warm: a design (2026-11-21)
 
-Status: **the component is built and tested with fakes; it is not wired into any request path.** The live evidence (below, and `docs/evaluation/scale-test-tier-m-results.md`) is in; the wiring plan is the last section and needs the owner's decisions. Evidence is the scale test on tier M (`docs/evaluation/scale-test-tier-m-results.md`).
+Status: **built and tested with fakes, wired into the request path behind a per-connection switch that is off by default; nothing was run live.** (Wiring plan, last section: steps 1 to 5 are built; see "As built".) The live evidence (below, and `docs/evaluation/scale-test-tier-m-results.md`) is in; the wiring plan is the last section and needs the owner's decisions. Evidence is the scale test on tier M (`docs/evaluation/scale-test-tier-m-results.md`).
 
 ## The problem, as measured
 
@@ -74,3 +74,13 @@ After a 20-minute gap with no reads, the first workload statement took **8.5 s**
 **Limits to say out loud.** Per replica, not shared (each replica warms once per idle gap; the extra is a few reads). Snowflake is not measured. A warm-up wakes a stopped warehouse, so the customer pays for that start: the flag description says so. Repeated data caches better than real data, so the 8.5 s may be different on a customer's own data.
 
 **What I need from you before building.** (a) Hook: 1, 1 plus 2, or something else. (b) Admin-set flag per connection, or a tenant-wide default. (c) Whether the first release is Databricks only. Each build step above is small enough for one PR with fakes-only tests; nothing live is needed to build it, and a live check afterwards would need a fresh approval.
+
+
+## As built (fakes only; no live check yet)
+
+- `ConnectionRecord.warm_up` (default off), migration `0015_connect_warm_up`, and `PUT /api/v2/connect/databricks/connections/{id}/warm-up` (connection managers of the same tenant only; each change is a `connect.warm_up_changed` audit event). The connection list shows it.
+- `app/connect/warmup_service.py`: `WarmUpService.request(tenant)` answers `warming`, `skipped_recent`, `skipped_disabled`, `skipped_busy` or `failed` at once and does the warehouse work on a background thread (at most four queued or running at once). It warms only a tenant's single active Databricks connection with the switch on. Statements: for each certified dataset of the tenant's contract, the no-dimension aggregate of its first two metrics, at most four, compiled by the tenant's own certified compiler and run through its own gateway with a one-row limit; results discarded. Each run writes a `connect.warm_up_ran` audit event with a code, a count and a duration only.
+- `POST /api/v2/analytics/warm` (202 when warming, else 200 with the code; the tenant comes from the identity). `POST /analyze` calls `WarmUpService.on_question` first: it warms if the connection is idle and otherwise marks it busy so no warm-up is wasted; it never raises and never waits.
+- `Warmer.recent()` (read only) so the call can answer without claiming anything.
+- A contract that needs policy values to compile fails to warm (code `failed`); it does not guess values.
+- Not done: a live check (needs a fresh approval); Snowflake; the browser CORS list allows only GET, POST and OPTIONS, so a browser calling the PUT switch directly would be refused (the same is true of the existing DELETE); the UI call to `/warm`.

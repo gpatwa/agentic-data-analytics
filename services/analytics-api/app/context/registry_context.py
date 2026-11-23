@@ -212,6 +212,10 @@ class CertifiedContracts:
     def __init__(self, documents: list[SemanticRegistryDocument]) -> None:
         self._documents = {(d.contract.id, d.contract.version): d for d in documents if d.lifecycle == "certified"}
 
+    def documents(self) -> list[SemanticRegistryDocument]:
+        """The certified documents, in a stable order (read-only; used to choose warm-up statements)."""
+        return [self._documents[k] for k in sorted(self._documents)]
+
     def get_certified(self, contract_id: str, version: str) -> SemanticRegistryDocument:
         try:
             return self._documents[(contract_id, version)]
