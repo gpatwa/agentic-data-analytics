@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [eval-ads056, eval-ads057, eval-corpora, synthetic, rest]
+        part: [eval-ads056, eval-ads057, eval-corpora-a, eval-corpora-b, synthetic, rest]
     defaults:
       run:
         working-directory: services/analytics-api
@@ -86,42 +86,6 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/services/analytics-api:${{ github.workspace }}
         run: pytest $(python ci_parts.py ${{ matrix.part }}) -q --tb=short --durations=15 -p no:cacheprovider
-
-  # A one-off diagnostic, to be removed once the cause is known: the synthetic part took about 26 minutes in CI and about 20 seconds on a laptop. This leg runs the same files with
-  # temporary files on a RAM disk and prints every test's time, so a disk-bound cause shows up as a large difference. It never blocks the pull request.
-  synthetic-diagnostic:
-    name: Diagnostic (synthetic part on a RAM disk)
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    defaults:
-      run:
-        working-directory: services/analytics-api
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: services/analytics-api/requirements.txt
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio
-          pip install -r requirements-reference-data.txt
-
-      - name: Machine profile
-        run: |
-          nproc; free -m; df -h /tmp /dev/shm; python -c "import duckdb, sys; print(sys.version, duckdb.__version__)"
-
-      - name: Run the synthetic part with temp files on /dev/shm
-        env:
-          PYTHONPATH: ${{ github.workspace }}/services/analytics-api:${{ github.workspace }}
-          TMPDIR: /dev/shm
-        run: pytest $(python ci_parts.py synthetic) -q --tb=short --durations=0 -p no:cacheprovider
 
   docker-build:
     name: Docker Build (analytics-api)
