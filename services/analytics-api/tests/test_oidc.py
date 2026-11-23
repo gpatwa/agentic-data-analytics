@@ -25,7 +25,7 @@ def test_oidc_verifier_returns_tenant_scoped_identity():
     assert identity.groups == ["analyst"]
 
 
-@pytest.mark.parametrize("bad", [token(iss="https://other.example"), token(aud="other"), token(tid=None)])
+@pytest.mark.parametrize("bad", [token(iss="https://other.example"), token(aud="other"), token(tid=None)], ids=["wrong_issuer", "wrong_audience", "no_tenant"])  # stable ids: the tokens carry a timestamp, which differs per xdist worker
 def test_oidc_verifier_rejects_untrusted_claims(bad):
     with pytest.raises(AuthenticationError):
         verifier().verify(bad)
