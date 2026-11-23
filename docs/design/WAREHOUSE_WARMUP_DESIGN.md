@@ -96,3 +96,7 @@ and the x10 schema, with these steps and pass conditions:
 4. The 32 workload statements run, all answers checked; the first read is compared with the earlier control (8,502 ms) and experiment (2,939 ms), which came from one pair of runs and are not re-measured here.
 
 What stands in for the real path: an in-memory connection record with no credential, and the owner's CLI profile instead of the OAuth connector, so the OAuth path itself is not exercised. At most 38 SELECT statements, 35-minute cap, nothing created, resized, stopped or deleted.
+
+### The UI call (built 2026-11-22)
+
+`apps/analytics-web`: `warm()` in `src/governed/workflow.ts` posts to `/api/v2/analytics/warm` with the signed-in token. `GovernedWorkspace` calls it once when a person signs in and again when the tab returns to the front. It is fire-and-forget: it never throws, shows nothing and sends no body, and does nothing in the public demo or when signed out. The server's idle gate makes repeats cheap. Typecheck and the 71 web tests pass; not exercised in a browser against a live API.
