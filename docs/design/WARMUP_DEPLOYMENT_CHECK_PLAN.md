@@ -2,7 +2,7 @@
 
 Status: **the run script is built and tested with fakes (`python -m reference_stack.deployment_check`, dry run by default). Nothing here is approved and nothing has run live.** The live check of 2026-11-22 (`docs/evaluation/scale-test-tier-m-results.md`, "Live check of the wired warm-up") ran the real `WarmUpService` but used an in-memory connection and the owner's CLI profile. This plan covers what it skipped.
 
-> **2026-11-23:** the manual steps below (1 to 3 and 5) proved hard to repeat. `SELF_SERVE_CONNECT_DESIGN.md` proposes replacing them with a self-provisioning run (`--provision`, no environment variables, the principal created and removed by the run) and the same runner for customer onboarding. Until that is approved and built, this plan's manual path is the only way to run the check.
+> **2026-11-23:** the manual steps below (1 to 3 and 5) proved hard to repeat. `SELF_SERVE_CONNECT_DESIGN.md` proposes replacing them with a self-provisioning run (`--provision`, no environment variables, the principal created and removed by the run) and the same runner for customer onboarding. `--provision` is now built and tested on fakes (S1); a live run still needs a new approval entry (`warmup_provision_check`), which has not been given. Until then this plan's manual path is the only live route.
 
 ## What a deployment check would add
 
