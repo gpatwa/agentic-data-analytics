@@ -59,6 +59,7 @@ export interface DbxConnection {
   expires_at: string | null;
   expires_in_days: number | null;
   needs_rotation: boolean;
+  warm_up: boolean;
 }
 
 export interface DbxRemoval {
@@ -75,3 +76,6 @@ export const rotateDbxSecret = (cfg: ConnectConfig, id: string, secret: string) 
   call<DbxResult>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/secret`, { client_secret: secret });
 export const checkDbxConnection = (cfg: ConnectConfig, id: string) => call<DbxResult>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/check`);
 export const removeDbxConnection = (cfg: ConnectConfig, id: string) => call<DbxRemoval>(cfg, 'DELETE', `${BASE}/connections/${encodeURIComponent(id)}`);
+/** Turn warming on or off for one connection (an admin action; off by default). Answers the updated connection. */
+export const setDbxWarmUp = (cfg: ConnectConfig, id: string, enabled: boolean) =>
+  call<DbxConnection>(cfg, 'PUT', `${BASE}/connections/${encodeURIComponent(id)}/warm-up`, { enabled });

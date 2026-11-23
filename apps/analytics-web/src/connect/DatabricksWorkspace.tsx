@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { ConnectError } from './api';
-import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId } from './databricksApi';
+import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId, setDbxWarmUp } from './databricksApi';
 import type { DbxConnection, DbxResult, DbxScriptView } from './databricksApi';
 import { dbxRemovalText, dbxScriptFilename, dbxScriptText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxResultPanel, DbxScriptPanel } from './databricksViews';
@@ -108,6 +108,12 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
       await refresh();
     });
 
+  const warmUp = (id: string, enabled: boolean) =>
+    guard(async () => {
+      await setDbxWarmUp(cfg, id, enabled);
+      await refresh();
+    });
+
   const remove = (id: string) =>
     guard(async () => {
       await removeDbxConnection(cfg, id);
@@ -140,7 +146,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
           )}
           <DbxConnections connections={connections} rotating={rotating} secret={rotateSecret} problems={rotateProblems} confirming={confirming} busy={busy}
             onRotate={(id) => { setRotating(id); setRotateSecret(''); setRotateProblems([]); }} onSecret={setRotateSecret} onSubmitSecret={submitRotation}
-            onCheck={(id) => void check(id)} onAskRemove={setConfirming} onRemove={(id) => void remove(id)} />
+            onCheck={(id) => void check(id)} onAskRemove={setConfirming} onRemove={(id) => void remove(id)} onWarmUp={(id, enabled) => void warmUp(id, enabled)} canManage={canManage} />
           <DbxResultPanel result={result} errorCode={errorCode} />
         </>
       )}

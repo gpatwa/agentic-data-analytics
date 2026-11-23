@@ -55,7 +55,7 @@ test('a failed check names each table and shows the plain-words error; a pass sa
 });
 
 const conn = (over: Partial<import('./databricksApi').DbxConnection> = {}) => ({
-  connection_id: 'dbx-1', host: 'dbc-1.cloud.databricks.com', catalog: 'sales', tables: ['sales.data.orders'], status: 'active', expires_at: null, expires_in_days: 80, needs_rotation: false, ...over,
+  connection_id: 'dbx-1', host: 'dbc-1.cloud.databricks.com', catalog: 'sales', tables: ['sales.data.orders'], status: 'active', expires_at: null, expires_in_days: 80, needs_rotation: false, warm_up: false, ...over,
 });
 const props = { rotating: null, secret: '', problems: [], confirming: null, busy: false, onRotate: noop, onSecret: noop, onSubmitSecret: noop, onCheck: noop, onAskRemove: noop, onRemove: noop };
 
@@ -77,4 +77,18 @@ test('the rotation form is a password field that keeps the old secret until the 
   assert.match(html, /old secret is kept until the new one is checked/);
   assert.match(html, /Confirm removal/);
   assert.match(html, /delete its secret now/);
+});
+
+test('the warm-up switch is off by default, says what it costs, and is off for a viewer who cannot manage or a paused connection', () => {
+  const off = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} onWarmUp={noop} />);
+  assert.match(off, /type="checkbox"/);
+  assert.doesNotMatch(off, /checked=""/);
+  assert.match(off, /uses warehouse time/);
+  assert.match(off, /starts it if it was stopped/);
+  assert.match(off, /adds no access/);
+  const on = renderToStaticMarkup(<DbxConnections {...props} connections={[conn({ warm_up: true })]} onWarmUp={noop} />);
+  assert.match(on, /checked=""/);
+  const viewer = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} onWarmUp={noop} canManage={false} />);
+  assert.match(viewer, /type="checkbox"[^>]*disabled/);
+  assert.doesNotMatch(renderToStaticMarkup(<DbxConnections {...props} connections={[conn({ status: 'suspended' })]} onWarmUp={noop} />), /checkbox/);
 });
