@@ -119,3 +119,18 @@ Approval `warmup_control_x10`. Run `2176150f`, control round only (no warm-up), 
 - The delay is real at 10 times the data: after 20 idle minutes the first statement took 8.5 s (4 times the 2.1 s median) and read 30.5 MB from remote storage.
 - Warming first removed most of it: the first user-visible statement dropped from 8.5 s to 2.9 s, and the other 31 were unchanged. The warm-up statements paid the cold read themselves (17.3 s for two), which in a product would be paid in the background, not by a user.
 - Caveats: one pair of runs on a shared warehouse; repeated data caches better than real data; the warm-up statements may have pulled in the same columns the first statement then used. Not tested: a different idle gap, or whether the cold read grows with real (non-replicated) data.
+
+## Live check of the wired warm-up (run ef3d9159, 2026-11-22)
+
+The product's own `WarmUpService` on the starter warehouse, x10 schema, approval `warmup_service_live_check`; an in-memory connection and the owner's CLI profile stood in for the OAuth connector (so that path is not exercised).
+
+| Step | Result |
+|---|---|
+| switch off | `skipped_disabled`, 0 statements sent |
+| after a 20-minute gap, switch on: `request` | `warming`, answered in 69 ms |
+| background warm-up | `warmed`, 3 statements, 21.9 s |
+| second `request`, then `on_question` | `skipped_recent`; 0 statements sent |
+| 32 workload statements | 0 wrong answers |
+| first read (`discount_total`) | 2,941 ms execution, 0.76 MB read from remote storage; the other statements' median 2,028 ms |
+
+The first read matches the earlier hand-run warm-up (2,939 ms) and is far below the earlier control (8,502 ms, 30.5 MB remote); the control is from a different run, one pair, shared warehouse, replicated data. The warm-up ran three statements, not the experiment's two, and took 21.9 s against 17.3 s. Not covered: the OAuth connector path, a real connection record, the HTTP routes against a deployment, Snowflake.
