@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { ConnectError } from './api';
-import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, enrolStatus, issueEnrolFile, listDbxConnections, removeDbxConnection, rotateDbxSecret, scriptWithId, setDbxWarmUp } from './databricksApi';
+import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, enrolStatus, issueEnrolFile, issueRotateFile, listDbxConnections, removeDbxConnection, rotateDbxSecret, rotateStatus, scriptWithId, setDbxWarmUp } from './databricksApi';
 import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
 import { dbxRemovalText, dbxScriptFilename, dbxScriptText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 import type { Track } from './databricksFlow';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
 import { save } from './download';
 import { parseTables } from './flow';
 import type { ConnectConfig } from './types';
@@ -32,6 +32,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
   const [track, setTrack] = useState<Track>('enrol');
   const [file, setFile] = useState<DbxEnrolFile | null>(null);
   const [status, setStatus] = useState<DbxEnrolStatus | null>(null);
+  const [rotation, setRotation] = useState<{ id: string; file: DbxEnrolFile | null; status: DbxEnrolStatus | null } | null>(null);
   const [removed, setRemoved] = useState<{ removal: DbxRemoval; applicationId: string } | null>(null);
 
   async function guard(work: () => Promise<void>) {
@@ -67,6 +68,28 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.setup_id, file, status?.state]);
+
+  // The same polling for a rotation by file.
+  useEffect(() => {
+    if (!rotation || !rotation.file || (rotation.status && rotation.status.state !== 'waiting')) return undefined;
+    const id = rotation.id;
+    const timer = setInterval(() => {
+      void rotateStatus(cfg, id)
+        .then(async (next) => {
+          setRotation((current) => (current && current.id === id ? { ...current, status: next } : current));
+          if (next.state === 'connected') await refresh();
+        })
+        .catch(() => undefined);
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotation?.id, rotation?.file, rotation?.status?.state]);
+
+  const rotateByFile = (id: string) =>
+    guard(async () => {
+      const issued = await issueRotateFile(cfg, id);
+      setRotation({ id, file: issued, status: null });
+    });
 
   const show = () => {
     const found = validateDbxDetails({ host, catalog, warehouse, tablesText });
@@ -186,9 +209,13 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
                 onChange={(field, value) => ({ applicationId: setApplicationId, secret: setSecret, httpPath: setHttpPath })[field](value)} onSubmit={connect} />
             </>
           )}
+          {rotation && (
+            <DbxRotatePanel host={connections.find((c) => c.connection_id === rotation.id)?.host ?? ''} file={rotation.file} status={rotation.status} busy={busy}
+              onIssue={() => void rotateByFile(rotation.id)} onDownload={() => rotation.file && save(rotation.file.filename, rotation.file.content)} onClose={() => setRotation(null)} />
+          )}
           {removed && <DbxRemovedNote removal={removed.removal} applicationId={removed.applicationId} />}
           <DbxConnections connections={connections} rotating={rotating} secret={rotateSecret} problems={rotateProblems} confirming={confirming} busy={busy}
-            onRotate={(id) => { setRotating(id); setRotateSecret(''); setRotateProblems([]); }} onSecret={setRotateSecret} onSubmitSecret={submitRotation}
+            onRotate={(id) => { setRotating(id); setRotateSecret(''); setRotateProblems([]); }} onRotateFile={(id) => void rotateByFile(id)} onSecret={setRotateSecret} onSubmitSecret={submitRotation}
             onCheck={(id) => void check(id)} onAskRemove={setConfirming} onRemove={(id) => void remove(id)} onWarmUp={(id, enabled) => void warmUp(id, enabled)} canManage={canManage} />
           <DbxResultPanel result={result} errorCode={errorCode} />
         </>

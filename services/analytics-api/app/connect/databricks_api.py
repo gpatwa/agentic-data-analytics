@@ -26,7 +26,15 @@ from pydantic import BaseModel, Field
 
 from app.connect import databricks_registration as reg
 from app.connect.api import MANAGER_GROUP
-from app.connect.enrol import AttemptLimiter, EnrolmentTokens, EnrolRefused, check_readback, render_enrol_file
+from app.connect.drift import ROTATE_WITHIN_DAYS
+from app.connect.enrol import (
+    AttemptLimiter,
+    EnrolmentTokens,
+    EnrolRefused,
+    check_readback,
+    render_enrol_file,
+    render_rotate_file,
+)
 from app.connect.grants import ConnectScope, ScopeError
 from app.connect.records import SetupRecorder
 from app.connect.store import (
@@ -310,7 +318,6 @@ class DbxConnectionView(BaseModel):
     application_id: str = ""  # the principal's id (not a secret): the screen shows the file's --remove command with it
 
 
-ROTATE_WITHIN_DAYS = 14
 
 
 def connection_view(record: ConnectionRecord, now: datetime | None = None) -> DbxConnectionView:
@@ -364,6 +371,7 @@ def _view(p: PendingDatabricks) -> ScriptView:
 
 
 ENROL_PATH = "/api/v2/connect/databricks/enrol"
+ROTATE_PATH = ENROL_PATH + "/rotate"
 
 
 def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
@@ -371,8 +379,8 @@ def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
     submit one credential for the one setup the token is bound to. Every answer is a short code; the body is read as a plain dict so no validation error can echo the secret."""
     router = APIRouter(tags=["connect-databricks"])
 
-    @router.post(ENROL_PATH)
-    def enrol(request: Request, body: dict[str, Any] = Body(...), authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    def redeem(request: Request, authorization: str | None, purpose: str):
+        """The shared front of both calls: the failed-attempt limit, then the bearer token, spent on first valid use."""
         setups = runtime.setups
         if setups is None or runtime.session_factory is None:
             raise HTTPException(503, "connect_not_configured")
@@ -385,10 +393,15 @@ def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
         try:
             if scheme.lower() != "bearer":
                 raise EnrolRefused("token_invalid")
-            entry = setups.tokens.redeem(token)
+            return setups.tokens.redeem(token, purpose)
         except EnrolRefused as exc:
             setups.limiter.failed(caller)
             raise HTTPException(401, exc.code, headers={"WWW-Authenticate": "Bearer"}) from exc
+
+    @router.post(ENROL_PATH)
+    def enrol(request: Request, body: dict[str, Any] = Body(...), authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        setups = runtime.setups
+        entry = redeem(request, authorization, "enrol")
         try:
             pending = setups.get(entry.tenant_id, entry.setup_id)
         except SetupNotFound as exc:
@@ -407,6 +420,7 @@ def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
             report = check_readback(pending, application_id, body.get("grants"), body.get("warehouse_acl"))
         except EnrolRefused as exc:
             raise HTTPException(422, exc.code) from exc
+
         def note(state: str, code: str | None, checks: list[dict[str, Any]]) -> None:
             known = setups.enrol_state.get(pending.setup_id)
             if known is not None:
@@ -424,6 +438,31 @@ def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
         audit("connect.enrolled", {"ok": result.ok, "code": result.code})
         return {"ok": result.ok, "code": result.code, "connection_id": pending.connection_id, "connection_status": result.connection_status,
                 "checks": [{"table": t, "passed": p} for t, p in result.checks]}
+
+    @router.post(ROTATE_PATH)
+    def rotate_by_file(request: Request, body: dict[str, Any] = Body(...), authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        """The rotate file's one call: a new secret for an existing connection. The old one is kept until the new one reads every table; if it does not, the old one is put back."""
+        setups = runtime.setups
+        entry = redeem(request, authorization, "rotate")
+        try:
+            record = setups._owned(entry.tenant_id, entry.setup_id)  # for a rotation the token's subject is the connection id
+        except ConnectionNotFound as exc:
+            raise HTTPException(404, "connection_not_found") from exc
+        if record.user != entry.digest:
+            raise HTTPException(409, "connection_changed")
+        value = body.get("client_secret")
+        if not isinstance(value, str):
+            raise HTTPException(422, "invalid_request")
+        try:
+            result = setups.rotate(entry.tenant_id, record.connection_id, actor_id=entry.actor_id or "enrol-file", client_secret=value, session_factory=runtime.session_factory)
+        except Refused as exc:
+            raise HTTPException(422, exc.code) from exc
+        known = setups.enrol_state.get(f"rotate:{record.connection_id}")
+        if known is not None:
+            known.update({"state": "connected" if result.ok else "refused", "code": result.code, "checks": [{"table": t, "passed": p} for t, p in result.checks]})
+        setups.chain.append(f"{record.connection_id}:rotate_file:{len(setups.chain.events) + 1}", "connect.rotated_by_file", record.tenant_id, entry.actor_id or "enrol-file",
+                            {"connection_id": record.connection_id, "ok": result.ok, "code": result.code})
+        return {"ok": result.ok, "code": result.code, "connection_status": result.connection_status, "checks": [{"table": t, "passed": p} for t, p in result.checks]}
 
     return router
 
@@ -546,6 +585,36 @@ def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> A
         except ConnectionNotFound as exc:
             raise HTTPException(404, "connection_not_found") from exc
         return CompleteView(ok=result.ok, code=result.code, checks=[{"table": t, "passed": p} for t, p in result.checks], connection_status=result.connection_status)
+
+    @router.post("/connections/{connection_id}/rotate-file")
+    def rotate_file(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:
+        """The one file that gives an existing connection a new secret, with no secret to copy. Same token rules as the enrol file."""
+        if not runtime.enrol_url:
+            raise HTTPException(503, "enrol_not_configured")
+        try:
+            record = runtime.setups._owned(who.tenant_id, connection_id)
+        except ConnectionNotFound as exc:
+            raise HTTPException(404, "connection_not_found") from exc
+        try:
+            token, expires_at = runtime.setups.tokens.mint(tenant_id=who.tenant_id, setup_id=connection_id, digest=record.user, purpose="rotate", actor_id=who.user_id)
+            file = render_rotate_file(application_id=record.user, host=record.host, rotate_url=f"{runtime.enrol_url.rstrip('/')}/rotate", token=token)
+        except EnrolRefused as exc:
+            raise HTTPException(503 if exc.code == "enrol_url_invalid" else 422, exc.code) from exc
+        runtime.setups.enrol_state[f"rotate:{connection_id}"] = {"tenant_id": who.tenant_id, "state": "waiting", "code": None, "checks": [], "expires_at": expires_at}
+        runtime.setups.chain.append(f"{connection_id}:rotate_file:{len(runtime.setups.chain.events) + 1}", "connect.rotate_file_issued", who.tenant_id, who.user_id,
+                                    {"connection_id": connection_id, "file_digest": file.digest})
+        return {"filename": file.filename, "content": file.content, "digest": file.digest, "expires_in_minutes": int((expires_at - runtime.setups.tokens._clock()) // 60),
+                "run": "python3 compass-rotate.py   (add --profile <name> to use a Databricks CLI profile; python3 compass-rotate.py --digest prints the digest above)"}
+
+    @router.get("/connections/{connection_id}/rotate-status")
+    def rotate_status(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:
+        state = runtime.setups.enrol_state.get(f"rotate:{connection_id}")
+        if state is None or state["tenant_id"] != who.tenant_id:
+            raise HTTPException(404, "setup_not_found")
+        now = runtime.setups.tokens._clock()
+        expired = state["state"] == "waiting" and state["expires_at"] < now
+        return {"state": "expired" if expired else state["state"], "code": state["code"], "checks": state["checks"],
+                "expires_in_minutes": max(0, int((state["expires_at"] - now) // 60)) if state["state"] == "waiting" and not expired else 0}
 
     @router.post("/connections/{connection_id}/check", response_model=CompleteView)
     def check(connection_id: str, who: AnalyticsIdentity = Depends(manager)) -> CompleteView:

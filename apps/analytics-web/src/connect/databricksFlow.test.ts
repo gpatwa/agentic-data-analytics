@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
+import { ROTATE_WITHIN_DAYS, dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, rotateStatusText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 
 const ok = { host: 'dbc-1234abcd-5678.cloud.databricks.com', catalog: 'sales', warehouse: 'Starter', tablesText: 'data.orders\ndata.customers' };
 const view = (placeholder: boolean): DbxScriptView => ({
@@ -57,10 +57,11 @@ test('the workspace clears the secret from page state before the request is made
 
 test('expiry is said in plain words, and a paused connection says what to do', () => {
   assert.match(expiryText('active', 90), /good for 90 more days/);
-  assert.match(expiryText('active', 14), /ends in 14 days/);
+  assert.match(expiryText('active', ROTATE_WITHIN_DAYS), new RegExp(`ends in ${ROTATE_WITHIN_DAYS} days`));
+  assert.match(expiryText('active', ROTATE_WITHIN_DAYS + 1), /good for 31 more days/);
   assert.match(expiryText('active', 1), /ends in 1 day\./);
   assert.match(expiryText('active', -2), /expired/);
-  assert.match(expiryText('suspended', 80), /Paused.*new secret/);
+  assert.match(expiryText('suspended', 80), /Paused.*Rotate the secret/);
   assert.match(expiryText('active', null), /unknown/);
 });
 
@@ -90,4 +91,15 @@ test('the remove command is offered only for a well-formed application id', () =
   assert.equal(removeCommand('0B1C2D3E-4F50-6172-8394-A5B6C7D8E9F0'), 'python3 compass-enrol.py --remove 0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0');
   assert.equal(removeCommand(''), '');
   assert.equal(removeCommand('x; rm -rf /'), '');
+});
+
+test('a rotation by file has plain words for each state, and a failed one says the connection is as it was', () => {
+  assert.match(rotateStatusText({ state: 'waiting', code: null, checks: [], expires_in_minutes: 12 }), /in 12 minutes/);
+  assert.match(rotateStatusText({ state: 'connected', code: null, checks: [], expires_in_minutes: 0 }), /older secrets were revoked/);
+  assert.match(rotateStatusText({ state: 'refused', code: 'connection_test_failed', checks: [], expires_in_minutes: 0 }), /connection is as it was/);
+  assert.match(rotateStatusText({ state: 'expired', code: null, checks: [], expires_in_minutes: 0 }), /expired/);
+});
+
+test('the warning window matches the server (30 days before a 90-day secret ends)', () => {
+  assert.equal(ROTATE_WITHIN_DAYS, 30);
 });

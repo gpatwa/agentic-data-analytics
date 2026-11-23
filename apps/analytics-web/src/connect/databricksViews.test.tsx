@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { DbxScriptView } from './databricksApi';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
+import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
 
 const noop = () => undefined;
 const view: DbxScriptView = {
@@ -143,7 +143,27 @@ test('removal tells the admin the exact command, only when the application id is
   assert.match(bad, /removal script/);
 });
 
-test('rotation says plainly that one-file rotation is not built yet', () => {
-  const html = renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} rotating="dbx-1" />);
-  assert.match(html, /not built yet/);
+test('each connection offers rotation with a file first and pasting a secret second', () => {
+  const html = renderToStaticMarkup(<DbxConnections {...props} onRotateFile={noop} connections={[conn()]} rotating="dbx-1" />);
+  assert.ok(html.indexOf('Rotate with a file') > 0 && html.indexOf('Rotate with a file') < html.indexOf('Paste a new secret'));
+  assert.match(html, /Prefer &quot;Rotate with a file&quot;: nothing to paste/);
+  assert.doesNotMatch(renderToStaticMarkup(<DbxConnections {...props} connections={[conn()]} />), /Rotate with a file/);  // not offered where the screen cannot do it
+});
+
+const rotateProps = { host: 'dbc-1.cloud.databricks.com', file: null, status: null, busy: false, onIssue: noop, onDownload: noop, onClose: noop };
+
+test('the rotate panel says what the file does, then shows the digest and the live state', () => {
+  const before = renderToStaticMarkup(<DbxRotatePanel {...rotateProps} />);
+  assert.match(before, /Rotate the secret for dbc-1\.cloud\.databricks\.com/);
+  assert.match(before, /Only then does the file delete the older secrets/);
+  assert.match(before, />Get the file</);
+  const waiting = renderToStaticMarkup(<DbxRotatePanel {...rotateProps} file={{ ...file, filename: 'compass-rotate.py' }} status={{ state: 'waiting', code: null, checks: [], expires_in_minutes: 9 }} />);
+  assert.match(waiting, /data-testid="rotate-digest">1533e320a7cfd48a/);
+  assert.match(waiting, /in 9 minutes/);
+  assert.match(waiting, />Close</);
+  const failed = renderToStaticMarkup(<DbxRotatePanel {...rotateProps} file={file} status={{ state: 'refused', code: 'connection_test_failed', checks: [{ table: 'sales.data.orders', passed: false }], expires_in_minutes: 0 }} />);
+  assert.match(failed, /Cannot read sales\.data\.orders/);
+  assert.match(failed, /connection is as it was/);
+  const done = renderToStaticMarkup(<DbxRotatePanel {...rotateProps} file={file} status={{ state: 'connected', code: null, checks: [{ table: 'sales.data.orders', passed: true }], expires_in_minutes: 0 }} />);
+  assert.match(done, />Done</);
 });

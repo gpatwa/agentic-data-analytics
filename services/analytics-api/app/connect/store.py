@@ -90,6 +90,11 @@ class ConnectionStore:
     def list(self, tenant_id: str) -> list[ConnectionRecord]:
         return [r for r in self._records.values() if r.tenant_id == tenant_id]
 
+    def all(self) -> list[ConnectionRecord]:
+        """Every tenant's records, for the system's own sweeps (the drift monitor); never for a request."""
+        with self._lock:
+            return list(self._records.values())
+
     def update(self, record: ConnectionRecord) -> ConnectionRecord:
         """Replace a record the caller's tenant owns. The tenant and id cannot change."""
         with self._lock:

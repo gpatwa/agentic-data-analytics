@@ -117,6 +117,12 @@ class SqlConnectionStore:
             rows = conn.execute(select(self._t).where(self._t.c.tenant_id == tenant_id).order_by(self._t.c.created_at, self._t.c.connection_id)).mappings().all()
         return [_record(r) for r in rows]
 
+    def all(self) -> list[ConnectionRecord]:
+        """Every tenant's records, for the system's own sweeps (the drift monitor); never for a request."""
+        with self._engine.connect() as conn:
+            rows = conn.execute(select(self._t).order_by(self._t.c.created_at, self._t.c.connection_id)).mappings().all()
+        return [_record(r) for r in rows]
+
     def update(self, record: ConnectionRecord) -> ConnectionRecord:
         """Replace a record the caller's tenant owns. The tenant and id cannot change."""
         with self._engine.begin() as conn:
