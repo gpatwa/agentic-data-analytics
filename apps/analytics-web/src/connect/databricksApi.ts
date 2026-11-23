@@ -99,3 +99,7 @@ export interface DbxEnrolStatus {
 
 export const issueEnrolFile = (cfg: ConnectConfig, id: string) => call<DbxEnrolFile>(cfg, 'POST', `${BASE}/setups/${encodeURIComponent(id)}/enrol-file`);
 export const enrolStatus = (cfg: ConnectConfig, id: string) => call<DbxEnrolStatus>(cfg, 'GET', `${BASE}/setups/${encodeURIComponent(id)}/status`);
+
+/** The file that gives an existing connection a new secret, with nothing to copy. Same single-use, 30-minute rules as the enrol file. */
+export const issueRotateFile = (cfg: ConnectConfig, id: string) => call<DbxEnrolFile>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/rotate-file`);
+export const rotateStatus = (cfg: ConnectConfig, id: string) => call<DbxEnrolStatus>(cfg, 'GET', `${BASE}/connections/${encodeURIComponent(id)}/rotate-status`);

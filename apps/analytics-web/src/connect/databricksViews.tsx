@@ -1,5 +1,5 @@
 import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand } from './databricksFlow';
+import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, rotateStatusText } from './databricksFlow';
 import type { Track } from './databricksFlow';
 import { ErrorNotice } from './views';
 
@@ -237,6 +237,49 @@ export function DbxResultPanel({ result, errorCode }: { result: DbxResult | null
 
 export { dbxRemovalText, dbxScriptText };
 
+export interface DbxRotatePanelProps {
+  host: string;
+  file: DbxEnrolFile | null;
+  status: DbxEnrolStatus | null;
+  busy: boolean;
+  onIssue: () => void;
+  onDownload: () => void;
+  onClose: () => void;
+}
+
+export function DbxRotatePanel(p: DbxRotatePanelProps) {
+  const connected = p.status?.state === 'connected';
+  return (
+    <section className="gv-card" data-view="dbx-rotate" aria-label="Rotate the secret with one file">
+      <h2>Rotate the secret for {p.host}</h2>
+      <ul className="cn-small">
+        <li>Your admin runs one file under their own Databricks sign-in. It makes a new secret, sends it straight to Compass, and no one copies it.</li>
+        <li>Compass checks it can read every table with the new secret. Only then does the file delete the older secrets. If the check fails, the new secret is deleted and the connection is as it was.</li>
+        <li>It works once, for 30 minutes.</li>
+      </ul>
+      {!p.file && <button onClick={p.onIssue} disabled={p.busy}>Get the file</button>}
+      {p.file && (
+        <>
+          <p>Digest <code data-testid="rotate-digest">{p.file.digest}</code>. Your admin can check it with <code>python3 {p.file.filename} --digest</code>; the two must match.</p>
+          <p>To run it: <code>{p.file.run}</code></p>
+          <div className="cn-actions">
+            <button onClick={p.onDownload}>Download {p.file.filename}</button>
+            <button onClick={p.onIssue} disabled={p.busy || connected}>Get a new file</button>
+          </div>
+          <div role="status" aria-live="polite" data-state={p.status?.state ?? 'waiting'} data-testid="rotate-status">
+            <p>{rotateStatusText(p.status)}</p>
+            {p.status?.code && <ErrorNotice code={p.status.code} />}
+            {p.status && p.status.checks.length > 0 && (
+              <ul>{p.status.checks.map((c) => <li key={c.table} data-passed={c.passed}>{c.passed ? 'Can read' : 'Cannot read'} {c.table}</li>)}</ul>
+            )}
+          </div>
+        </>
+      )}
+      <div className="cn-actions"><button onClick={p.onClose}>{connected ? 'Done' : 'Close'}</button></div>
+    </section>
+  );
+}
+
 export interface DbxConnectionsProps {
   connections: DbxConnection[];
   rotating: string | null;
@@ -245,6 +288,7 @@ export interface DbxConnectionsProps {
   confirming: string | null;
   busy: boolean;
   onRotate: (id: string | null) => void;
+  onRotateFile?: (id: string) => void;
   onSecret: (value: string) => void;
   onSubmitSecret: (id: string) => void;
   onCheck: (id: string) => void;
@@ -278,7 +322,8 @@ export function DbxConnections(p: DbxConnectionsProps) {
           )}
           <div className="cn-actions">
             <button onClick={() => p.onCheck(c.connection_id)} disabled={p.busy}>Check now</button>
-            <button onClick={() => p.onRotate(p.rotating === c.connection_id ? null : c.connection_id)} disabled={p.busy}>Give a new secret</button>
+            {p.onRotateFile && <button onClick={() => p.onRotateFile?.(c.connection_id)} disabled={p.busy || p.canManage === false}>Rotate with a file</button>}
+            <button onClick={() => p.onRotate(p.rotating === c.connection_id ? null : c.connection_id)} disabled={p.busy}>Paste a new secret</button>
             <button onClick={() => p.onAskRemove(c.connection_id)} disabled={p.busy}>Remove</button>
           </div>
           {p.rotating === c.connection_id && (
@@ -287,7 +332,7 @@ export function DbxConnections(p: DbxConnectionsProps) {
                 <input type="password" value={p.secret} autoComplete="off" spellCheck={false} onChange={(e) => p.onSecret(e.target.value)} />
               </label>
               {p.problems.length > 0 && <ul className="cn-problems" data-testid="problems">{p.problems.map((x) => <li key={x}>{x}</li>)}</ul>}
-              <p className="cn-small">The old secret is kept until the new one is checked. If the check fails, the old one stays. Rotating with one file, with no secret to paste, is not built yet.</p>
+              <p className="cn-small">The old secret is kept until the new one is checked. If the check fails, the old one stays. Prefer "Rotate with a file": nothing to paste.</p>
               <button onClick={() => p.onSubmitSecret(c.connection_id)} disabled={p.busy}>Replace and check</button>
             </div>
           )}

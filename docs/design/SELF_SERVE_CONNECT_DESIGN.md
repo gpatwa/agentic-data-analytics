@@ -160,6 +160,17 @@ Not verified: the file against the real Databricks SDK on a customer's machine, 
 
 Not built in S3: rotation by the enrol file, the drift check and the 60-day reminder (S4); a live end-to-end run (S5).
 
+## Built: S4, rotation by file and the drift monitor (2026-11-23), on fakes only
+
+`app/connect/enrol.py` (token purposes, the rotate file), `app/connect/drift.py` (new), routes in `databricks_api.py`, the web screens, setting `ANALYTICS_CONNECT_DRIFT_CHECK_HOURS`; `tests/test_connect_rotation_drift.py` (12 tests). **Nothing here has run against a workspace or a deployed instance.**
+
+- **Rotation with one file.** `POST .../connections/{id}/rotate-file` (managers) issues `compass-rotate.py`: the same single-use, 30-minute token, now bound to the connection and its principal and usable only for rotating (a token works only for its own purpose; a misdirected call does not spend it). Under the admin's own sign-in the file finds the principal by application id (it must be named `compass-conn-...`), creates a new secret held only in memory, posts it to `POST .../enrol/rotate`, and only after Compass accepts it (the existing rotation: the old secret stays in custody until the new one reads every named table, and is put back if it cannot) deletes the principal's older secrets. If Compass refuses, the file deletes the new secret and the connection is as it was. `GET .../connections/{id}/rotate-status` feeds the screen.
+- **No more date to remember.** The warning window is now 30 days before a 90-day secret ends (was 14), in the API and the screens. `DriftMonitor` runs an hourly expiry sweep that never touches the customer's warehouse: a connection whose secret has ended is paused (`suspended`) with `connect.secret_expired`, and one inside the window gets one `connect.secret_expiring` event per expiry date (a rotation re-arms it). It is started by the app's start-up when Connect on Databricks is enabled, and a failure inside it is swallowed.
+- **Read check, off unless you turn it on.** `ANALYTICS_CONNECT_DRIFT_CHECK_HOURS` (default 0) runs the existing health check (read each named table as the principal) on every active connection at that interval, and pauses one that cannot read. It runs short queries on the customer's warehouse and starts it if stopped, so it is a decision for the owner, not a default.
+- **Screens.** Each connection has "Rotate with a file" (first) and "Paste a new secret" (the earlier way), a panel with the digest, run command, download and live status (waiting, rotated, not rotated with the plain-words error, expired).
+
+Not verified: the rotate file against the real SDK (it uses `service_principals.list`, `service_principal_secrets_proxy.create`, `.list` and `.delete`; the create and delete calls were used in the live provision run, `.list` of a principal's secrets was not); whether a principal can mint its own next secret (so rotation still needs the admin's sign-in, one action); the monitor's thread on a deployed instance; the screens in a browser. State is in memory, as for enrolment.
+
 ## Relationship to earlier documents
 
 This supersedes the manual steps 1 to 3 and 5 of `WARMUP_DEPLOYMENT_CHECK_PLAN.md` once S1 is built; until then that plan's manual fallback is the only way to run the deployment check. It does not change the recorded approval `warmup_deployment_check` or any human gate.

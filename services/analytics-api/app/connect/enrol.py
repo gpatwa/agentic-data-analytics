@@ -47,6 +47,8 @@ class _Entry:
     digest: str
     expires_at: float
     used: bool = False
+    purpose: str = "enrol"  # "enrol" (a new connection) or "rotate" (a new secret for an existing one); a token works only for its own purpose
+    actor_id: str = ""
 
 
 class EnrolmentTokens:
@@ -59,17 +61,17 @@ class EnrolmentTokens:
     def _hash(token: str) -> str:
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def mint(self, *, tenant_id: str, setup_id: str, digest: str) -> tuple[str, float]:
-        """A new token; any earlier token of the same setup stops working."""
+    def mint(self, *, tenant_id: str, setup_id: str, digest: str, purpose: str = "enrol", actor_id: str = "") -> tuple[str, float]:
+        """A new token; any earlier token for the same subject and purpose stops working. For a rotation `setup_id` is the connection's id."""
         token = TOKEN_PREFIX + secrets.token_urlsafe(32)
-        entry = _Entry(tenant_id, setup_id, digest, self._clock() + self._ttl)
+        entry = _Entry(tenant_id, setup_id, digest, self._clock() + self._ttl, purpose=purpose, actor_id=actor_id)
         with self._lock:
-            for key in [k for k, e in self._by_hash.items() if e.setup_id == setup_id or e.expires_at < self._clock()]:
+            for key in [k for k, e in self._by_hash.items() if (e.setup_id == setup_id and e.purpose == purpose) or e.expires_at < self._clock()]:
                 del self._by_hash[key]
             self._by_hash[self._hash(token)] = entry
         return token, entry.expires_at
 
-    def redeem(self, token: str) -> _Entry:
+    def redeem(self, token: str, purpose: str = "enrol") -> _Entry:
         """Single use: the first valid call spends the token, whatever happens next."""
         if not isinstance(token, str) or not token.startswith(TOKEN_PREFIX) or len(token) > 200:
             raise EnrolRefused("token_invalid")
@@ -77,6 +79,8 @@ class EnrolmentTokens:
             entry = self._by_hash.get(self._hash(token))
             if entry is None:
                 raise EnrolRefused("token_invalid")
+            if entry.purpose != purpose:
+                raise EnrolRefused("token_wrong_purpose")  # a misdirected call does not spend the token
             if entry.used:
                 raise EnrolRefused("token_used")
             if entry.expires_at < self._clock():
@@ -312,8 +316,7 @@ class EnrolFile:
 
 
 def render_enrol_file(ceiling: ConnectScope, *, suffix: str, warehouse_name: str, host: str, enrol_url: str, token: str) -> EnrolFile:
-    if not re.match(r"^https://[A-Za-z0-9.-]+(:\d+)?(/[A-Za-z0-9._~/-]*)?$", enrol_url or "") and not re.match(r"^http://(localhost|127\.0\.0\.1)(:\d+)?(/[A-Za-z0-9._~/-]*)?$", enrol_url or ""):
-        raise EnrolRefused("enrol_url_invalid")
+    _check_url(enrol_url)
     if not re.match(r"^cenrol_[A-Za-z0-9_-]{20,}$", token or ""):
         raise EnrolRefused("token_invalid")
     plan = json.dumps(_plan(ceiling, suffix=suffix, warehouse_name=warehouse_name, host=host), indent=1, sort_keys=True)
@@ -323,6 +326,128 @@ def render_enrol_file(ceiling: ConnectScope, *, suffix: str, warehouse_name: str
     canonical = body.replace("@@URL@@", "<url>").replace("@@TOKEN@@", "<token>")
     digest = normalized_digest(canonical)
     return EnrolFile("compass-enrol.py", body.replace("@@URL@@", enrol_url).replace("@@TOKEN@@", token), digest)
+
+
+_ROTATE_TEMPLATE = r'''#!/usr/bin/env python3
+"""Compass rotate file: gives an existing Compass connection a new secret. Nothing is copied or pasted.
+
+Read it before you run it. Under YOUR Databricks sign-in it:
+  1. checks the workspace is the one named below and finds the Compass service principal by its application id (it must be named compass-conn-...);
+  2. creates a new OAuth secret for it, held only in this process;
+  3. sends the new secret to Compass over TLS; Compass checks it can read the connection's tables with it;
+  4. only if Compass accepts it, deletes the principal's older secrets; if not, deletes the new one, so the connection is left as it was.
+`python compass-rotate.py --digest` prints this file's digest (the two lines marked below are left out); it must equal the digest Compass showed you.
+Options: --profile <databricks CLI profile>   (otherwise the SDK's default sign-in is used).
+"""
+import argparse
+import hashlib
+import json
+import sys
+import urllib.error
+import urllib.request
+
+PLAN = json.loads(r"""@@PLAN@@""")
+ENROL_URL = "@@URL@@"  # @@VARIABLE@@
+TOKEN = "@@TOKEN@@"  # @@VARIABLE@@
+MARK = "@@" + "VARIABLE@@"
+
+
+def digest_of_this_file():
+    lines = open(__file__, encoding="utf-8").read().split("\n")
+    return hashlib.sha256("\n".join("<variable>" if MARK in ln else ln for ln in lines).encode()).hexdigest()[:16]
+
+
+class Stop(Exception):
+    pass
+
+
+def post(body):
+    request = urllib.request.Request(ENROL_URL, data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + TOKEN})
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        try:
+            return {"ok": False, "code": json.loads(error.read().decode()).get("detail", "http_" + str(error.code))}
+        except Exception:
+            return {"ok": False, "code": "http_" + str(error.code)}
+
+
+def open_client(profile):
+    import databricks.sdk as sdk
+    client = sdk.WorkspaceClient(profile=profile) if profile else sdk.WorkspaceClient()
+    if PLAN["host"] not in str(getattr(getattr(client, "config", None), "host", "")):
+        raise Stop("workspace_is_not_the_one_named")
+    return client
+
+
+def rotate(profile):
+    client = open_client(profile)
+    found = [p for p in client.service_principals.list()
+             if str(getattr(p, "application_id", "")) == PLAN["application_id"] and str(getattr(p, "display_name", "")).startswith("compass-conn-")]
+    if len(found) != 1:
+        raise Stop("principal_not_found")
+    principal_id = str(found[0].id)
+    created = client.service_principal_secrets_proxy.create(service_principal_id=principal_id, lifetime=PLAN["secret_lifetime"])
+    new_id = str(created.id)
+    try:
+        answer = post({"client_secret": str(created.secret)})
+        if not answer.get("ok"):
+            raise Stop("compass_refused:" + str(answer.get("code", "unknown"))[:40])
+    except Exception as error:
+        try:
+            client.service_principal_secrets_proxy.delete(principal_id, new_id)
+            left = "nothing left behind"
+        except Exception:
+            left = "the new secret could not be deleted: delete it in Databricks"
+        code = error.args[0] if isinstance(error, Stop) else "unexpected_" + type(error).__name__[:40]
+        print("not rotated: " + str(code) + "; " + left + "; the connection is as it was")
+        raise SystemExit(1)
+    revoked = 0
+    for old in list(client.service_principal_secrets_proxy.list(service_principal_id=principal_id)):
+        if str(old.id) != new_id:
+            try:
+                client.service_principal_secrets_proxy.delete(principal_id, str(old.id))
+                revoked += 1
+            except Exception:
+                print("an older secret could not be deleted: delete it in Databricks")
+    print("rotated: Compass has the new secret; " + str(revoked) + " older secret(s) revoked. Nothing was written to disk.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Compass rotate file")
+    parser.add_argument("--profile")
+    parser.add_argument("--digest", action="store_true")
+    args = parser.parse_args()
+    if args.digest:
+        print(digest_of_this_file())
+        return
+    try:
+        rotate(args.profile)
+    except Stop as stop:
+        print("not rotated: " + str(stop))
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+
+def _check_url(url: str) -> None:
+    if not re.match(r"^https://[A-Za-z0-9.-]+(:\d+)?(/[A-Za-z0-9._~/-]*)?$", url or "") and not re.match(r"^http://(localhost|127\.0\.0\.1)(:\d+)?(/[A-Za-z0-9._~/-]*)?$", url or ""):
+        raise EnrolRefused("enrol_url_invalid")
+
+
+def render_rotate_file(*, application_id: str, host: str, rotate_url: str, token: str) -> EnrolFile:
+    _check_url(rotate_url)
+    if not re.match(r"^cenrol_[A-Za-z0-9_-]{20,}$", token or ""):
+        raise EnrolRefused("token_invalid")
+    plan = json.dumps({"host": host, "application_id": application_id, "secret_lifetime": reg.SECRET_LIFETIME}, indent=1, sort_keys=True)
+    body = _ROTATE_TEMPLATE.replace("@@PLAN@@", plan)
+    digest = normalized_digest(body.replace("@@URL@@", "<url>").replace("@@TOKEN@@", "<token>"))
+    return EnrolFile("compass-rotate.py", body.replace("@@URL@@", rotate_url).replace("@@TOKEN@@", token), digest)
 
 
 # ---- the endpoint's logic ------------------------------------------------------------------------------------------------------------
@@ -341,5 +466,5 @@ def check_readback(pending, application_id: str, grants: object, acl: object) ->
 
 
 __all__ = [
-    "APP_TOKEN", "AttemptLimiter", "EnrolFile", "EnrolRefused", "EnrolmentTokens", "TOKEN_TTL_SECONDS", "check_readback", "normalized_digest", "render_enrol_file",
+    "APP_TOKEN", "AttemptLimiter", "EnrolFile", "EnrolRefused", "EnrolmentTokens", "TOKEN_TTL_SECONDS", "check_readback", "normalized_digest", "render_enrol_file", "render_rotate_file",
 ]

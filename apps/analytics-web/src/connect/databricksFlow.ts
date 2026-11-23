@@ -71,12 +71,15 @@ export const dbxScriptFilename = (view: DbxScriptView) => `compass-databricks-${
 /** Whether the grants still carry the placeholder, that is the application id has not been given yet. */
 export const needsApplicationId = (view: DbxScriptView) => view.steps.some((step) => step.text.includes('<APPLICATION_ID>'));
 
+/** The server warns this many days before a secret ends (it lasts 90 days). Kept equal to ROTATE_WITHIN_DAYS in app/connect/drift.py. */
+export const ROTATE_WITHIN_DAYS = 30;
+
 /** Plain words for when a connection's secret stops working. */
 export function expiryText(status: string, days: number | null): string {
-  if (status === 'suspended') return 'Paused: Compass could not read the tables. Give it a new secret.';
+  if (status === 'suspended') return 'Paused: Compass could not read the tables, or the secret ended. Rotate the secret to resume.';
   if (days === null) return 'Secret expiry unknown.';
-  if (days < 0) return 'The secret has expired. Give Compass a new one.';
-  if (days <= 14) return `The secret ends in ${days} day${days === 1 ? '' : 's'}. Give Compass a new one before then.`;
+  if (days < 0) return 'The secret has expired. Rotate it.';
+  if (days <= ROTATE_WITHIN_DAYS) return `The secret ends in ${days} day${days === 1 ? '' : 's'}. Rotate it before then.`;
   return `The secret is good for ${days} more days.`;
 }
 
@@ -95,3 +98,12 @@ export function enrolStatusText(status: DbxEnrolStatus | null): string {
 
 /** The command that removes the principal and its grants later. Empty until the application id looks right, so a wrong value is never offered. */
 export const removeCommand = (applicationId: string) => (looksLikeApplicationId(applicationId) ? `python3 compass-enrol.py --remove ${applicationId.trim().toLowerCase()}` : '');
+
+/** Plain words for each state of a rotation by file. */
+export function rotateStatusText(status: DbxEnrolStatus | null): string {
+  if (!status) return 'Waiting for your admin to run the file.';
+  if (status.state === 'waiting') return `Waiting for your admin to run the file. It stops working in ${status.expires_in_minutes} minute${status.expires_in_minutes === 1 ? '' : 's'}.`;
+  if (status.state === 'expired') return 'The file expired before it was run. Get a new one.';
+  if (status.state === 'connected') return 'Rotated. Compass read each table with the new secret, and the older secrets were revoked.';
+  return 'Not rotated. The new secret was deleted and the connection is as it was.';
+}

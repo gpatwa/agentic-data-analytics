@@ -23,6 +23,9 @@ from packages.platform_contracts.analytics import (
 analytics_service = AnalyticsService(settings)
 
 
+drift_monitor: list = []  # the Connect drift monitor, when Connect on Databricks is enabled
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await analytics_service.start()
@@ -42,11 +45,17 @@ async def lifespan(_: FastAPI):
             from app.connect.runtime_wiring import warm_up_for
 
             v2_runtime.warm = warm_up_for(wiring)
+            from app.connect.drift import DriftMonitor
+
+            drift_monitor.append(DriftMonitor(wiring.setups, wiring.session_factory, read_check_interval=settings.ANALYTICS_CONNECT_DRIFT_CHECK_HOURS * 3600))
+            drift_monitor[0].start()
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT not in built.governed.contexts:
             raise RuntimeError("ANALYTICS_DEMO_ENABLED needs a certified contract for ANALYTICS_DEMO_TENANT")
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT in (settings.entra_tenant_targets()):
             raise RuntimeError("the demo tenant must not be a tenant that signed-in users map to")
     yield
+    for monitor in drift_monitor:
+        monitor.stop()
     await analytics_service.close()
 
 
