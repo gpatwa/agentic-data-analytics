@@ -7,7 +7,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.api_v2 import V2Runtime, build_v2_router
 from app.config import settings, v1_enabled
 from app.connect.api import ConnectRuntime, build_connect_router
-from app.connect.databricks_api import DatabricksRuntime, build_databricks_router
+from app.connect.databricks_api import ENROL_PATH, DatabricksRuntime, build_databricks_router, build_enrol_router
 from app.connect.oauth_api import OAuthRuntime, build_oauth_router, install_log_redaction
 from app.connect.product_run_api import ProductRunRuntime, build_product_run_router
 from app.demo import build_demo_router
@@ -38,6 +38,7 @@ async def lifespan(_: FastAPI):
         if wiring is not None:  # the setup routes share the governed runtime's identity check and the same connection store
             databricks_runtime.setups, databricks_runtime.session_factory = wiring.setups, wiring.session_factory
             databricks_runtime.verifier, databricks_runtime.resolver = built.verifier, built.resolver
+            databricks_runtime.enrol_url = f"{settings.ANALYTICS_CONNECT_PUBLIC_URL.rstrip('/')}{ENROL_PATH}" if settings.ANALYTICS_CONNECT_PUBLIC_URL else ""
             from app.connect.runtime_wiring import warm_up_for
 
             v2_runtime.warm = warm_up_for(wiring)
@@ -98,6 +99,7 @@ product_run_runtime = ProductRunRuntime()  # inert (503) until a service and an 
 app.include_router(build_product_run_router(product_run_runtime, verify_api_key))
 databricks_runtime = DatabricksRuntime()  # inert (503) until a service and an identity verifier are configured
 app.include_router(build_databricks_router(databricks_runtime, verify_api_key))
+app.include_router(build_enrol_router(databricks_runtime))  # authorised by its single-use token alone
 
 
 @app.get("/health", response_model=AnalyticsHealthResponse)

@@ -21,11 +21,12 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.connect import databricks_registration as reg
 from app.connect.api import MANAGER_GROUP
+from app.connect.enrol import AttemptLimiter, EnrolmentTokens, EnrolRefused, check_readback, render_enrol_file
 from app.connect.grants import ConnectScope, ScopeError
 from app.connect.records import SetupRecorder
 from app.connect.store import (
@@ -82,6 +83,8 @@ class DatabricksSetups:
     store: ConnectionStore
     secrets: TenantSecretStore
     chain: AuditChain
+    tokens: EnrolmentTokens = field(default_factory=EnrolmentTokens)
+    limiter: AttemptLimiter = field(default_factory=AttemptLimiter)
     _pending: dict[str, PendingDatabricks] = field(default_factory=dict)
     _recorders: dict[str, SetupRecorder] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -274,6 +277,7 @@ class DatabricksRuntime:
     resolver: IdentityResolver | None = None
     session_factory: Callable[[ConnectionRecord], Any] | None = None
     dns: Resolver = system_resolver
+    enrol_url: str = ""  # the public address of POST .../enrol; empty means the enrol file is not offered (503)
 
 
 class TableRef(BaseModel):
@@ -357,6 +361,64 @@ def _view(p: PendingDatabricks) -> ScriptView:
     )
 
 
+ENROL_PATH = "/api/v2/connect/databricks/enrol"
+
+
+def build_enrol_router(runtime: DatabricksRuntime) -> APIRouter:
+    """The one call the enrol file makes. Authorised by the single-use enrolment token alone (no identity token, no API key: the file runs on the admin's machine), so it can do nothing but
+    submit one credential for the one setup the token is bound to. Every answer is a short code; the body is read as a plain dict so no validation error can echo the secret."""
+    router = APIRouter(tags=["connect-databricks"])
+
+    @router.post(ENROL_PATH)
+    def enrol(request: Request, body: dict[str, Any] = Body(...), authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        setups = runtime.setups
+        if setups is None or runtime.session_factory is None:
+            raise HTTPException(503, "connect_not_configured")
+        caller = request.client.host if request.client else "unknown"
+        try:
+            setups.limiter.check(caller)
+        except EnrolRefused as exc:
+            raise HTTPException(429, exc.code) from exc
+        scheme, _, token = (authorization or "").partition(" ")
+        try:
+            if scheme.lower() != "bearer":
+                raise EnrolRefused("token_invalid")
+            entry = setups.tokens.redeem(token)
+        except EnrolRefused as exc:
+            setups.limiter.failed(caller)
+            raise HTTPException(401, exc.code, headers={"WWW-Authenticate": "Bearer"}) from exc
+        try:
+            pending = setups.get(entry.tenant_id, entry.setup_id)
+        except SetupNotFound as exc:
+            raise HTTPException(404, "setup_not_found") from exc
+        if pending.script.digest != entry.digest:
+            raise HTTPException(409, "setup_changed")
+        values = [body.get(k) for k in ("application_id", "client_secret", "http_path")]
+        if not all(isinstance(v, str) for v in values):
+            raise HTTPException(422, "invalid_request")
+        application_id, client_secret, http_path = values
+
+        def audit(kind: str, payload: dict[str, Any]) -> None:
+            setups.chain.append(f"{pending.connection_id}:enrol:{len(setups.chain.events) + 1}", kind, pending.tenant_id, pending.admin_id, {"connection_id": pending.connection_id, **payload})
+
+        try:
+            report = check_readback(pending, application_id, body.get("grants"), body.get("warehouse_acl"))
+        except EnrolRefused as exc:
+            raise HTTPException(422, exc.code) from exc
+        if not report.ok:
+            audit("connect.enrol_refused", {"code": report.code})
+            raise HTTPException(422, report.code or "registration_not_verified")
+        try:
+            result = setups.complete(pending, application_id=application_id, client_secret=client_secret, http_path=http_path, session_factory=runtime.session_factory)
+        except Refused as exc:
+            raise HTTPException(409 if exc.code in ("connection_id_taken", "target_claimed") else 422, exc.code) from exc
+        audit("connect.enrolled", {"ok": result.ok, "code": result.code})
+        return {"ok": result.ok, "code": result.code, "connection_id": pending.connection_id, "connection_status": result.connection_status,
+                "checks": [{"table": t, "passed": p} for t, p in result.checks]}
+
+    return router
+
+
 def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> APIRouter:
     router = APIRouter(prefix="/api/v2/connect/databricks", tags=["connect-databricks"], dependencies=[Depends(api_key_dependency)])
 
@@ -423,6 +485,22 @@ def build_databricks_router(runtime: DatabricksRuntime, api_key_dependency) -> A
             raise HTTPException(404, "setup_not_found") from exc
         return CompleteView(ok=result.ok, code=result.code, checks=[{"table": t, "passed": p} for t, p in result.checks],
                             connection_status=result.connection_status)
+
+    @router.post("/setups/{setup_id}/enrol-file")
+    def enrol_file(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> dict[str, Any]:
+        """The one file the admin runs (docs/design/SELF_SERVE_CONNECT_DESIGN.md). It carries a single-use token valid for 30 minutes; a new file revokes the old token."""
+        if not runtime.enrol_url:
+            raise HTTPException(503, "enrol_not_configured")
+        pending = pending_for(setup_id, who)
+        try:
+            token, expires_at = runtime.setups.tokens.mint(tenant_id=who.tenant_id, setup_id=pending.setup_id, digest=pending.script.digest)
+            file = render_enrol_file(pending.scope, suffix=pending.suffix, warehouse_name=pending.warehouse_name, host=pending.host, enrol_url=runtime.enrol_url, token=token)
+        except EnrolRefused as exc:
+            raise HTTPException(503 if exc.code == "enrol_url_invalid" else 422, exc.code) from exc
+        runtime.setups.chain.append(f"{pending.connection_id}:enrol_file:{len(runtime.setups.chain.events) + 1}", "connect.enrol_file_issued", who.tenant_id, who.user_id,
+                                    {"connection_id": pending.connection_id, "file_digest": file.digest, "script_digest": pending.script.digest})
+        return {"filename": file.filename, "content": file.content, "digest": file.digest, "expires_in_minutes": int((expires_at - runtime.setups.tokens._clock()) // 60),
+                "run": "python3 compass-enrol.py   (add --profile <name> to use a Databricks CLI profile; python3 compass-enrol.py --digest prints the digest above)"}
 
     @router.post("/setups/{setup_id}/cancel", status_code=204, response_model=None)
     def cancel(setup_id: str, who: AnalyticsIdentity = Depends(manager)) -> None:

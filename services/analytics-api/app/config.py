@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     ANALYTICS_REFUSAL_BACKLOG_KEY: str | None = None  # secret, at least 32 bytes; a per-tenant salt is derived from it; required when the backlog is enabled
     # ---- Connect mode on Databricks (a customer's own warehouse; off by default) ----
     ANALYTICS_CONNECT_DATABRICKS_ENABLED: bool = False
+    ANALYTICS_CONNECT_PUBLIC_URL: str = ""  # the public https address of this API, written into the enrol file the admin runs; empty = the enrol file is not offered
     ANALYTICS_CONNECT_REGISTRY_ROOT: str = ""  # one folder per analytics tenant (<root>/<tenant_id>/contracts), each holding that tenant's certified contract
     ANALYTICS_CONNECT_KEY_VAULT_URL: str | None = None  # custody for the per-connection secret; without it an in-memory stand-in (dev only)
     # ---- public demo mode (anonymous, sample-only tenant; off by default) ----
