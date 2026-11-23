@@ -124,6 +124,17 @@ The admin does **one** thing and the screen does the rest. Tracks, chosen by wha
 
 Not verified: any behaviour on a real workspace, including the profile's rights, `SHOW GRANTS` and `delete` semantics for a principal that holds a warehouse entry (the 2026-11-18 live check showed the entry goes with the principal; the runner re-checks it and reports it if not).
 
+## Live run of `--provision` (2026-11-23, approval `warmup_provision_check`)
+
+Three runs on the owner's workspace (`dev.compass_synthetic_food_delivery`, Serverless Starter Warehouse), through the owner's CLI profile. Each created one principal and removed it in the same run (teardown removed 6 objects, left none; the ledger was empty after each).
+
+| Run | Result |
+|---|---|
+| da394372, 6814b5f4 | **Stopped at verification**, correctly: the workspace answered `SHOW GRANTS <principal> ON CATALOG dev` with other principals' grants too (modify, create table and others), which the verifier read as the new principal's. The fake admin could not show this (the 2026-11-18 sandbox catalog was fresh). The runner then wrote only counts, so the second run added the grant labels to the report to see what they were. |
+| 05dbc0a0 | After the fix (only rows whose principal is the new application id count; 32 other-principal rows were ignored and counted): verification clean (0 missing, 0 unexpected, 0 dangerous, no warehouse problem); the wired path behaved as designed over HTTP: switch off `skipped_disabled`, switch on with its audit event, `POST /warm` answered 202 `warming` in 1.8 ms, the warm-up recorded `warmed` (3 statements, 18.9 s, recorded keys code, connection_id, seconds, statements_run only), a second call `skipped_recent`, `/analyze` triggered no second warm-up; no secret in the report or ledger; nothing left behind. |
+
+What this shows: the self-provisioning path works end to end on the owner's workspace with no manual step, including the OAuth M2M connector, the real routes and the switch, and the profile has the rights to create and remove a principal and its grants. Not shown: Entra, a vault, a deployed instance, a real model answer; the delay itself (already measured); a customer's environment. Run once successfully, so no claim about repeatability.
+
 ## Relationship to earlier documents
 
 This supersedes the manual steps 1 to 3 and 5 of `WARMUP_DEPLOYMENT_CHECK_PLAN.md` once S1 is built; until then that plan's manual fallback is the only way to run the deployment check. It does not change the recorded approval `warmup_deployment_check` or any human gate.

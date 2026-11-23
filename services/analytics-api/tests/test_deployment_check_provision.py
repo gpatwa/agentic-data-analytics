@@ -24,10 +24,10 @@ ARGS = ["--host", HOST, "--warehouse-name", "Serverless Starter Warehouse", "--p
 class FakeAdmin:
     """Principals, secrets, grants and the warehouse ACL, with the SDK's shapes."""
 
-    def __init__(self, *, deny_show_grants=False, fail_on=None, existing_principals=()):
+    def __init__(self, *, deny_show_grants=False, fail_on=None, existing_principals=(), other_rows=False):
         self.principals = {p: SimpleNamespace(id=f"id-{p}", application_id=f"app-{p}", display_name=p) for p in existing_principals}
         self.secrets, self.grants, self.acl, self.statements = {}, set(), set(), []
-        self.deny_show_grants, self.fail_on = deny_show_grants, fail_on
+        self.deny_show_grants, self.fail_on, self.other_rows = deny_show_grants, fail_on, other_rows
         self.config = SimpleNamespace(host=f"https://{HOST}")
         self.service_principals = SimpleNamespace(create=self._create, list=lambda: list(self.principals.values()), delete=self._delete)
         self.service_principal_secrets_proxy = SimpleNamespace(create=self._secret, delete=lambda pid, sid: self.secrets.pop(sid, None))
@@ -74,6 +74,8 @@ class FakeAdmin:
         m = re.match(r"SHOW GRANTS `(.+)` ON (CATALOG|SCHEMA|TABLE) (.+)$", statement)
         if m:
             rows = [[g[0], g[1], g[2], g[3]] for g in sorted(self.grants) if g[0] == m[1] and g[2] == m[2] and g[3] == m[3].replace("`", "")]
+            if self.other_rows and m[2] == "CATALOG":  # a workspace that answers with other principals' grants too
+                rows += [["someone-else", "MODIFY", "CATALOG", "dev"], ["account users", "CREATE TABLE", "CATALOG", "dev"]]
             return SimpleNamespace(status=SimpleNamespace(state=SimpleNamespace(name="SUCCEEDED")), result=SimpleNamespace(data_array=rows))
         if statement.startswith("SHOW GRANTS ON CATALOG"):
             if self.deny_show_grants:
@@ -236,6 +238,13 @@ def test_provision_refuses_without_its_inputs(extra, capsys):
 
 
 def test_provision_refuses_without_a_recorded_approval(tmp_path, capsys):
-    code = cli.main(["--host", HOST, "--warehouse-name", "W", "--profile", "p", "--approval-id", "warmup_provision_check", "--out", str(tmp_path), "--execute", "--provision"],
+    code = cli.main(["--host", HOST, "--warehouse-name", "W", "--profile", "p", "--approval-id", "no_such_approval", "--out", str(tmp_path), "--execute", "--provision"],
                     admin_factory=lambda p, h: pytest.fail("must not reach the workspace"))
     assert code == 2 and "approval_not_recorded" in capsys.readouterr().err
+
+
+def test_grants_that_belong_to_other_principals_in_the_read_back_are_ignored_and_counted(tmp_path):
+    admin = FakeAdmin(other_rows=True)
+    runner = runner_for(admin, tmp_path)
+    with runner.provision():
+        assert runner.verify().ok and runner.other_principal_rows == 2

@@ -124,6 +124,7 @@ class RegistrationRunner:
         self._app = self._pid = self._sid = ""
         self._warehouse_entry = False
         self.teardown_result: dict[str, Any] = {}
+        self.other_principal_rows = 0
 
     # ---- guarded calls ---------------------------------------------------------------------------------------------------
 
@@ -188,6 +189,9 @@ class RegistrationRunner:
         rows: list[dict[str, str]] = []
         for securable in securables:
             for row in self._sql(f"SHOW GRANTS {who} ON {securable}", "read_back"):
+                if str(row[0]).replace("`", "").lower() != self._app.lower():
+                    self.other_principal_rows += 1  # a workspace may answer with every principal's grants on the securable; only this principal's count
+                    continue
                 rows.append({"actionType": str(row[1]), "objectType": str(row[2]), "objectKey": str(row[3])})
         acl = self.admin.warehouses.get_permissions(self.warehouse_id).access_control_list or []
         pairs = [(str(getattr(e, "service_principal_name", "")), str(getattr(getattr(p, "permission_level", ""), "value", getattr(p, "permission_level", ""))))

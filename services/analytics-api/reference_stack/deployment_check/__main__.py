@@ -123,7 +123,8 @@ def _provision(args: argparse.Namespace, admin_factory: Callable[[str, str], Any
         runner = RegistrationRunner(admin, ceiling=ceiling, warehouse_id=pick_warehouse(admin, args.warehouse_name), warehouse_name=args.warehouse_name, ledger=Ledger(Path(args.ledger)))
         with runner.provision() as principal:
             report = runner.verify()
-            verify = {"ok": report.ok, "missing": len(report.missing), "unexpected": len(report.unexpected), "dangerous": len(report.dangerous), "warehouse_problems": len(report.warehouse_problems)}
+            verify = {"ok": report.ok, "missing": len(report.missing), "unexpected": len(report.unexpected), "dangerous": len(report.dangerous), "warehouse_problems": len(report.warehouse_problems),
+                      "dangerous_items": list(report.dangerous[:40]), "unexpected_items": list(report.unexpected[:40]), "missing_items": list(report.missing[:40]), "rows_for_other_principals": runner.other_principal_rows}
             if not report.ok:
                 raise RunnerStop(report.code or "registration_not_verified")
             with tempfile.TemporaryDirectory() as tmp:
