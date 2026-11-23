@@ -1,0 +1,116 @@
+# Self-serve setup and onboarding for Connect mode: a design to decide (2026-11-23)
+
+Status: **a design for the owner to review. Nothing here is built, approved or run; no warehouse was touched.** It answers the owner's point of 2026-11-23: manual steps and hand-set configuration are hard to remember, reproduce and scale, and the product should set itself up. It builds on `CONNECT_DATABRICKS_DESIGN.md` (D0 and the 2026-11-18 decision that the admin pre-creates the principal), `docs/ONBOARDING_DESIGN.md` (its principles) and the pieces that already exist (below). Every Databricks behaviour not already live-verified is marked **unverified**.
+
+## The problem, from what happened
+
+Writing the warm-up deployment check we made the owner do five things by hand: install drivers, create a service principal and run grants, `export` two secrets in the right terminal tab, run the command, and delete the principal afterwards. The `export` step failed several times because a variable set in one terminal is not visible to the process that needs it, and the customer path has the same shape: the admin runs a generated script, then copies an application id and a one-time secret into a form. Both are the same defect: **a human is the transport for a credential and the memory for a sequence.**
+
+## What is manual today
+
+| Who | Manual step | Why it hurts |
+|---|---|---|
+| Customer admin | Run the registration script, copy the application id, copy the secret once, paste both into the screen | Copy errors; a secret passes through a clipboard and a screen; no record of what was run |
+| Customer admin | Remember to rotate before the secret's 90 days end | Silent expiry breaks every analyst's first question |
+| Customer admin | Run the removal script later | Forgotten principals stay live |
+| Operator (checks, demos, CI) | Create a test principal, set env vars, delete it | The failure above; not repeatable by anyone but its author |
+
+## Principles (extending `ONBOARDING_DESIGN.md`)
+
+1. **No human is a transport.** A credential moves machine to machine, once, and is never typed, shown, put in an environment variable, a file, a URL or a log.
+2. **One action per person.** The admin does one thing (run one generated file or click one button); the operator runs one command. Everything after it is automatic and visible.
+3. **The sequence lives in code.** Every step, order, name and teardown is generated and tested, so nothing depends on memory.
+4. **Self-cleaning.** Anything created is tagged, listed in a ledger and removed in a `finally`; a sweep removes what a crash left.
+5. **Self-verifying.** Each setup ends with the product's own checks (verifier, connection test), and a scheduled check later detects drift.
+6. **One code path for customers and for us.** Our own checks provision through the same runner a customer uses, so a passing check is evidence the customer path works.
+7. **Compass never holds an admin credential** (decision of 2026-11-18, unchanged).
+
+## What already exists (reuse, do not rebuild)
+
+- `app/connect/databricks_registration.py`: `generate` makes the script (create principal, create secret, `CAN_USE`, `USE CATALOG`/`USE SCHEMA`, `SELECT` on exactly the named tables) and its removal; `verify_registration` compares the workspace's read-backs with it. **Live-verified** end to end on 2026-11-18 (`CONNECT_DATABRICKS_REGISTRATION_RESULTS.md`).
+- `app/connect/e2e/databricks_e2e.py` (`E2E`): runs that script with an admin SDK client, verifies, connection-tests through the product's session, and removes. This is the missing "runner", today only used by the owner's one-off checks.
+- `app/execution/warehouse_provisioning.py` (`DatabricksProvisioner`): the tagged, never-adopts, created-only teardown, `sweep` and in-memory-secret rules (live-verified on 2026-11-15/16 for the sandbox shape).
+- `app/connect/databricks_api.py` and `apps/analytics-web/src/connect/DatabricksWorkspace.tsx`: the begin, script and credentials steps; the secret goes straight to the tenant secret store.
+- `app/connect/warmup_service.py`, the rotation-free per-connection `warm_up` switch and the audit events.
+
+## The design: three layers over one runner
+
+### Layer 1: the registration runner (shared)
+
+One component, `RegistrationRunner`, that takes a `ConnectScope` (the ceiling) and an admin client and does what the owner's hand did: preflight (names free, rights sufficient, stop with a plain message otherwise), run the generated steps, read back and verify, return the principal's credential **in memory only**, and expose `teardown()` and `sweep()`. It wraps `E2E` and the provisioner's safety rules rather than duplicating them. It has two callers, below. It never writes a credential anywhere; a crash leaves tagged objects but no usable secret (the principal's name carries a fixed prefix, and a ledger of names, never secrets, lets `sweep` find them).
+
+### Layer 2a: operator self-serve (our checks, demos, CI)
+
+`python -m reference_stack.deployment_check --provision` replaces steps 1 to 3 and 5 of the manual plan: it uses the owner's already-signed-in CLI profile (the one the earlier live checks used) to run the runner, hands the secret to the in-memory custody store, runs the existing check over HTTP, and tears down in a `finally`. No environment variables, no copy, nothing to delete by hand; `--sweep` clears a crashed run. The env-var path stays as a fallback for an operator without admin rights. This **creates a principal and grants in the owner's workspace**, which the recorded approval `warmup_deployment_check` does not cover (it excludes principal creation), so it needs its own approval (draft below).
+
+Unverified: that the profile's rights allow creating principals and grants on `dev.compass_synthetic_food_delivery`. The earlier validation runs created and removed principals on that workspace, which suggests yes; the preflight proves it before anything is created.
+
+### Layer 2b: customer self-serve onboarding
+
+The admin does **one** thing and the screen does the rest. Tracks, chosen by what the account supports (the screen shows only what is likely to work, per principle 6 of `ONBOARDING_DESIGN.md`):
+
+| Track | Admin does | Compass does | Needs |
+|---|---|---|---|
+| **1. Enrol file (default, proposed)** | Downloads one generated file `compass-enrol.py`, reads its digest on screen, runs it once under their own Databricks sign-in (CLI profile, notebook or terminal) | Waits; the file runs the runner's steps as the admin, then **posts the new principal's id and secret straight to Compass** with a single-use enrolment token; Compass stores the secret in custody, runs the verifier and connection test, and the screen ticks through the checks | A new enrol endpoint and file generator; Databricks SDK on the admin's side |
+| **2. Product-run sign-in** | Clicks "Connect", signs in on Databricks' own page, approves the listed actions | Runs the runner as the admin's delegated token, as on Snowflake | An account console (**the owner's workspace has none**, so this cannot be tested there); unverified |
+| **3. Terraform module** | Applies the module | Waits for the same enrolment call from the module's output hook | A module; additive for customers on infrastructure as code |
+| **Fallback: export SQL/CLI** | Today's manual script and form | Same custody and checks | Already built |
+
+**Why track 1 is the default.** It removes the human as transport (principle 1) without Compass ever holding an admin credential (principle 7): the file runs on the customer's side under the customer's admin identity. The secret does reach Compass over TLS, exactly as it does today when pasted; what changes is that no one copies it, sees it or leaves it in a clipboard.
+
+**Enrolment token.** Minted when the admin begins a setup; single-use; 30-minute lifetime; bound to the tenant, the setup id and the script digest; accepted only on the enrol endpoint; it can submit a credential for that one setup and nothing else; rate-limited; never logged; the endpoint's response never echoes the secret. The generated file is plain, readable Python with the digest shown on screen so a security reviewer can read it first (no pipe-to-shell).
+
+**What happens after "connected", automatically:** the eight conformance checks in plain words; a prompt to turn on warm-up (off by default, with its cost text); a prompt to choose what Compass may use and draft definitions (drafts only; a person certifies); a first governed question. The warm-up and other per-connection switches are plain admin settings, never environment variables.
+
+### Layer 3: lifecycle with no reminders to remember
+
+- **Drift detection.** A scheduled connection check (the existing `/check` path) runs with the stored secret. A denied read, an expired secret or a removed principal moves the connection to `suspended` with a plain reason and a one-click fix, and writes an audit event.
+- **Rotation.** The secret's 90-day lifetime is tracked per connection; the screen warns at 60 days and the same enrol file rotates it (same single admin action). Unverified: whether a principal may mint its own next secret (which would allow silent rotation with no admin at all); the spike did not test it.
+- **Removal.** One "Remove access" button deletes Compass's custody and shows the exact one-line removal file (the runner's `teardown`) for the admin's side; the next scheduled check confirms the principal is gone and closes the record.
+- **Audit.** Every step above writes an event with codes only.
+
+## What each manual step becomes
+
+| Before | After |
+|---|---|
+| Install drivers by hand | The runner checks for them at preflight and says exactly what is missing; the enrol file declares and checks its own prerequisites |
+| Create principal and grants | Layer 1, from the same generated script |
+| Export the id and secret | Never: in-memory hand-off to custody (operator), single-use enrolment call (customer) |
+| Run the check | One command, `--provision` |
+| Delete the principal | `finally` teardown, `--sweep` for crashes, the ledger as backup |
+| Rotate before 90 days | Warned, then the same single action |
+
+## Risks and open questions
+
+1. **Secret in transit to Compass** (track 1): equals today's paste in exposure, minus the human copy; still a security change, so it needs the owner's security review before any build is exposed to customers.
+2. **A crash between "create principal" and "teardown"** leaves a principal (without a usable secret). Mitigations are the tag, ledger and sweep; the preflight refuses to start while leftovers exist.
+3. **The admin's runtime** (notebook, CLI, or terminal) varies; the file must be self-contained and print only codes. Unverified on any customer environment.
+4. **Principal self-rotation and the account console** (above) are unverified.
+5. **Verifier trust.** In track 1 the read-back comes from the admin's side. Compass should also run its own negative check (a read outside the ceiling is denied) through the stored secret before showing "read-only". Unverified.
+
+## Phases and gates (each needs the owner's explicit approval; none is approved)
+
+| Phase | Content | Live? |
+|---|---|---|
+| S0 | Decide this document (tracks, enrolment token, rotation approach) | no |
+| S1 | Build `RegistrationRunner` and `deployment_check --provision` on fakes, with tests for crash, sweep and leak scan | no (no approval needed to build) |
+| S1-live | Run `--provision` once on the owner's workspace (scope drafted below) | yes, needs a new approval |
+| S2 | Enrol endpoint, token and file generator on fakes | no |
+| S3 | Screens: the track chooser, the live checks list, rotate and remove | no |
+| S4 | Drift check and rotation reminders | no |
+| S5 | One live end-to-end of track 1 on the owner's workspace | yes, needs approval |
+
+## Draft approval scope for S1-live (to record only on the owner's explicit yes)
+
+"Run the warm-up deployment check with `--provision` on this computer against https://dbc-b8672746-8e43.cloud.databricks.com, catalog and schema dev.compass_synthetic_food_delivery (views orders_current and orders_usd_gross), warehouse Serverless Starter Warehouse, using the owner's signed-in CLI profile to create one temporary service principal named with the prefix compass-check-, one OAuth secret held only in memory, `USE CATALOG`, `USE SCHEMA` and `SELECT` on those two views and `CAN_USE` on the named warehouse, and to remove all of it in the same run (and by `--sweep` if interrupted). At most four certified warm-up queries (each with the gateway's own EXPLAIN COST and two session SETs), one read-only listing of warehouses, a 20-minute cap. It does NOT approve any deployment or Azure change, changing any warehouse, any other schema or table, any grant or write beyond the list above, a model call, installing anything on the owner's behalf, or certifying anything."
+
+## Decisions for the owner
+
+1. Is track 1 (enrol file) the right default for customers, or must the first release stay with the manual script until track 2 is testable?
+2. Approve building S1 now (offline, no approval needed) so the deployment check becomes one command?
+3. Rotation: accept a "rotate by re-running the enrol file" first, and test principal self-rotation later?
+4. Is the 30-minute single-use enrolment token the right shape for the security review?
+
+## Relationship to earlier documents
+
+This supersedes the manual steps 1 to 3 and 5 of `WARMUP_DEPLOYMENT_CHECK_PLAN.md` once S1 is built; until then that plan's manual fallback is the only way to run the deployment check. It does not change the recorded approval `warmup_deployment_check` or any human gate.
