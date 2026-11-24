@@ -6,7 +6,7 @@ import { ROTATE_WITHIN_DAYS, dbxRemovalText, dbxScriptText, enrolStatusText, exp
 
 const ok = { host: 'dbc-1234abcd-5678.cloud.databricks.com', catalog: 'sales', warehouse: 'Starter', tablesText: 'data.orders\ndata.customers' };
 const view = (placeholder: boolean): DbxScriptView => ({
-  setup_id: 's', connection_id: 'dbx-1', host: ok.host, catalog: 'sales', tables: ['data.orders'], summary: [], digest: 'ab12cd34ef567890', principal_name: 'compass-conn-0a1b2c3d',
+  setup_id: 's', connection_id: 'dbx-1', host: ok.host, catalog: 'sales', tables: ['data.orders'], summary: [], digest: 'ab12cd34ef567890', principal_name: 'compass-conn-0a1b2c3d', warehouse_name: 'Demo Warehouse',
   steps: [{ kind: 'admin', text: "create the service principal 'compass-conn-0a1b2c3d'" },
     { kind: 'sql', text: `GRANT USE CATALOG ON CATALOG \`sales\` TO \`${placeholder ? '<APPLICATION_ID>' : '0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0'}\`` }],
   removal: [{ kind: 'sql', text: 'REVOKE USE CATALOG ON CATALOG `sales` FROM `x`' }, { kind: 'admin', text: 'delete the service principal' }],
@@ -102,4 +102,24 @@ test('a rotation by file has plain words for each state, and a failed one says t
 
 test('the warning window matches the server (30 days before a 90-day secret ends)', () => {
   assert.equal(ROTATE_WITHIN_DAYS, 30);
+});
+
+test('the Databricks tab becomes ready from its own capabilities route, never the generic one that answers 503 without Snowflake Connect', async () => {
+  const { getDbxCapabilities } = await import('./databricksApi');
+  const seen: { url: string; auth: string | null }[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    seen.push({ url: String(url), auth: new Headers(init?.headers).get('Authorization') });
+    return new Response(JSON.stringify({ engine: 'databricks', setup_method: 'admin_pre_creates_principal', can_manage: true, stage: 's' }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const caps = await getDbxCapabilities({ baseUrl: '', token: 'tok' });
+    assert.equal(caps.can_manage, true);
+    assert.deepEqual(seen, [{ url: '/api/v2/connect/databricks/capabilities', auth: 'Bearer tok' }]);
+  } finally {
+    globalThis.fetch = real;
+  }
+  const source = (await import('node:fs')).readFileSync('src/connect/ConnectWorkspace.tsx', 'utf8');
+  assert.match(source, /mode === 'databricks'[\s\S]{0,400}getDbxCapabilities\(cfg\)/, 'the Open button must ask the Databricks route in the Databricks tab');
+  assert.match(source, /<DatabricksWorkspace cfg=\{cfg\} ready=\{dbxCapabilities !== null\}/, 'the tab is ready from its own capabilities');
 });

@@ -5,6 +5,8 @@ import { accountFromHost, parseTables, scriptFilename, scriptText, teardownText,
 import type { Capabilities, ConnectionView, RemovalView, SetupView, VerifyView } from './types';
 import { save } from './download';
 import { parseReturn } from './productRunFlow';
+import { getDbxCapabilities } from './databricksApi';
+import type { DbxCapabilities } from './databricksApi';
 import { DatabricksWorkspace } from './DatabricksWorkspace';
 import { ProductRunWorkspace } from './ProductRunWorkspace';
 import { ChecksPanel, ConnectedPage, DetailsForm, ErrorNotice, ReviewPage, StagePanel } from './views';
@@ -15,6 +17,7 @@ const API_KEY = import.meta.env.VITE_ANALYTICS_API_KEY ?? '';
 export function ConnectWorkspace() {
   const [token, setToken] = useState('');
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const [dbxCapabilities, setDbxCapabilities] = useState<DbxCapabilities | null>(null);
   const [connections, setConnections] = useState<ConnectionView[]>([]);
   const [host, setHost] = useState('');
   const [database, setDatabase] = useState('');
@@ -44,6 +47,11 @@ export function ConnectWorkspace() {
 
   const load = () =>
     guard(async () => {
+      if (mode === 'databricks') {
+        // The Databricks tab asks its own route: the generic one is not wired on an installation that only has Databricks Connect (it answers 503).
+        setDbxCapabilities(await getDbxCapabilities(cfg));
+        return;
+      }
       setCapabilities(await getCapabilities(cfg));
       setConnections(await listConnections(cfg));
     });
@@ -103,7 +111,7 @@ export function ConnectWorkspace() {
       </section>
       {errorCode && <ErrorNotice code={errorCode} />}
       {mode === 'product-run' && <ProductRunWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} returned={returned} />}
-      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} />}
+      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={dbxCapabilities !== null} canManage={dbxCapabilities?.can_manage ?? false} />}
       {mode === 'script' && connections.map((connection) => (
         <ConnectedPage
           key={connection.connection_id}

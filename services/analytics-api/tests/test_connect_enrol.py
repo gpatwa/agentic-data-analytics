@@ -405,3 +405,8 @@ def test_the_connection_list_carries_the_principals_application_id_for_the_remov
     run_file(tmp_path, monkeypatch, capsys, issue(client, view), admin, client)
     [row] = client.get("/api/v2/connect/databricks/connections", headers=auth()).json()
     assert row["application_id"] == next(iter(admin.principals.values())).application_id and SECRET not in json.dumps(row)
+
+
+def test_the_setup_view_names_the_warehouse_so_the_screen_can_say_it():
+    client, *_ = build()
+    assert begin(client)["warehouse_name"] == "Serverless Starter Warehouse"
