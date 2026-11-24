@@ -48,6 +48,7 @@ class LocalApp:
     wiring: Any
     token: str
     dbx: Any = None  # the Databricks runtime the routes share (the enrol check sets its public address once the port is known)
+    mint: Any = None  # makes a fresh token for this process's throwaway key, valid from the moment it is asked for
 
 
 def make_settings(work: Path) -> Settings:
@@ -77,10 +78,14 @@ def build_local_app(work: Path, *, connector: Any | None = None, enrol_url: str 
     app.include_router(build_v2_router(v2, lambda: None))
     app.include_router(build_databricks_router(dbx, lambda: None))
     app.include_router(build_enrol_router(dbx))  # the enrol file's own call (single-use token, no identity token)
-    now = int(time.time())
-    claims = {"iss": ISSUER, "aud": AUDIENCE, "exp": now + token_ttl, "iat": now, "sub": "local-check-admin", "oid": "local-check-admin", "tid": ENTRA_TENANT,
-              "roles": ["Analytics.Analyst", "Analytics.Admin"], "preferred_username": "local-check-admin"}
-    return LocalApp(app, wiring, jwt.encode(claims, private, algorithm="RS256", headers={"kid": KID}), dbx)
+
+    def mint() -> str:
+        now = int(time.time())
+        claims = {"iss": ISSUER, "aud": AUDIENCE, "exp": now + token_ttl, "iat": now, "sub": "local-check-admin", "oid": "local-check-admin", "tid": ENTRA_TENANT,
+                  "roles": ["Analytics.Analyst", "Analytics.Admin"], "preferred_username": "local-check-admin"}
+        return jwt.encode(claims, private, algorithm="RS256", headers={"kid": KID})
+
+    return LocalApp(app, wiring, mint(), dbx, mint)
 
 
 def register(local: LocalApp, *, host: str, http_path: str, catalog: str, schema: str, client_id: str, client_secret: str, warehouse: str) -> None:
