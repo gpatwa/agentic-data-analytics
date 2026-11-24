@@ -89,3 +89,6 @@ infra/terraform/*/tfplan
 
 # Personal inputs fetched from private storage at run time (see .github/actions/terraform)
 infra/terraform/*/personal.auto.tfvars.json
+
+# Local stack (reference_stack.local_stack): the throwaway test token
+.local-stack/
