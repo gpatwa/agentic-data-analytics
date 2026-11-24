@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ConnectError, cancelSetup, getCapabilities, listConnections, removeAccess, startSetup, verifySetup } from './api';
 import { accountFromHost, parseTables, scriptFilename, scriptText, teardownText, validateDetails } from './flow';
 import type { Capabilities, ConnectionView, RemovalView, SetupView, VerifyView } from './types';
 import { save } from './download';
 import { parseReturn } from './productRunFlow';
+import { devLogin, getAuthOptions } from './authApi';
+import type { AuthOptions } from './authApi';
 import { getDbxCapabilities } from './databricksApi';
 import type { DbxCapabilities } from './databricksApi';
 import { DatabricksWorkspace } from './DatabricksWorkspace';
@@ -18,6 +20,7 @@ export function ConnectWorkspace() {
   const [token, setToken] = useState('');
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [dbxCapabilities, setDbxCapabilities] = useState<DbxCapabilities | null>(null);
+  const [authOptions, setAuthOptions] = useState<AuthOptions | null>(null);
   const [connections, setConnections] = useState<ConnectionView[]>([]);
   const [host, setHost] = useState('');
   const [database, setDatabase] = useState('');
@@ -45,15 +48,28 @@ export function ConnectWorkspace() {
     }
   }
 
-  const load = () =>
+  const load = (override?: string) =>
     guard(async () => {
+      const using = override ? { ...cfg, token: override } : cfg;
       if (mode === 'databricks') {
         // The Databricks tab asks its own route: the generic one is not wired on an installation that only has Databricks Connect (it answers 503).
-        setDbxCapabilities(await getDbxCapabilities(cfg));
+        setDbxCapabilities(await getDbxCapabilities(using));
         return;
       }
-      setCapabilities(await getCapabilities(cfg));
-      setConnections(await listConnections(cfg));
+      setCapabilities(await getCapabilities(using));
+      setConnections(await listConnections(using));
+    });
+
+  // What sign-in does this API offer? (the local stack offers a Sign in button; anywhere else the answer is "paste a token")
+  useEffect(() => {
+    if (mode === 'databricks' && authOptions === null) void getAuthOptions(BASE_URL).then(setAuthOptions);
+  }, [mode, authOptions]);
+
+  const signIn = () =>
+    guard(async () => {
+      const issued = await devLogin(BASE_URL);
+      setToken(issued);
+      setDbxCapabilities(await getDbxCapabilities({ ...cfg, token: issued }));
     });
 
   const review = () => {
@@ -113,7 +129,7 @@ export function ConnectWorkspace() {
       )}
       {errorCode && <ErrorNotice code={errorCode} />}
       {mode === 'product-run' && <ProductRunWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} returned={returned} />}
-      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={dbxCapabilities !== null} canManage={dbxCapabilities?.can_manage ?? false} token={token} busy={busy} onToken={setToken} onOpen={() => void load()} />}
+      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={dbxCapabilities !== null} canManage={dbxCapabilities?.can_manage ?? false} token={token} busy={busy} authOptions={authOptions} onToken={setToken} onOpen={() => void load()} onSignIn={() => void signIn()} />}
       {mode === 'script' && connections.map((connection) => (
         <ConnectedPage
           key={connection.connection_id}

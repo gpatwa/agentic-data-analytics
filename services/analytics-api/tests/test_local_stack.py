@@ -44,3 +44,33 @@ def test_the_test_token_lasts_a_working_day_not_an_hour(tmp_path, fake_sdk):  # 
     assert main(["--selftest", "--token-file", str(token_file)], connector=FakeConnector()) == 0
     payload = json.loads(base64.urlsafe_b64decode(token_file.read_text().split(".")[1] + "=="))
     assert 7.5 * 3600 < payload["exp"] - time.time() <= 8 * 3600
+
+
+def test_the_local_stack_offers_a_sign_in_that_returns_its_own_token_and_only_to_this_computer(tmp_path, fake_sdk):  # noqa: F811
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from reference_stack.local_stack.__main__ import dev_sign_in_router
+
+    app = FastAPI()
+    app.include_router(dev_sign_in_router("tok.en.value"))
+
+    class Peer:  # sets the address the request appears to come from, as the server would
+        def __init__(self, asgi, host):
+            self.asgi, self.host = asgi, host
+
+        async def __call__(self, scope, receive, send):
+            scope["client"] = (self.host, 5555)
+            await self.asgi(scope, receive, send)
+
+    here = TestClient(Peer(app, "127.0.0.1"))
+    assert here.get("/api/v2/auth/options").json()["dev_login"] is True
+    assert here.post("/api/v2/auth/dev-login").json() == {"token": "tok.en.value"}
+    for host in ("203.0.113.9", "10.0.0.5", "192.168.1.20"):
+        away = TestClient(Peer(app, host))
+        assert away.get("/api/v2/auth/options").status_code == 403 and away.post("/api/v2/auth/dev-login").status_code == 403, host
+
+
+def test_the_real_app_has_no_dev_sign_in_routes(tmp_path):
+    from app.main import app
+
+    assert not [r for r in app.routes if getattr(r, "path", "").startswith("/api/v2/auth/")]

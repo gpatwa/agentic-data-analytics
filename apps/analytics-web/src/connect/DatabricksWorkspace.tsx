@@ -8,6 +8,7 @@ import type { Track } from './databricksFlow';
 import { DatabricksStage, DbxConnectedSummary, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxSignIn, DbxStepper, DbxTrackChooser } from './databricksViews';
 import { save } from './download';
 import { parseTables } from './flow';
+import type { AuthOptions } from './authApi';
 import type { ConnectConfig } from './types';
 
 export interface DatabricksWorkspaceProps {
@@ -16,11 +17,13 @@ export interface DatabricksWorkspaceProps {
   canManage: boolean;
   token: string;
   busy?: boolean;
+  authOptions: AuthOptions | null;
   onToken: (value: string) => void;
   onOpen: () => void;
+  onSignIn: () => void;
 }
 
-export function DatabricksWorkspace({ cfg, ready, canManage, token, busy: opening = false, onToken, onOpen }: DatabricksWorkspaceProps) {
+export function DatabricksWorkspace({ cfg, ready, canManage, token, busy: opening = false, authOptions, onToken, onOpen, onSignIn }: DatabricksWorkspaceProps) {
   const [host, setHost] = useState('');
   const [catalog, setCatalog] = useState('');
   const [warehouse, setWarehouse] = useState('');
@@ -207,7 +210,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage, token, busy: openin
     <>
       <DatabricksStage />
       <DbxStepper current={step} />
-      {step === 0 && <DbxSignIn token={token} busy={opening} onToken={onToken} onOpen={onOpen} />}
+      {step === 0 && <DbxSignIn token={token} busy={opening} options={authOptions} onToken={onToken} onOpen={onOpen} onSignIn={onSignIn} />}
       {ready && (
         <>
           {step === 1 && (

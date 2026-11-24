@@ -1,6 +1,7 @@
 import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
 import { JOURNEY, dbxRemovalText, dbxScriptText, enrolCommand, enrolStatusText, expiryText, needsApplicationId, profileLooksWrong, removeCommand, rotateStatusText } from './databricksFlow';
 import type { Track } from './databricksFlow';
+import type { AuthOptions } from './authApi';
 import { ErrorNotice } from './views';
 
 export function DatabricksStage() {
@@ -34,20 +35,38 @@ export function DbxStepper({ current }: { current: number }) {
 export interface DbxSignInProps {
   token: string;
   busy: boolean;
+  options: AuthOptions | null;
   onToken: (value: string) => void;
   onOpen: () => void;
+  onSignIn: () => void;
 }
 
 export function DbxSignIn(p: DbxSignInProps) {
+  const paste = (
+    <div className="gv-form">
+      <label>Access token<input type="password" autoComplete="off" spellCheck={false} value={p.token} onChange={(e) => p.onToken(e.target.value)} /></label>
+      <button onClick={p.onOpen} disabled={p.busy || !p.token}>Open</button>
+    </div>
+  );
   return (
     <section className="gv-card" data-view="dbx-signin" aria-label="Sign in">
       <h2>Step 1 of 4: Sign in</h2>
-      <p>Paste the access token of a person who is allowed to manage connections, then choose Open. Only they can set up or remove a connection.</p>
-      <p className="cn-small">Trying this on your own computer? The token is in <code>.local-stack/token.txt</code> in the repository.</p>
-      <div className="gv-form">
-        <label>Access token<input type="password" autoComplete="off" spellCheck={false} value={p.token} onChange={(e) => p.onToken(e.target.value)} /></label>
-        <button onClick={p.onOpen} disabled={p.busy || !p.token}>Open</button>
-      </div>
+      {p.options?.dev_login ? (
+        <>
+          <p>Sign in as {p.options.label}. Only a person allowed to manage connections can set up or remove one.</p>
+          <div className="cn-actions"><button onClick={p.onSignIn} disabled={p.busy} data-testid="sign-in">Sign in</button></div>
+          <details className="cn-small">
+            <summary>Use an access token instead</summary>
+            {paste}
+          </details>
+        </>
+      ) : (
+        <>
+          <p>Paste the access token of a person who is allowed to manage connections, then choose Open. Only they can set up or remove a connection.</p>
+          <p className="cn-small">Single sign-in with your company login is not set up in this build, so a token is needed. Trying this on your own computer? Run the local stack, which gives this screen a Sign in button.</p>
+          {paste}
+        </>
+      )}
     </section>
   );
 }
