@@ -113,16 +113,16 @@ export function DbxDetailsForm(p: DbxDetailsFormProps) {
       <p className="cn-small">Name one workspace, one catalog and the exact tables Compass may read, and the SQL warehouse it may use. Nothing is created yet.</p>
       <div className="cn-form">
         <label>Workspace hostname
-          <input value={p.host} placeholder="dbc-1234abcd-5678.cloud.databricks.com" onChange={(e) => p.onChange('host', e.target.value)} />
+          <input value={p.host} placeholder="e.g. dbc-1234abcd-5678.cloud.databricks.com" onChange={(e) => p.onChange('host', e.target.value)} />
         </label>
         <label>Catalog
-          <input value={p.catalog} placeholder="sales" onChange={(e) => p.onChange('catalog', e.target.value)} />
+          <input value={p.catalog} placeholder="e.g. sales (your own catalog)" onChange={(e) => p.onChange('catalog', e.target.value)} />
         </label>
         <label>Tables, one per line as SCHEMA.TABLE
-          <textarea rows={4} value={p.tablesText} placeholder={'data.orders\ndata.customers'} onChange={(e) => p.onChange('tablesText', e.target.value)} />
+          <textarea rows={4} value={p.tablesText} placeholder={'e.g. myschema.mytable (replace with your own tables)'} onChange={(e) => p.onChange('tablesText', e.target.value)} />
         </label>
         <label>SQL warehouse Compass may use (by name)
-          <input value={p.warehouse} placeholder="Serverless Starter Warehouse" onChange={(e) => p.onChange('warehouse', e.target.value)} />
+          <input value={p.warehouse} placeholder="e.g. the name shown under SQL Warehouses" onChange={(e) => p.onChange('warehouse', e.target.value)} />
         </label>
       </div>
       {p.problems.length > 0 && (
@@ -212,6 +212,16 @@ export function DbxEnrolPanel(p: DbxEnrolPanelProps) {
     <section className="gv-card" data-view="dbx-enrol" aria-label="The file your admin runs">
       <h2>Step 3 of 4: Run one file</h2>
       <p>Your admin runs one file in a terminal, signed in to Databricks as themselves. It sets everything up and tells Compass; nobody copies a secret.</p>
+      <div className="cn-chosen" data-testid="chosen" role="group" aria-label="What you chose">
+        <strong>You chose</strong>
+        <dl>
+          <dt>Workspace</dt><dd>{p.view.host}</dd>
+          <dt>Catalog</dt><dd>{p.view.catalog}</dd>
+          <dt>Tables</dt><dd>{p.view.tables.join(', ')}</dd>
+          <dt>SQL warehouse</dt><dd>{p.view.warehouse_name}</dd>
+        </dl>
+        <p className="cn-small">The file is built from exactly these. If anything is wrong, press Back and change it before you get the file.</p>
+      </div>
       <ul className="cn-small">
         <li>It creates one read-only service principal. It can read only the {p.view.tables.length} table(s) you named in catalog {p.view.catalog} (USE CATALOG, USE SCHEMA and SELECT: no write, no grant option) and may use the SQL warehouse &apos;{p.view.warehouse_name}&apos;, which Compass never edits.</li>
         <li>The file is plain Python you can read first. It prints only short codes and writes nothing to disk. If any step fails it removes everything it created.</li>

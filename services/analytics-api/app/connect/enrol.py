@@ -214,7 +214,7 @@ def revoke_all(client, warehouse_id, app_id):
 def enrol(profile):
     client = open_client(profile)
     warehouse_id = find_warehouse(client)
-    created = {"principal": None, "secret": None, "app": None}
+    created = {"principal": None, "secret": None, "app": None, "granted": 0}
     try:
         principal = client.service_principals.create(display_name=PLAN["principal"])
         created["principal"], created["app"] = str(principal.id), str(principal.application_id)
@@ -223,6 +223,7 @@ def enrol(profile):
         client.warehouses.update_permissions(warehouse_id, access_control_list=[acl_for(created["app"])])
         for template in PLAN["grant"]:
             run_sql(client, warehouse_id, template.replace("@APP@", created["app"]))
+            created["granted"] += 1
         rows = []
         for template in PLAN["show"]:
             for row in run_sql(client, warehouse_id, template.replace("@APP@", created["app"])):
@@ -238,8 +239,8 @@ def enrol(profile):
         return created["app"]
     except Exception as error:
         left = []
-        if created["app"]:
-            left += revoke_all(client, warehouse_id, created["app"])
+        if created["app"] and created["granted"]:
+            left += revoke_all(client, warehouse_id, created["app"])  # nothing to revoke when the first grant already failed
         for kind, call in (("secret", lambda: client.service_principal_secrets_proxy.delete(created["principal"], created["secret"]) if created["secret"] else None),
                            ("principal", lambda: client.service_principals.delete(created["principal"]) if created["principal"] else None)):
             try:
@@ -248,6 +249,8 @@ def enrol(profile):
                 left.append(kind)
         code = error.args[0] if isinstance(error, Stop) else "unexpected_" + type(error).__name__[:40]
         print("not enrolled: " + str(code) + ("; left behind: " + ", ".join(left) if left else "; nothing left behind"))
+        if created["app"] and not created["granted"] and str(code).startswith("sql_"):
+            print("Hint: the first grant was refused. Check that catalog '" + PLAN["catalog"] + "' and the named tables exist in this workspace, and that you may grant on them.")
         raise SystemExit(1)
 
 

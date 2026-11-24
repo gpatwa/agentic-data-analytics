@@ -118,6 +118,22 @@ test('before the file is issued the panel says what it does and offers only to g
   assert.doesNotMatch(html, /file-digest/);
 });
 
+test('step 3 shows exactly what was chosen before any file is made, so a wrong setup is seen at once', () => {
+  const html = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} />);
+  assert.match(html, /data-testid="chosen"/);
+  assert.match(html, /<dt>Workspace<\/dt><dd>h<\/dd>/);
+  assert.match(html, /<dt>Catalog<\/dt><dd>sales<\/dd>/);
+  assert.match(html, /<dt>Tables<\/dt><dd>data\.orders<\/dd>/);
+  assert.match(html, /<dt>SQL warehouse<\/dt><dd>Demo Warehouse<\/dd>/);
+  assert.match(html, /press Back and change it before you get the file/);
+});
+
+test('the details form uses example wording that cannot be mistaken for a value to keep', () => {
+  const html = renderToStaticMarkup(<DbxDetailsForm host="" catalog="" warehouse="" tablesText="" problems={[]} busy={false} canManage onChange={noop} onSubmit={noop} />);
+  assert.match(html, /placeholder="e\.g\. /);
+  assert.doesNotMatch(html, /placeholder="data\.orders|placeholder="Serverless Starter Warehouse"/);
+});
+
 test('once issued it shows the digest to compare, the run command and the live status', () => {
   const waiting = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} status={{ state: 'waiting', code: null, checks: [], expires_in_minutes: 12 }} />);
   assert.match(waiting, /data-testid="file-digest">1533e320a7cfd48a/);

@@ -229,6 +229,19 @@ def test_running_the_file_connects_the_workspace_with_nothing_copied_and_no_secr
     assert len(admin.grants) == 4 and len(admin.principals) == 1 and len(admin.secrets) == 1  # the connection's principal stays; it is the connection
 
 
+def test_a_first_grant_that_fails_revokes_nothing_and_says_what_to_check(tmp_path, monkeypatch, capsys):
+    # The named catalog or table does not exist in the workspace: nothing was granted, so there is nothing to revoke
+    # and the file must not report phantom "left behind: grants".
+    client, _, store, _, _, _ = build()
+    file = issue(client, begin(client))
+    admin = Admin(fail_on="GRANT USE CATALOG")
+    code, out = run_file(tmp_path, monkeypatch, capsys, file, admin, client)
+    assert code == 1 and "not enrolled: sql_failed" in out and "nothing left behind" in out
+    assert "left behind: grants" not in out and "Hint:" in out and "exist in this workspace" in out
+    assert not [s for s in admin.statements if s.startswith("REVOKE")]
+    assert admin.left_behind() == EMPTY and [r for r in store.list("ta") if r.status == "active"] == []
+
+
 def test_the_file_removes_everything_it_created_when_compass_refuses(tmp_path, monkeypatch, capsys):
     client, setups, store, secrets, chain, _ = build(fail_test=True)  # the connection test fails: the principal cannot read the tables
     file = issue(client, begin(client))
