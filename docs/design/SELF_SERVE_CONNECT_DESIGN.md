@@ -150,7 +150,7 @@ Not verified: the file against the real Databricks SDK on a customer's machine, 
 
 ## Built: S3, the screens (2026-11-23), on fakes only
 
-`apps/analytics-web/src/connect/` (`DatabricksWorkspace.tsx`, `databricksViews.tsx`, `databricksFlow.ts`, `databricksApi.ts`, `copy.ts`) and, on the server, `GET /api/v2/connect/databricks/setups/{id}/status` plus the principal's `application_id` on the connection list. **The screens have not been looked at in a browser against a running server; they are covered by render tests and a type check and build.**
+`apps/analytics-web/src/connect/` (`DatabricksWorkspace.tsx`, `databricksViews.tsx`, `databricksFlow.ts`, `databricksApi.ts`, `copy.ts`) and, on the server, `GET /api/v2/connect/databricks/setups/{id}/status` plus the principal's `application_id` on the connection list. **The screens were first covered only by render tests; on 2026-11-23 they were looked at in a browser against a local API (see the verification note below), which found and fixed two defects.**
 
 - **Track chooser:** after the admin names the workspace and tables, "One file (recommended)" is selected; "Run the script yourself" is the earlier manual path, unchanged. If the server has no public address configured (`enrol_not_configured`) the screen says so and points to the manual path.
 - **The file:** "Get the file" shows the digest to compare with `python3 compass-enrol.py --digest`, the run command, a download button and "Get a new file" (which revokes the old one).
@@ -198,6 +198,16 @@ One run on the owner's workspace (`dev.compass_synthetic_food_delivery`, Serverl
 What this shows on the real workspace: the generated enrol file works end to end with no copied or pasted value; the real SDK calls it uses (`service_principals.create` and `list` and `delete`, `service_principal_secrets_proxy.create` and `list` and `delete`, `warehouses.update_permissions`, `statement_execution`) behaved as the fakes assumed; the rotate file works; `--remove` leaves nothing; the product's verifier accepts the real read-back (with the per-principal filter).
 
 What it does not show: the check does not verify that the OLD secret stops working after rotation (it shows the new one works and the secret in custody changed); the enrol and rotate files on a customer's own machine, notebook or CLI; a deployed instance with a public https address and TLS (the check used localhost over http); the screens in a browser; the drift monitor's thread on a deployed instance; whether a principal can mint its own next secret. Run once, so no claim about repeatability.
+
+### Verification pass (2026-11-23), after S5
+
+A check of what was built, by running it rather than reading the tests. On `main` at the end of S5: the full Python suite (`tests` and `packages`) and the web tests, type check and build pass (the two manifest tests that failed in one run did so because the tree was edited during the run; rerun on a stable tree they pass); CI on `main` is green. Then the real application start-up (`app.main` lifespan, Connect on Databricks enabled) and the screens in a browser against a local API with a fake driver (no workspace touched). Found and fixed:
+
+1. **The Databricks tab could not open on a real installation.** Its Open button called the generic Connect route (`/api/v2/connect/capabilities`), which answers 503 `connect_not_configured` unless the Snowflake-era Connect coordinator is wired, and it is not. Every test passed because none ran the real start-up with the real tab's calls. The tab now uses its own `/databricks/capabilities`. A new test runs the real start-up in a fresh process (`tests/test_main_lifespan_connect.py`) and records the 503.
+2. **The one-file panel showed the manual track's wording** ("a secret you give to Compass once", "run the removal script"). It now says what the file does, from the setup's own details (tables, catalog, warehouse).
+3. Tidied: the drift monitor is one per process (it was appended to a list; a second start-up in the same process skips the wiring, as before).
+
+Confirmed working in the real start-up: the public address setting reaches the enrol and rotate routes (401 without a token, not 503); the drift monitor thread starts with the app, takes its interval from the setting, and stops on shutdown; with no public address the enrol file is not offered. Confirmed in the browser: sign-in, the form, the track chooser, getting the enrol file and the rotate file with their digests, and the live status polling ("stops working in 29 minutes"). Not exercised in the browser: a file actually being run (covered by the tests and the live run).
 
 ## Relationship to earlier documents
 

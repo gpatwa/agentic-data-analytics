@@ -8,7 +8,7 @@ import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, Db
 
 const noop = () => undefined;
 const view: DbxScriptView = {
-  setup_id: 's', connection_id: 'dbx-1', host: 'h', catalog: 'sales', tables: ['data.orders'], summary: ['Creates one service principal for Compass.'], digest: 'ab12cd34ef567890', principal_name: 'compass-conn-0a1b2c3d',
+  setup_id: 's', connection_id: 'dbx-1', host: 'h', catalog: 'sales', tables: ['data.orders'], summary: ['Creates one service principal for Compass.'], digest: 'ab12cd34ef567890', principal_name: 'compass-conn-0a1b2c3d', warehouse_name: 'Demo Warehouse',
   steps: [{ kind: 'admin', text: 'create the service principal' }, { kind: 'sql', text: 'GRANT SELECT ON TABLE `a`.`b`.`c` TO `<APPLICATION_ID>`' }], removal: [],
 };
 
@@ -108,6 +108,10 @@ test('the chooser recommends the one file and says nobody copies the secret; the
 test('before the file is issued the panel says what it does and offers only to get it', () => {
   const html = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} />);
   assert.match(html, /plain Python you can read first/);
+  assert.match(html, /nobody copies it/);
+  assert.match(html, /Demo Warehouse/);
+  assert.match(html, /<code>--remove<\/code>/);
+  assert.doesNotMatch(html, /secret you give to Compass once|run the removal script/, 'the manual track\'s wording must not appear in the one-file flow');
   assert.match(html, /removes everything it created/);
   assert.match(html, /works once, for 30 minutes/);
   assert.match(html, />Get the file</);

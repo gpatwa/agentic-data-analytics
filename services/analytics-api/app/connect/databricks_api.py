@@ -350,6 +350,7 @@ class ScriptView(BaseModel):
     removal: list[StepView]
     digest: str
     principal_name: str
+    warehouse_name: str = ""
 
 
 class CompleteView(BaseModel):
@@ -366,7 +367,7 @@ def _view(p: PendingDatabricks) -> ScriptView:
         tables=[f"{s}.{t}" for s, t in sorted(p.scope.tables)], summary=list(p.script.summary),
         steps=[StepView(kind=kinds.get(s.op, "admin"), text=s.text) for s in p.script.steps],
         removal=[StepView(kind=kinds.get(s.op, "admin"), text=s.text) for s in p.script.teardown], digest=p.script.digest,
-        principal_name=p.script.principal,
+        principal_name=p.script.principal, warehouse_name=p.warehouse_name,
     )
 
 

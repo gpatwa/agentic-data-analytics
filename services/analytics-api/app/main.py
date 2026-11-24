@@ -47,8 +47,9 @@ async def lifespan(_: FastAPI):
             v2_runtime.warm = warm_up_for(wiring)
             from app.connect.drift import DriftMonitor
 
-            drift_monitor.append(DriftMonitor(wiring.setups, wiring.session_factory, read_check_interval=settings.ANALYTICS_CONNECT_DRIFT_CHECK_HOURS * 3600))
-            drift_monitor[0].start()
+            monitor = DriftMonitor(wiring.setups, wiring.session_factory, read_check_interval=settings.ANALYTICS_CONNECT_DRIFT_CHECK_HOURS * 3600)
+            drift_monitor[:] = [monitor]  # one monitor per process (the wiring block runs once: it is skipped when the v2 runtime is already built)
+            monitor.start()
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT not in built.governed.contexts:
             raise RuntimeError("ANALYTICS_DEMO_ENABLED needs a certified contract for ANALYTICS_DEMO_TENANT")
         if settings.ANALYTICS_DEMO_ENABLED and settings.ANALYTICS_DEMO_TENANT in (settings.entra_tenant_targets()):

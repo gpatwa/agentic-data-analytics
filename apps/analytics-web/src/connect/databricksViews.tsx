@@ -131,7 +131,12 @@ export function DbxEnrolPanel(p: DbxEnrolPanelProps) {
   return (
     <section className="gv-card" data-view="dbx-enrol" aria-label="The file your admin runs">
       <h2>Your admin runs one file</h2>
-      <ul>{p.view.summary.map((line) => <li key={line}>{line}</li>)}</ul>
+      <ul>
+        <li>It creates one read-only service principal for Compass, and the principal&apos;s secret goes straight to Compass: nobody copies it.</li>
+        <li>The principal can read only the {p.view.tables.length} table(s) you named in catalog {p.view.catalog}: USE CATALOG, USE SCHEMA and SELECT. No write, no grant option.</li>
+        <li>It may use the SQL warehouse &apos;{p.view.warehouse_name}&apos;. Compass never edits the warehouse.</li>
+        <li>Compass holds no admin credential. To remove it later, run the same file with <code>--remove</code>, or use Remove here once it is connected.</li>
+      </ul>
       <ul className="cn-small">
         <li>The file is plain Python you can read first. It runs under your admin&apos;s own Databricks sign-in and prints only short codes.</li>
         <li>If any step fails it removes everything it created. It writes nothing to disk.</li>

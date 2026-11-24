@@ -18,6 +18,7 @@ export interface DbxScriptView {
   removal: DbxStep[];
   digest: string;
   principal_name: string;
+  warehouse_name: string;
 }
 
 export interface DbxBeginInput {
@@ -103,3 +104,13 @@ export const enrolStatus = (cfg: ConnectConfig, id: string) => call<DbxEnrolStat
 /** The file that gives an existing connection a new secret, with nothing to copy. Same single-use, 30-minute rules as the enrol file. */
 export const issueRotateFile = (cfg: ConnectConfig, id: string) => call<DbxEnrolFile>(cfg, 'POST', `${BASE}/connections/${encodeURIComponent(id)}/rotate-file`);
 export const rotateStatus = (cfg: ConnectConfig, id: string) => call<DbxEnrolStatus>(cfg, 'GET', `${BASE}/connections/${encodeURIComponent(id)}/rotate-status`);
+
+/** The Databricks tab's own readiness: it must not depend on the generic (Snowflake-era) Connect route, which answers 503 on an installation that only has Databricks Connect. */
+export interface DbxCapabilities {
+  engine: string;
+  setup_method: string;
+  can_manage: boolean;
+  stage: string;
+}
+
+export const getDbxCapabilities = (cfg: ConnectConfig) => call<DbxCapabilities>(cfg, 'GET', `${BASE}/capabilities`);
