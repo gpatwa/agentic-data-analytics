@@ -33,3 +33,14 @@ def test_the_stack_binds_localhost_only():
     from reference_stack.local_stack import __main__ as stack
 
     assert 'host="127.0.0.1"' in inspect.getsource(stack.main) and "0.0.0.0" not in inspect.getsource(stack)
+
+
+def test_the_test_token_lasts_a_working_day_not_an_hour(tmp_path, fake_sdk):  # noqa: F811
+    import base64
+    import json
+    import time
+
+    token_file = tmp_path / "token.txt"
+    assert main(["--selftest", "--token-file", str(token_file)], connector=FakeConnector()) == 0
+    payload = json.loads(base64.urlsafe_b64decode(token_file.read_text().split(".")[1] + "=="))
+    assert 7.5 * 3600 < payload["exp"] - time.time() <= 8 * 3600

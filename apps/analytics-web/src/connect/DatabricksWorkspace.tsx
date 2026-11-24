@@ -3,14 +3,24 @@ import { useEffect, useState } from 'react';
 import { ConnectError } from './api';
 import { beginDatabricks, cancelDatabricks, checkDbxConnection, completeDatabricks, enrolStatus, issueEnrolFile, issueRotateFile, listDbxConnections, removeDbxConnection, rotateDbxSecret, rotateStatus, scriptWithId, setDbxWarmUp } from './databricksApi';
 import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptFilename, dbxScriptText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
+import { dbxRemovalText, dbxScriptFilename, dbxScriptText, journeyStep, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 import type { Track } from './databricksFlow';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
+import { DatabricksStage, DbxConnectedSummary, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxSignIn, DbxStepper, DbxTrackChooser } from './databricksViews';
 import { save } from './download';
 import { parseTables } from './flow';
 import type { ConnectConfig } from './types';
 
-export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectConfig; ready: boolean; canManage: boolean }) {
+export interface DatabricksWorkspaceProps {
+  cfg: ConnectConfig;
+  ready: boolean;
+  canManage: boolean;
+  token: string;
+  busy?: boolean;
+  onToken: (value: string) => void;
+  onOpen: () => void;
+}
+
+export function DatabricksWorkspace({ cfg, ready, canManage, token, busy: opening = false, onToken, onOpen }: DatabricksWorkspaceProps) {
   const [host, setHost] = useState('');
   const [catalog, setCatalog] = useState('');
   const [warehouse, setWarehouse] = useState('');
@@ -30,6 +40,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
   const [rotateProblems, setRotateProblems] = useState<string[]>([]);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [track, setTrack] = useState<Track>('enrol');
+  const [profile, setProfile] = useState('');
   const [file, setFile] = useState<DbxEnrolFile | null>(null);
   const [status, setStatus] = useState<DbxEnrolStatus | null>(null);
   const [rotation, setRotation] = useState<{ id: string; file: DbxEnrolFile | null; status: DbxEnrolStatus | null } | null>(null);
@@ -188,20 +199,27 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
       kind === 'script' ? dbxScriptText(view) : dbxRemovalText(view));
   };
 
+  const connected = status?.state === 'connected';
+  const step = journeyStep({ ready, hasSetup: view !== null, connected });
+  const copy = (text: string) => void navigator.clipboard?.writeText(text).catch(() => undefined);
+
   return (
     <>
       <DatabricksStage />
-      {!ready && <p className="cn-small">Paste your access token above and choose Open to continue.</p>}
+      <DbxStepper current={step} />
+      {step === 0 && <DbxSignIn token={token} busy={opening} onToken={onToken} onOpen={onOpen} />}
       {ready && (
         <>
-          <DbxDetailsForm host={host} catalog={catalog} warehouse={warehouse} tablesText={tablesText} problems={problems} busy={busy} canManage={canManage}
-            onChange={(field, value) => ({ host: setHost, catalog: setCatalog, warehouse: setWarehouse, tablesText: setTablesText })[field](value)} onSubmit={show} />
-          {view && <DbxTrackChooser track={track} onChoose={setTrack} />}
-          {view && track === 'enrol' && (
-            <DbxEnrolPanel view={view} file={file} status={status} busy={busy} onIssue={() => void issue()} onDownload={() => file && save(file.filename, file.content)}
-              onDone={done} onCancel={() => void cancel()} />
+          {step === 1 && (
+            <DbxDetailsForm host={host} catalog={catalog} warehouse={warehouse} tablesText={tablesText} problems={problems} busy={busy} canManage={canManage}
+              onChange={(field, value) => ({ host: setHost, catalog: setCatalog, warehouse: setWarehouse, tablesText: setTablesText })[field](value)} onSubmit={show} />
           )}
-          {view && track === 'manual' && (
+          {step >= 2 && view && track === 'enrol' && (
+            <DbxEnrolPanel view={view} file={file} status={status} profile={profile} busy={busy} onProfile={setProfile} onIssue={() => void issue()}
+              onDownload={() => file && save(file.filename, file.content)} onCopy={copy} onDone={done} onCancel={() => void cancel()} />
+          )}
+          {step === 3 && view && <DbxConnectedSummary tables={view.tables.map((t) => `${view.catalog}.${t}`)} checks={status?.checks ?? []} onDone={done} />}
+          {step === 2 && view && track === 'manual' && (
             <>
               <DbxScriptPanel view={view} applicationId={applicationId} busy={busy} onApplicationId={setApplicationId} onApply={() => void apply()} onDownload={download}
                 onCancel={() => void cancel()} />
@@ -209,6 +227,7 @@ export function DatabricksWorkspace({ cfg, ready, canManage }: { cfg: ConnectCon
                 onChange={(field, value) => ({ applicationId: setApplicationId, secret: setSecret, httpPath: setHttpPath })[field](value)} onSubmit={connect} />
             </>
           )}
+          {step === 2 && view && <DbxTrackChooser track={track} onChoose={setTrack} />}
           {rotation && (
             <DbxRotatePanel host={connections.find((c) => c.connection_id === rotation.id)?.host ?? ''} file={rotation.file} status={rotation.status} busy={busy}
               onIssue={() => void rotateByFile(rotation.id)} onDownload={() => rotation.file && save(rotation.file.filename, rotation.file.content)} onClose={() => setRotation(null)} />

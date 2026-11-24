@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { DbxScriptView } from './databricksApi';
-import { DatabricksStage, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxTrackChooser } from './databricksViews';
+import { DatabricksStage, DbxConnectedSummary, DbxConnections, DbxCredentialsForm, DbxDetailsForm, DbxEnrolPanel, DbxRemovedNote, DbxResultPanel, DbxRotatePanel, DbxScriptPanel, DbxSignIn, DbxStepper, DbxTrackChooser } from './databricksViews';
 
 const noop = () => undefined;
 const view: DbxScriptView = {
@@ -94,7 +94,7 @@ test('the warm-up switch is off by default, says what it costs, and is off for a
 });
 
 const file = { filename: 'compass-enrol.py', content: 'print("x")', digest: '1533e320a7cfd48a', expires_in_minutes: 30, run: 'python3 compass-enrol.py' };
-const enrolProps = { view, file: null, status: null, busy: false, onIssue: noop, onDownload: noop, onDone: noop, onCancel: noop };
+const enrolProps = { view, file: null, status: null, profile: '', busy: false, onProfile: noop, onIssue: noop, onDownload: noop, onCopy: noop, onDone: noop, onCancel: noop };
 
 test('the chooser recommends the one file and says nobody copies the secret; the other choice stays available', () => {
   const html = renderToStaticMarkup(<DbxTrackChooser track="enrol" onChoose={noop} />);
@@ -108,14 +108,14 @@ test('the chooser recommends the one file and says nobody copies the secret; the
 test('before the file is issued the panel says what it does and offers only to get it', () => {
   const html = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} />);
   assert.match(html, /plain Python you can read first/);
-  assert.match(html, /nobody copies it/);
+  assert.match(html, /nobody copies a secret/);
   assert.match(html, /Demo Warehouse/);
   assert.match(html, /<code>--remove<\/code>/);
   assert.doesNotMatch(html, /secret you give to Compass once|run the removal script/, 'the manual track\'s wording must not appear in the one-file flow');
   assert.match(html, /removes everything it created/);
   assert.match(html, /works once, for 30 minutes/);
   assert.match(html, />Get the file</);
-  assert.doesNotMatch(html, /file-digest|enrol-status/);
+  assert.doesNotMatch(html, /file-digest/);
 });
 
 test('once issued it shows the digest to compare, the run command and the live status', () => {
@@ -135,7 +135,7 @@ test('a refusal shows its plain-words error and a connection shows each table wi
   const connected = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} status={{ state: 'connected', code: null, checks: [{ table: 'sales.data.orders', passed: true }], expires_in_minutes: 0 }} />);
   assert.match(connected, /Can read sales\.data\.orders/);
   assert.match(connected, />Done</);
-  assert.doesNotMatch(connected, />Cancel</);
+  assert.doesNotMatch(connected, />Back</);
 });
 
 test('removal tells the admin the exact command, only when the application id is real', () => {
@@ -170,4 +170,57 @@ test('the rotate panel says what the file does, then shows the digest and the li
   assert.match(failed, /connection is as it was/);
   const done = renderToStaticMarkup(<DbxRotatePanel {...rotateProps} file={file} status={{ state: 'connected', code: null, checks: [{ table: 'sales.data.orders', passed: true }], expires_in_minutes: 0 }} />);
   assert.match(done, />Done</);
+});
+
+test('the stepper shows where the admin is: done, current and still to do, with the current one marked for assistive technology', () => {
+  const html = renderToStaticMarkup(<DbxStepper current={2} />);
+  for (const label of ['Sign in', 'Choose your data', 'Run one file', 'Connected']) assert.match(html, new RegExp(label));
+  assert.equal((html.match(/data-state="done"/g) ?? []).length, 2);
+  assert.equal((html.match(/data-state="current"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-state="todo"/g) ?? []).length, 1);
+  assert.match(html, /aria-current="step"[^>]*>[\s\S]*Run one file/);
+});
+
+test('the sign-in step says what to paste, who may, and where the local token is', () => {
+  const html = renderToStaticMarkup(<DbxSignIn token="" busy={false} onToken={noop} onOpen={noop} />);
+  assert.match(html, /Step 1 of 4: Sign in/);
+  assert.match(html, /allowed to manage connections/);
+  assert.match(html, /\.local-stack\/token\.txt/);
+  assert.match(html, /type="password"/);
+  assert.match(html, /<button[^>]*disabled[^>]*>Open/, 'Open stays off until there is a token');
+});
+
+test('the details step is step 2 and its button says Continue, not a jargon word', () => {
+  const html = renderToStaticMarkup(<DbxDetailsForm host="" catalog="" warehouse="" tablesText="" problems={[]} busy={false} canManage onChange={noop} onSubmit={noop} />);
+  assert.match(html, /Step 2 of 4: What may Compass read\?/);
+  assert.match(html, />Continue</);
+  assert.match(html, /Nothing is created yet/);
+});
+
+test('the run-the-file step is three numbered actions: get it, run it with a command to copy, watch it', () => {
+  const before = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} />);
+  assert.match(before, /Step 3 of 4: Run one file/);
+  assert.match(before, /Get the file\./);
+  assert.match(before, /Run it in your terminal\./);
+  assert.match(before, /Watch it here\./);
+  assert.match(before, /Nothing has run yet/);
+  assert.doesNotMatch(before, /run-command/);
+  const after = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} profile="my-profile" status={{ state: 'waiting', code: null, checks: [], expires_in_minutes: 20 }} />);
+  assert.match(after, /data-testid="run-command">python3 compass-enrol\.py --profile my-profile/);
+  assert.match(after, />Copy command</);
+  assert.match(after, /in 20 minutes/);
+  const odd = renderToStaticMarkup(<DbxEnrolPanel {...enrolProps} file={file} profile="x; rm -rf /" />);
+  assert.match(odd, /data-testid="run-command">python3 compass-enrol\.py</, 'an odd profile never reaches the copied command');
+  assert.match(odd, /left out of the command/);
+});
+
+test('the connected step lists what Compass can read and tells the admin what to do next', () => {
+  const html = renderToStaticMarkup(<DbxConnectedSummary tables={['sales.data.orders']} checks={[{ table: 'sales.data.orders', passed: true }]} onDone={noop} />);
+  assert.match(html, /Step 4 of 4: Connected/);
+  assert.match(html, /Can read sales\.data\.orders/);
+  assert.match(html, /What to do next/);
+  assert.match(html, /Ask a question/);
+  assert.match(html, /warm the warehouse/);
+  assert.match(html, /30 days ahead/);
+  assert.match(html, />Connect another workspace</);
 });
