@@ -171,9 +171,9 @@ Not built in S3: rotation by the enrol file, the drift check and the 60-day remi
 
 Not verified: the rotate file against the real SDK (it uses `service_principals.list`, `service_principal_secrets_proxy.create`, `.list` and `.delete`; the create and delete calls were used in the live provision run, `.list` of a principal's secrets was not); whether a principal can mint its own next secret (so rotation still needs the admin's sign-in, one action); the monitor's thread on a deployed instance; the screens in a browser. State is in memory, as for enrolment.
 
-## Built: S5, the live check of the enrol file (2026-11-23), on fakes only; NOT RUN
+## Built: S5, the live check of the enrol file (2026-11-23); run once, passed (see below)
 
-`services/analytics-api/reference_stack/enrol_check/` (`python -m reference_stack.enrol_check`, dry run by default) and `tests/test_enrol_check.py` (11 tests). The deployment check's local app now also serves the enrol routes. **No live run has happened; a live run is refused until the approval `enrol_file_live_check` is recorded, and it is not.**
+`services/analytics-api/reference_stack/enrol_check/` (`python -m reference_stack.enrol_check`, dry run by default) and `tests/test_enrol_check.py` (11 tests). The deployment check's local app now also serves the enrol routes. **A live run needs the recorded approval `enrol_file_live_check`; the owner gave it on 2026-11-23 ("Yes, record the approval and run it") and the run is reported below.**
 
 What a run does, with the owner's signed-in profile: serves a local instance of the real app on localhost; as the admin asks for the enrol file; **runs that file** (it creates ONE service principal, its secret held in memory, `CAN_USE` on the warehouse and read grants on the two views, and posts them to the local app); checks the connection through the real Databricks session (OAuth M2M); runs the warm-up path on it; **rotates** with the rotate file; **removes** the connection and runs the enrol file's own `--remove`; lists the workspace and confirms the principal is gone. In a `finally`, whatever happened, the principal with this run's exact name is removed by id (never by the shared `compass-conn-` prefix), and the ledger entry written before the file ran is dropped; `--sweep` does the same for a crashed run. The report records step results and codes only, with a leak scan of every output and the report for the principal's secrets.
 
@@ -182,6 +182,22 @@ Safeguards tested on fakes: crash after the file ran (cleanup by exact name, a c
 ### Draft approval scope for `enrol_file_live_check` (to record only on the owner's explicit yes)
 
 "Run the enrol_file_live_check on this computer against https://dbc-b8672746-8e43.cloud.databricks.com, catalog and schema dev.compass_synthetic_food_delivery (views orders_current and orders_usd_gross), warehouse Serverless Starter Warehouse, using the owner's signed-in CLI profile: serve a local instance of the app on localhost; run the generated enrol file, which creates one temporary service principal named compass-conn- followed by 8 random hex characters, one OAuth secret held only in memory, USE CATALOG, USE SCHEMA and SELECT on those two views and CAN_USE on the named warehouse; read both views as that principal; at most four certified warm-up queries (each with the gateway's own EXPLAIN COST and two session SETs); run the generated rotate file once, which creates one further secret for that principal and deletes the older ones; then remove the principal and its grants with the enrol file's --remove, list the workspace's service principals and warehouses read-only to confirm, and in every case remove the principal named exactly as this run's by id; a 20-minute cap. It does NOT approve any deployment or Azure change, changing any warehouse, any other schema or table, any grant or write beyond the list above, a model call, installing anything on the owner's behalf, or certifying anything."
+
+### Live run (2026-11-23, approval `enrol_file_live_check`, run b6411365)
+
+One run on the owner's workspace (`dev.compass_synthetic_food_delivery`, Serverless Starter Warehouse), through the owner's CLI profile. It passed first time; the report is `enrol-check-b6411365.json` (outside the repository). Results, codes only:
+
+| Step | Result |
+|---|---|
+| Ask for the enrol file, run it | exit 0, "enrolled"; status **connected**; both views read as the new principal (OAuth M2M); connection **active** |
+| Warm-up on that connection | switch off `skipped_disabled`; switch on with its audit event; `POST /warm` 202 `warming` in 2.3 ms; recorded `warmed` (3 statements, 9.1 s); a second call `skipped_recent`; `/analyze` triggered no second warm-up |
+| Rotate with the rotate file | exit 0; status **connected**; the stored secret changed; the health check passed with the new secret |
+| Remove | the connection deleted (200); the enrol file's own `--remove` exit 0; the workspace listing shows the principal **gone** |
+| Cleanup and leaks | nothing left (cleanup by exact name found nothing to remove; the ledger is empty); no secret in any output or the report |
+
+What this shows on the real workspace: the generated enrol file works end to end with no copied or pasted value; the real SDK calls it uses (`service_principals.create` and `list` and `delete`, `service_principal_secrets_proxy.create` and `list` and `delete`, `warehouses.update_permissions`, `statement_execution`) behaved as the fakes assumed; the rotate file works; `--remove` leaves nothing; the product's verifier accepts the real read-back (with the per-principal filter).
+
+What it does not show: the check does not verify that the OLD secret stops working after rotation (it shows the new one works and the secret in custody changed); the enrol and rotate files on a customer's own machine, notebook or CLI; a deployed instance with a public https address and TLS (the check used localhost over http); the screens in a browser; the drift monitor's thread on a deployed instance; whether a principal can mint its own next secret. Run once, so no claim about repeatability.
 
 ## Relationship to earlier documents
 
