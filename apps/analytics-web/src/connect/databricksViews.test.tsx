@@ -182,10 +182,11 @@ test('the stepper shows where the admin is: done, current and still to do, with 
 });
 
 test('the sign-in step says what to paste, who may, and where the local token is', () => {
-  const html = renderToStaticMarkup(<DbxSignIn token="" busy={false} onToken={noop} onOpen={noop} />);
+  const html = renderToStaticMarkup(<DbxSignIn token="" busy={false} options={null} onToken={noop} onOpen={noop} onSignIn={noop} />);
   assert.match(html, /Step 1 of 4: Sign in/);
   assert.match(html, /allowed to manage connections/);
-  assert.match(html, /\.local-stack\/token\.txt/);
+  assert.match(html, /company login is not set up in this build/);
+  assert.match(html, /local stack/);
   assert.match(html, /type="password"/);
   assert.match(html, /<button[^>]*disabled[^>]*>Open/, 'Open stays off until there is a token');
 });
@@ -223,4 +224,13 @@ test('the connected step lists what Compass can read and tells the admin what to
   assert.match(html, /warm the warehouse/);
   assert.match(html, /30 days ahead/);
   assert.match(html, />Connect another workspace</);
+});
+
+test('when the API offers a sign-in the step has a Sign in button, and pasting a token is tucked away as the other way', () => {
+  const html = renderToStaticMarkup(<DbxSignIn token="" busy={false} options={{ dev_login: true, label: 'the local test administrator (this computer only)' }} onToken={noop} onOpen={noop} onSignIn={noop} />);
+  assert.match(html, /data-testid="sign-in"[^>]*>Sign in</);
+  assert.match(html, /Sign in as the local test administrator/);
+  assert.match(html, /<details[^>]*><summary>Use an access token instead<\/summary>/);
+  assert.doesNotMatch(html, /company login is not set up/);
+  assert.match(renderToStaticMarkup(<DbxSignIn token="" busy options={{ dev_login: true, label: 'x' }} onToken={noop} onOpen={noop} onSignIn={noop} />), /<button[^>]*disabled[^>]*data-testid="sign-in"|data-testid="sign-in"[^>]*disabled/);
 });

@@ -120,7 +120,7 @@ test('the Databricks tab becomes ready from its own capabilities route, never th
     globalThis.fetch = real;
   }
   const source = (await import('node:fs')).readFileSync('src/connect/ConnectWorkspace.tsx', 'utf8');
-  assert.match(source, /mode === 'databricks'[\s\S]{0,400}getDbxCapabilities\(cfg\)/, 'the Open button must ask the Databricks route in the Databricks tab');
+  assert.match(source, /mode === 'databricks'[\s\S]{0,400}getDbxCapabilities\((cfg|using)\)/, 'the Open button must ask the Databricks route in the Databricks tab');
   assert.match(source, /<DatabricksWorkspace cfg=\{cfg\} ready=\{dbxCapabilities !== null\}/, 'the tab is ready from its own capabilities');
 });
 
@@ -137,4 +137,28 @@ test('the journey has four steps and the right one is current for each state', a
   for (const bad of ['a b', 'x;y', '$(id)', '`x`', 'a/b', 'x'.repeat(65)]) assert.equal(enrolCommand('compass-enrol.py', bad), 'python3 compass-enrol.py', bad);
   assert.equal(profileLooksWrong('x;y'), true);
   assert.equal(profileLooksWrong(''), false);
+});
+
+test('the sign-in the API offers is read safely: a Sign in button only when it says so, and any failure means paste a token', async () => {
+  const { getAuthOptions, devLogin } = await import('./authApi');
+  const real = globalThis.fetch;
+  const answer = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  try {
+    globalThis.fetch = answer(200, { dev_login: true, label: 'the local test administrator' });
+    assert.deepEqual(await getAuthOptions(''), { dev_login: true, label: 'the local test administrator' });
+    globalThis.fetch = answer(404, { detail: 'nope' });
+    assert.deepEqual(await getAuthOptions(''), { dev_login: false, label: '' });
+    globalThis.fetch = answer(200, { dev_login: 'yes' });
+    assert.equal((await getAuthOptions('')).dev_login, false);
+    globalThis.fetch = (async () => { throw new Error('offline'); }) as unknown as typeof fetch;
+    assert.equal((await getAuthOptions('')).dev_login, false);
+    globalThis.fetch = answer(200, { token: 'a.b.c' });
+    assert.equal(await devLogin(''), 'a.b.c');
+    globalThis.fetch = answer(200, { token: '' });
+    await assert.rejects(devLogin(''), /sign_in_failed/);
+    globalThis.fetch = answer(403, { detail: 'local_only' });
+    await assert.rejects(devLogin(''), /sign_in_failed/);
+  } finally {
+    globalThis.fetch = real;
+  }
 });

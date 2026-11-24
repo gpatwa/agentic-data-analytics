@@ -18,6 +18,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from fastapi import APIRouter, HTTPException, Request
+
 REPO = Path(__file__).resolve().parents[4]
 TOKEN_HOURS = 8  # a working day: the token is for a throwaway key on this computer only
 PORT, WEB_PORT = 8090, 5174  # 8090 is where the web dev server proxies /api (apps/analytics-web/vite.config.ts)
@@ -30,12 +32,34 @@ def build(work: Path, *, connector: Any | None = None, port: int = PORT) -> tupl
     return local, local.token
 
 
+def dev_sign_in_router(token: str) -> Any:
+    """What lets the screen offer a real Sign in button on this computer: two public routes that exist ONLY in this process (the deployed app has neither). The token is for the
+    throwaway key of this process; the routes answer only the loopback address, whatever the server is bound to."""
+    router = APIRouter(prefix="/api/v2/auth", tags=["local-stack"])
+
+    def loopback(request: Request) -> None:
+        if (request.client.host if request.client else "") not in ("127.0.0.1", "::1"):
+            raise HTTPException(403, "local_only")
+
+    @router.get("/options")
+    def options(request: Request) -> dict[str, Any]:
+        loopback(request)
+        return {"dev_login": True, "label": "the local test administrator (this computer only)"}
+
+    @router.post("/dev-login")
+    def dev_login(request: Request) -> dict[str, str]:
+        loopback(request)
+        return {"token": token}
+
+    return router
+
+
 def banner(token_file: Path, *, web: bool, port: int) -> str:
     return "\n".join([
         "",
         f"  API   http://127.0.0.1:{port}   (real routes, real Databricks connector, test identity)",
         f"  Web   http://127.0.0.1:{WEB_PORT}   " + ("(started for you)" if web else "(start it: cd apps/analytics-web && npm run dev -- --host 127.0.0.1)"),
-        f"  Token {token_file}   (paste it into the screen's Access token box; it lasts 8 hours)",
+        f"  Sign in: use the Sign in button in the screen. (The test token is also in {token_file} if you prefer to paste it; it lasts 8 hours.)",
         "",
         "  In the screen: Connect a warehouse > Databricks (internal testing) > Open. Use the host of your workspace, the catalog, tables as SCHEMA.TABLE, and the warehouse's name.",
         "  Then: One file (recommended) > Get the file > download it, and in your own terminal run it as the screen says (python3 compass-enrol.py --profile <your profile>).",
@@ -63,6 +87,7 @@ def main(argv: list[str] | None = None, *, connector: Any | None = None, serve: 
     token_file.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         local, token = build(Path(tmp), connector=connector, port=args.port)
+        local.app.include_router(dev_sign_in_router(token))
         token_file.write_text(token)
         token_file.chmod(0o600)
         if args.selftest:
