@@ -238,6 +238,10 @@ class RegistrationRunner:
             self.ledger.drop(entry["run_id"])
         return {"removed": done, "left": left}
 
+    def remove_recorded(self, entry: dict[str, Any]) -> dict[str, Any]:
+        """Remove what a ledger-style entry names, by id (the enrol check builds one from an exact principal name)."""
+        return self._remove(entry)
+
     def sweep(self) -> dict[str, Any]:
         """Finish a crashed run: remove what the ledger records, by id. Never matches by name."""
         results = [self._remove(e) | {"run_id": e.get("run_id", "")} for e in self.ledger.entries()]

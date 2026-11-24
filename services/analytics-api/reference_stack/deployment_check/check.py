@@ -19,7 +19,7 @@ from jose import jwt
 from app.api_v2 import V2Runtime, build_v2_router
 from app.config import Settings
 from app.connect.api import MANAGER_GROUP
-from app.connect.databricks_api import DatabricksRuntime, build_databricks_router
+from app.connect.databricks_api import DatabricksRuntime, build_databricks_router, build_enrol_router
 from app.connect.runtime_wiring import build_databricks_wiring, warm_up_for
 from app.connect.store import ConnectionRecord
 from app.runtime.pilot_wiring import build_pilot_runtime
@@ -47,6 +47,7 @@ class LocalApp:
     app: FastAPI
     wiring: Any
     token: str
+    dbx: Any = None  # the Databricks runtime the routes share (the enrol check sets its public address once the port is known)
 
 
 def make_settings(work: Path) -> Settings:
@@ -58,7 +59,7 @@ def make_settings(work: Path) -> Settings:
         ENTRA_TENANT_ID=ENTRA_TENANT, ENTRA_AUDIENCE=AUDIENCE, ANALYTICS_ROLE_MAP=ROLE_MAP)
 
 
-def build_local_app(work: Path, *, connector: Any | None = None) -> LocalApp:
+def build_local_app(work: Path, *, connector: Any | None = None, enrol_url: str = "") -> LocalApp:
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -71,14 +72,15 @@ def build_local_app(work: Path, *, connector: Any | None = None) -> LocalApp:
     wiring = build_databricks_wiring(settings, **({"connector": connector} if connector is not None else {}))
     built = build_pilot_runtime(settings, verifier=verifier, model_factory=lambda _request_id: NoModel(), assets_for_tenant=wiring.assets_for_tenant)
     v2 = V2Runtime(service=built.service, verifier=built.verifier, feedback=built.feedback, resolver=built.resolver, briefs=built.briefs, warm=warm_up_for(wiring))
-    dbx = DatabricksRuntime(setups=wiring.setups, session_factory=wiring.session_factory, verifier=built.verifier, resolver=built.resolver)
+    dbx = DatabricksRuntime(setups=wiring.setups, session_factory=wiring.session_factory, verifier=built.verifier, resolver=built.resolver, enrol_url=enrol_url)
     app = FastAPI()
     app.include_router(build_v2_router(v2, lambda: None))
     app.include_router(build_databricks_router(dbx, lambda: None))
+    app.include_router(build_enrol_router(dbx))  # the enrol file's own call (single-use token, no identity token)
     now = int(time.time())
     claims = {"iss": ISSUER, "aud": AUDIENCE, "exp": now + 3600, "iat": now, "sub": "local-check-admin", "oid": "local-check-admin", "tid": ENTRA_TENANT,
               "roles": ["Analytics.Analyst", "Analytics.Admin"], "preferred_username": "local-check-admin"}
-    return LocalApp(app, wiring, jwt.encode(claims, private, algorithm="RS256", headers={"kid": KID}))
+    return LocalApp(app, wiring, jwt.encode(claims, private, algorithm="RS256", headers={"kid": KID}), dbx)
 
 
 def register(local: LocalApp, *, host: str, http_path: str, catalog: str, schema: str, client_id: str, client_secret: str, warehouse: str) -> None:
@@ -95,9 +97,9 @@ def _events(local: LocalApp, kind: str) -> list[Any]:
     return [e for e in local.wiring.setups.chain.events if e.event_type == kind]
 
 
-def run_check(client: Any, local: LocalApp, *, wait_seconds: float = 90.0, sleep: Callable[[float], None] = time.sleep) -> dict[str, Any]:
+def run_check(client: Any, local: LocalApp, *, wait_seconds: float = 90.0, sleep: Callable[[float], None] = time.sleep, connection: str = CONNECTION) -> dict[str, Any]:
     headers = {"Authorization": f"Bearer {local.token}"}
-    base, dbx = "/api/v2/analytics", f"/api/v2/connect/databricks/connections/{CONNECTION}"
+    base, dbx = "/api/v2/analytics", f"/api/v2/connect/databricks/connections/{connection}"
     steps: dict[str, Any] = {}
 
     def ran() -> list[Any]:
