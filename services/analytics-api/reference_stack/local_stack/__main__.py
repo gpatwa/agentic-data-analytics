@@ -32,9 +32,9 @@ def build(work: Path, *, connector: Any | None = None, port: int = PORT) -> tupl
     return local, local.token
 
 
-def dev_sign_in_router(token: str) -> Any:
+def dev_sign_in_router(token: Any) -> Any:
     """What lets the screen offer a real Sign in button on this computer: two public routes that exist ONLY in this process (the deployed app has neither). The token is for the
-    throwaway key of this process; the routes answer only the loopback address, whatever the server is bound to."""
+    throwaway key of this process (a string, or a function that makes a fresh one at each sign-in, so a stack left running overnight still signs in); the routes answer only the loopback address, whatever the server is bound to."""
     router = APIRouter(prefix="/api/v2/auth", tags=["local-stack"])
 
     def loopback(request: Request) -> None:
@@ -49,7 +49,7 @@ def dev_sign_in_router(token: str) -> Any:
     @router.post("/dev-login")
     def dev_login(request: Request) -> dict[str, str]:
         loopback(request)
-        return {"token": token}
+        return {"token": token() if callable(token) else token}
 
     return router
 
@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None, *, connector: Any | None = None, serve: 
     token_file.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         local, token = build(Path(tmp), connector=connector, port=args.port)
-        local.app.include_router(dev_sign_in_router(token))
+        local.app.include_router(dev_sign_in_router(local.mint))
         token_file.write_text(token)
         token_file.chmod(0o600)
         if args.selftest:

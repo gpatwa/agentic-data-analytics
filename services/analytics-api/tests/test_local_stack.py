@@ -74,3 +74,33 @@ def test_the_real_app_has_no_dev_sign_in_routes(tmp_path):
     from app.main import app
 
     assert not [r for r in app.routes if getattr(r, "path", "").startswith("/api/v2/auth/")]
+
+
+def test_each_sign_in_gets_a_token_made_now_so_a_stack_left_running_still_signs_in(tmp_path, fake_sdk):  # noqa: F811
+    # The stack once handed out the token it minted at start-up for every sign-in; after 8 hours that token had expired and Sign in was rejected.
+    import time
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from reference_stack.local_stack.__main__ import dev_sign_in_router
+
+    issued = iter(["first", "second"])
+    app = FastAPI()
+    app.include_router(dev_sign_in_router(lambda: next(issued)))
+
+    class Here:
+        def __init__(self, asgi):
+            self.asgi = asgi
+
+        async def __call__(self, scope, receive, send):
+            scope["client"] = ("127.0.0.1", 5555)
+            await self.asgi(scope, receive, send)
+
+    client = TestClient(Here(app))
+    assert [client.post("/api/v2/auth/dev-login").json()["token"] for _ in range(2)] == ["first", "second"]
+
+    from reference_stack.local_stack.__main__ import build
+    local, _ = build(tmp_path)
+    first = local.mint()
+    time.sleep(1.1)
+    assert local.mint() != first  # minted at the moment it is asked for
