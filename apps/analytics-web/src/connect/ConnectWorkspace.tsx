@@ -30,7 +30,7 @@ export function ConnectWorkspace() {
   const [errorCode, setErrorCode] = useState('');
   const [busy, setBusy] = useState(false);
   const returned = typeof window === 'undefined' ? null : parseReturn(window.location.pathname, window.location.search);
-  const [mode, setMode] = useState<'script' | 'product-run' | 'databricks'>(returned ? 'product-run' : 'script');
+  const [mode, setMode] = useState<'script' | 'product-run' | 'databricks'>(returned ? 'product-run' : 'databricks');
   const cfg = { baseUrl: BASE_URL, token, apiKey: API_KEY || undefined };
 
   async function guard(work: () => Promise<void>) {
@@ -98,20 +98,22 @@ export function ConnectWorkspace() {
   return (
     <div className="gv cn">
       <nav className="cn-modes" aria-label="How to connect">
-        <button className={mode === 'script' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('script')}>Admin runs a script (available now)</button>
-        <button className={mode === 'product-run' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('product-run')}>Register once (internal testing)</button>
-        <button className={mode === 'databricks' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('databricks')}>Databricks (internal testing)</button>
+        <button className={mode === 'databricks' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('databricks')}>Databricks (guided)</button>
+        <button className={mode === 'script' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('script')}>Snowflake: admin runs a script</button>
+        <button className={mode === 'product-run' ? 'nav-item active' : 'nav-item'} onClick={() => setMode('product-run')}>Snowflake: register once (internal testing)</button>
       </nav>
       {mode === 'script' && <StagePanel capabilities={capabilities} />}
-      <section className="gv-card" aria-label="Sign in">
-        <div className="gv-form">
-          <label>Access token<input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></label>
-          <button onClick={() => void load()} disabled={busy || !token}>Open</button>
-        </div>
-      </section>
+      {mode !== 'databricks' && (
+        <section className="gv-card" aria-label="Sign in">
+          <div className="gv-form">
+            <label>Access token<input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></label>
+            <button onClick={() => void load()} disabled={busy || !token}>Open</button>
+          </div>
+        </section>
+      )}
       {errorCode && <ErrorNotice code={errorCode} />}
       {mode === 'product-run' && <ProductRunWorkspace cfg={cfg} ready={capabilities !== null} canManage={capabilities?.can_manage ?? false} returned={returned} />}
-      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={dbxCapabilities !== null} canManage={dbxCapabilities?.can_manage ?? false} />}
+      {mode === 'databricks' && <DatabricksWorkspace cfg={cfg} ready={dbxCapabilities !== null} canManage={dbxCapabilities?.can_manage ?? false} token={token} busy={busy} onToken={setToken} onOpen={() => void load()} />}
       {mode === 'script' && connections.map((connection) => (
         <ConnectedPage
           key={connection.connection_id}

@@ -11,13 +11,14 @@
 | The generated files, run by you under your profile | A public https address and TLS (here: `http://127.0.0.1`) |
 | The warm-up path (switch it on in the screen) | Other people's browsers and networks; a restart that keeps state |
 
-## Steps
+## Steps (the screen walks you through them; a bar at the top shows where you are)
 
-1. From `services/analytics-api`: `PYTHONPATH=.:../.. python3 -m reference_stack.local_stack --web`. It prints the addresses and writes a test token to `.local-stack/token.txt` (git-ignored, owner-only; it lasts about an hour).
-2. Open http://127.0.0.1:5174, choose **Connect a warehouse**, then **Databricks (internal testing)**, paste the token, choose **Open**.
-3. Enter the workspace host, the catalog, the tables as `SCHEMA.TABLE`, and the SQL warehouse's name (for the owner's test workspace: the certified synthetic views `dev.compass_synthetic_food_delivery.orders_current` and `.orders_usd_gross`, warehouse "Serverless Starter Warehouse"). Choose **Show the script**.
-4. Keep **One file (recommended)**, choose **Get the file**, download it, and in your own terminal run `python3 compass-enrol.py --profile <your databricks profile>` as the screen says. The screen goes from waiting to connected, with each table read.
-5. Try **Check now**, the warm-up switch, **Rotate with a file** (download and run `compass-rotate.py` the same way), and **Remove**; then run `python3 compass-enrol.py --remove <application id> --profile <profile>` as the screen shows, so nothing stays in the workspace.
-6. Ctrl-C stops everything and deletes the token file.
+1. From `services/analytics-api`: `PYTHONPATH=.:../.. python3 -m reference_stack.local_stack --web`. It prints the addresses and writes a test token to `.local-stack/token.txt` (git-ignored, owner-only; it lasts 8 hours).
+2. Open http://127.0.0.1:5174 and choose **Connect** in the left menu. It opens on **Databricks (guided)**.
+3. **Step 1, Sign in:** paste the token and choose **Open**.
+4. **Step 2, Choose your data:** enter the workspace host, the catalog, the tables as `SCHEMA.TABLE`, and the SQL warehouse's name (the owner's test workspace: `dbc-b8672746-8e43.cloud.databricks.com`, catalog `dev`, tables `compass_synthetic_food_delivery.orders_current` and `compass_synthetic_food_delivery.orders_usd_gross`, warehouse "Serverless Starter Warehouse"), then **Continue**.
+5. **Step 3, Run one file:** (1) **Get the file** and download it; (2) type your Databricks CLI profile if you use one, **Copy command**, and run it in your own terminal; (3) watch the screen go from waiting to connected, with each table read.
+6. **Step 4, Connected:** the screen lists what Compass can read and what to do next. Try **Check now**, the warm-up switch, **Rotate with a file** (the same way as step 3) and **Remove**; then run `python3 compass-enrol.py --remove <application id>` (add `--profile` if you use one) as the screen shows, so nothing stays in the workspace.
+7. Ctrl-C stops everything and deletes the token file.
 
 A question asked in the Governed tab will not be answered: no model is configured here by design.

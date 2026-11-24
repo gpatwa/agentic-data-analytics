@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DbxScriptView } from './databricksApi';
-import { ROTATE_WITHIN_DAYS, dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, rotateStatusText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
+import { JOURNEY, ROTATE_WITHIN_DAYS, dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, rotateStatusText, validateCredentials, validateDbxDetails, validateSecret } from './databricksFlow';
 
 const ok = { host: 'dbc-1234abcd-5678.cloud.databricks.com', catalog: 'sales', warehouse: 'Starter', tablesText: 'data.orders\ndata.customers' };
 const view = (placeholder: boolean): DbxScriptView => ({
@@ -122,4 +122,19 @@ test('the Databricks tab becomes ready from its own capabilities route, never th
   const source = (await import('node:fs')).readFileSync('src/connect/ConnectWorkspace.tsx', 'utf8');
   assert.match(source, /mode === 'databricks'[\s\S]{0,400}getDbxCapabilities\(cfg\)/, 'the Open button must ask the Databricks route in the Databricks tab');
   assert.match(source, /<DatabricksWorkspace cfg=\{cfg\} ready=\{dbxCapabilities !== null\}/, 'the tab is ready from its own capabilities');
+});
+
+test('the journey has four steps and the right one is current for each state', async () => {
+  const { journeyStep, enrolCommand, profileLooksWrong } = await import('./databricksFlow');
+  assert.deepEqual([...JOURNEY], ['Sign in', 'Choose your data', 'Run one file', 'Connected']);
+  assert.equal(journeyStep({ ready: false, hasSetup: false, connected: false }), 0);
+  assert.equal(journeyStep({ ready: true, hasSetup: false, connected: false }), 1);
+  assert.equal(journeyStep({ ready: true, hasSetup: true, connected: false }), 2);
+  assert.equal(journeyStep({ ready: true, hasSetup: true, connected: true }), 3);
+  assert.equal(journeyStep({ ready: false, hasSetup: true, connected: true }), 0, 'signed out is always step 1');
+  assert.equal(enrolCommand('compass-enrol.py', ''), 'python3 compass-enrol.py');
+  assert.equal(enrolCommand('compass-enrol.py', ' social-intelligence-free '), 'python3 compass-enrol.py --profile social-intelligence-free');
+  for (const bad of ['a b', 'x;y', '$(id)', '`x`', 'a/b', 'x'.repeat(65)]) assert.equal(enrolCommand('compass-enrol.py', bad), 'python3 compass-enrol.py', bad);
+  assert.equal(profileLooksWrong('x;y'), true);
+  assert.equal(profileLooksWrong(''), false);
 });

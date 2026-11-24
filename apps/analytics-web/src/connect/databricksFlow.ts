@@ -107,3 +107,22 @@ export function rotateStatusText(status: DbxEnrolStatus | null): string {
   if (status.state === 'connected') return 'Rotated. Compass read each table with the new secret, and the older secrets were revoked.';
   return 'Not rotated. The new secret was deleted and the connection is as it was.';
 }
+
+/** The guided journey the Databricks tab walks the admin through. One step is on screen at a time; the bar above it says where they are. */
+export const JOURNEY = ['Sign in', 'Choose your data', 'Run one file', 'Connected'] as const;
+
+export function journeyStep(state: { ready: boolean; hasSetup: boolean; connected: boolean }): 0 | 1 | 2 | 3 {
+  if (!state.ready) return 0;
+  if (state.connected) return 3;
+  return state.hasSetup ? 2 : 1;
+}
+
+const PROFILE = /^[A-Za-z0-9._-]{1,64}$/;
+
+/** The command to copy: the file, plus the admin's own CLI profile when they name one. A profile with anything unusual in it is left out, so a copied command can never carry it. */
+export function enrolCommand(filename: string, profile: string): string {
+  const name = profile.trim();
+  return name && PROFILE.test(name) ? `python3 ${filename} --profile ${name}` : `python3 ${filename}`;
+}
+
+export const profileLooksWrong = (profile: string) => profile.trim() !== '' && !PROFILE.test(profile.trim());

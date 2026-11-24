@@ -59,7 +59,7 @@ def make_settings(work: Path) -> Settings:
         ENTRA_TENANT_ID=ENTRA_TENANT, ENTRA_AUDIENCE=AUDIENCE, ANALYTICS_ROLE_MAP=ROLE_MAP)
 
 
-def build_local_app(work: Path, *, connector: Any | None = None, enrol_url: str = "") -> LocalApp:
+def build_local_app(work: Path, *, connector: Any | None = None, enrol_url: str = "", token_ttl: int = 3600) -> LocalApp:
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -78,7 +78,7 @@ def build_local_app(work: Path, *, connector: Any | None = None, enrol_url: str 
     app.include_router(build_databricks_router(dbx, lambda: None))
     app.include_router(build_enrol_router(dbx))  # the enrol file's own call (single-use token, no identity token)
     now = int(time.time())
-    claims = {"iss": ISSUER, "aud": AUDIENCE, "exp": now + 3600, "iat": now, "sub": "local-check-admin", "oid": "local-check-admin", "tid": ENTRA_TENANT,
+    claims = {"iss": ISSUER, "aud": AUDIENCE, "exp": now + token_ttl, "iat": now, "sub": "local-check-admin", "oid": "local-check-admin", "tid": ENTRA_TENANT,
               "roles": ["Analytics.Analyst", "Analytics.Admin"], "preferred_username": "local-check-admin"}
     return LocalApp(app, wiring, jwt.encode(claims, private, algorithm="RS256", headers={"kid": KID}), dbx)
 

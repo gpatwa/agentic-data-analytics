@@ -168,3 +168,21 @@ tbody tr:hover { background: #f8faf7; }
 .cn-stepper li[data-state='current'] { background: #e9f1eb; color: #225f37; font-weight: 650; border-color: #225f37; }
 .cn-tables { display: grid; gap: 6px; border: 1px solid var(--line, #cfd4da); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
 .cn-tables legend { font-size: 13px; padding: 0 4px; }
+
+/* The Databricks guided journey: a visible bar of steps, buttons that look like buttons, and numbered actions that read top to bottom. */
+.cn-stepper .cn-step-n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 4px; border-radius: 50%; background: rgba(0, 0, 0, 0.07); font-size: 11px; font-weight: 650; }
+.cn-stepper li[data-state='current'] .cn-step-n { background: #225f37; color: #fff; }
+.cn-stepper li[data-state='done'] .cn-step-n { background: #2f8f55; color: #fff; }
+.cn-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.cn-actions button, .cn-journey-steps button, .cn-connection button, [data-view='dbx-details'] > button, [data-view='dbx-enrol'] button, [data-view='dbx-rotate'] button, [data-view='dbx-connected'] button, [data-view='dbx-signin'] button, [data-view='dbx-credentials'] > button, [data-view='dbx-track'] button {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line, #cfd4da); background: #fff; color: #2d332e; cursor: pointer; font-size: 13px;
+}
+.cn-actions button:hover, .cn-journey-steps button:hover, .cn-connection button:hover, [data-view='dbx-details'] > button:hover { background: #f3f6f3; }
+.cn-actions button:disabled, .cn-journey-steps button:disabled, [data-view='dbx-details'] > button:disabled, [data-view='dbx-signin'] button:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-view='dbx-details'] > button, [data-view='dbx-signin'] button, [data-view='dbx-enrol'] .cn-journey-steps li:first-child > button, [data-view='dbx-connected'] .cn-actions button { background: #23643a; color: #fff; border-color: #23643a; }
+[data-view='dbx-track'] button[data-selected='true'] { background: #e9f1eb; border-color: #225f37; font-weight: 650; }
+.cn-journey-steps { padding-left: 22px; gap: 14px; font-size: 14px; }
+.cn-journey-steps li { padding-left: 4px; }
+.cn-journey-steps code { background: rgba(127, 127, 127, 0.12); padding: 2px 6px; border-radius: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.cn-journey-steps label { display: grid; gap: 4px; margin: 8px 0; max-width: 360px; }
+.cn-journey-steps input { font: inherit; padding: 6px 8px; border: 1px solid var(--line, #cfd4da); border-radius: 6px; }

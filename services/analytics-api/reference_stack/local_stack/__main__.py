@@ -19,13 +19,14 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[4]
+TOKEN_HOURS = 8  # a working day: the token is for a throwaway key on this computer only
 PORT, WEB_PORT = 8090, 5174  # 8090 is where the web dev server proxies /api (apps/analytics-web/vite.config.ts)
 
 
 def build(work: Path, *, connector: Any | None = None, port: int = PORT) -> tuple[Any, str]:
     from reference_stack.deployment_check.check import build_local_app
 
-    local = build_local_app(work, connector=connector, enrol_url=f"http://127.0.0.1:{port}/api/v2/connect/databricks/enrol")
+    local = build_local_app(work, connector=connector, enrol_url=f"http://127.0.0.1:{port}/api/v2/connect/databricks/enrol", token_ttl=TOKEN_HOURS * 3600)
     return local, local.token
 
 
@@ -34,7 +35,7 @@ def banner(token_file: Path, *, web: bool, port: int) -> str:
         "",
         f"  API   http://127.0.0.1:{port}   (real routes, real Databricks connector, test identity)",
         f"  Web   http://127.0.0.1:{WEB_PORT}   " + ("(started for you)" if web else "(start it: cd apps/analytics-web && npm run dev -- --host 127.0.0.1)"),
-        f"  Token {token_file}   (paste it into the screen's Access token box; it lasts about an hour)",
+        f"  Token {token_file}   (paste it into the screen's Access token box; it lasts 8 hours)",
         "",
         "  In the screen: Connect a warehouse > Databricks (internal testing) > Open. Use the host of your workspace, the catalog, tables as SCHEMA.TABLE, and the warehouse's name.",
         "  Then: One file (recommended) > Get the file > download it, and in your own terminal run it as the screen says (python3 compass-enrol.py --profile <your profile>).",

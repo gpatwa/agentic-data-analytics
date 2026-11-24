@@ -1,5 +1,5 @@
 import type { DbxConnection, DbxEnrolFile, DbxEnrolStatus, DbxRemoval, DbxResult, DbxScriptView } from './databricksApi';
-import { dbxRemovalText, dbxScriptText, enrolStatusText, expiryText, needsApplicationId, removeCommand, rotateStatusText } from './databricksFlow';
+import { JOURNEY, dbxRemovalText, dbxScriptText, enrolCommand, enrolStatusText, expiryText, needsApplicationId, profileLooksWrong, removeCommand, rotateStatusText } from './databricksFlow';
 import type { Track } from './databricksFlow';
 import { ErrorNotice } from './views';
 
@@ -19,6 +19,62 @@ export function DatabricksStage() {
   );
 }
 
+export function DbxStepper({ current }: { current: number }) {
+  return (
+    <ol className="cn-stepper" aria-label="Where you are in connecting Databricks" data-testid="stepper">
+      {JOURNEY.map((label, i) => (
+        <li key={label} data-state={i < current ? 'done' : i === current ? 'current' : 'todo'} aria-current={i === current ? 'step' : undefined}>
+          <span className="cn-step-n">{i < current ? '\u2713' : i + 1}</span> {label}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export interface DbxSignInProps {
+  token: string;
+  busy: boolean;
+  onToken: (value: string) => void;
+  onOpen: () => void;
+}
+
+export function DbxSignIn(p: DbxSignInProps) {
+  return (
+    <section className="gv-card" data-view="dbx-signin" aria-label="Sign in">
+      <h2>Step 1 of 4: Sign in</h2>
+      <p>Paste the access token of a person who is allowed to manage connections, then choose Open. Only they can set up or remove a connection.</p>
+      <p className="cn-small">Trying this on your own computer? The token is in <code>.local-stack/token.txt</code> in the repository.</p>
+      <div className="gv-form">
+        <label>Access token<input type="password" autoComplete="off" spellCheck={false} value={p.token} onChange={(e) => p.onToken(e.target.value)} /></label>
+        <button onClick={p.onOpen} disabled={p.busy || !p.token}>Open</button>
+      </div>
+    </section>
+  );
+}
+
+export interface DbxConnectedSummaryProps {
+  tables: string[];
+  checks: { table: string; passed: boolean }[];
+  onDone: () => void;
+}
+
+export function DbxConnectedSummary(p: DbxConnectedSummaryProps) {
+  return (
+    <section className="gv-card" data-view="dbx-connected" aria-label="Connected">
+      <h2>Step 4 of 4: Connected</h2>
+      <p>Compass can read the tables you named, and nothing else:</p>
+      <ul>{(p.checks.length ? p.checks.map((c) => c.table) : p.tables).map((t) => <li key={t}>Can read {t}</li>)}</ul>
+      <h3>What to do next</h3>
+      <ol className="cn-steps">
+        <li><strong>Ask a question.</strong> Open <em>Workspace</em> in the left menu. Answers use only the definitions your team has certified.</li>
+        <li><strong>Optional: warm the warehouse.</strong> Below, in Connected workspaces, turn on warming so the first question after a quiet period is fast. It uses a little warehouse time, so it is off until you choose.</li>
+        <li><strong>Later:</strong> rotate the secret before it ends (you will see a warning 30 days ahead), or remove the connection. Both are buttons below.</li>
+      </ol>
+      <div className="cn-actions"><button onClick={p.onDone}>Connect another workspace</button></div>
+    </section>
+  );
+}
+
 export interface DbxDetailsFormProps {
   host: string;
   catalog: string;
@@ -34,7 +90,8 @@ export interface DbxDetailsFormProps {
 export function DbxDetailsForm(p: DbxDetailsFormProps) {
   return (
     <section className="gv-card" data-view="dbx-details" aria-label="What Compass may read">
-      <h2>1. What may Compass read?</h2>
+      <h2>Step 2 of 4: What may Compass read?</h2>
+      <p className="cn-small">Name one workspace, one catalog and the exact tables Compass may read, and the SQL warehouse it may use. Nothing is created yet.</p>
       <div className="cn-form">
         <label>Workspace hostname
           <input value={p.host} placeholder="dbc-1234abcd-5678.cloud.databricks.com" onChange={(e) => p.onChange('host', e.target.value)} />
@@ -52,7 +109,7 @@ export function DbxDetailsForm(p: DbxDetailsFormProps) {
       {p.problems.length > 0 && (
         <ul className="cn-problems" data-testid="problems">{p.problems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
       )}
-      <button onClick={p.onSubmit} disabled={p.busy || !p.canManage}>Show the script</button>
+      <button onClick={p.onSubmit} disabled={p.busy || !p.canManage}>Continue</button>
     </section>
   );
 }
@@ -101,7 +158,7 @@ export function DbxScriptPanel(p: DbxScriptPanelProps) {
 export function DbxTrackChooser({ track, onChoose }: { track: Track; onChoose: (track: Track) => void }) {
   return (
     <section className="gv-card" data-view="dbx-track" aria-label="How your admin sets this up">
-      <h2>2. How will your admin set it up?</h2>
+      <h2>Prefer another way?</h2>
       <div className="cn-actions" role="radiogroup" aria-label="Setup method">
         <button role="radio" aria-checked={track === 'enrol'} data-selected={track === 'enrol'} onClick={() => onChoose('enrol')}>One file (recommended)</button>
         <button role="radio" aria-checked={track === 'manual'} data-selected={track === 'manual'} onClick={() => onChoose('manual')}>Run the script yourself</button>
@@ -119,50 +176,67 @@ export interface DbxEnrolPanelProps {
   view: DbxScriptView;
   file: DbxEnrolFile | null;
   status: DbxEnrolStatus | null;
+  profile: string;
   busy: boolean;
+  onProfile: (value: string) => void;
   onIssue: () => void;
   onDownload: () => void;
+  onCopy: (command: string) => void;
   onDone: () => void;
   onCancel: () => void;
 }
 
 export function DbxEnrolPanel(p: DbxEnrolPanelProps) {
   const connected = p.status?.state === 'connected';
+  const command = p.file ? enrolCommand(p.file.filename, p.profile) : '';
   return (
     <section className="gv-card" data-view="dbx-enrol" aria-label="The file your admin runs">
-      <h2>Your admin runs one file</h2>
-      <ul>
-        <li>It creates one read-only service principal for Compass, and the principal&apos;s secret goes straight to Compass: nobody copies it.</li>
-        <li>The principal can read only the {p.view.tables.length} table(s) you named in catalog {p.view.catalog}: USE CATALOG, USE SCHEMA and SELECT. No write, no grant option.</li>
-        <li>It may use the SQL warehouse &apos;{p.view.warehouse_name}&apos;. Compass never edits the warehouse.</li>
-        <li>Compass holds no admin credential. To remove it later, run the same file with <code>--remove</code>, or use Remove here once it is connected.</li>
-      </ul>
+      <h2>Step 3 of 4: Run one file</h2>
+      <p>Your admin runs one file in a terminal, signed in to Databricks as themselves. It sets everything up and tells Compass; nobody copies a secret.</p>
       <ul className="cn-small">
-        <li>The file is plain Python you can read first. It runs under your admin&apos;s own Databricks sign-in and prints only short codes.</li>
-        <li>If any step fails it removes everything it created. It writes nothing to disk.</li>
-        <li>It works once, for 30 minutes. Asking for a new file cancels the old one.</li>
+        <li>It creates one read-only service principal. It can read only the {p.view.tables.length} table(s) you named in catalog {p.view.catalog} (USE CATALOG, USE SCHEMA and SELECT: no write, no grant option) and may use the SQL warehouse &apos;{p.view.warehouse_name}&apos;, which Compass never edits.</li>
+        <li>The file is plain Python you can read first. It prints only short codes and writes nothing to disk. If any step fails it removes everything it created.</li>
+        <li>It works once, for 30 minutes. Compass holds no admin credential. To remove it later, run the same file with <code>--remove</code>, or use Remove after it is connected.</li>
       </ul>
-      {!p.file && <button onClick={p.onIssue} disabled={p.busy}>Get the file</button>}
-      {p.file && (
-        <>
-          <p>Digest <code data-testid="file-digest">{p.file.digest}</code>. Your admin can check it with <code>python3 {p.file.filename} --digest</code>; the two must match.</p>
-          <p>To run it: <code>{p.file.run}</code></p>
-          <div className="cn-actions">
-            <button onClick={p.onDownload}>Download {p.file.filename}</button>
-            <button onClick={p.onIssue} disabled={p.busy || connected}>Get a new file</button>
-          </div>
+      <ol className="cn-steps cn-journey-steps">
+        <li>
+          <strong>Get the file.</strong>{' '}
+          {!p.file ? <button onClick={p.onIssue} disabled={p.busy}>Get the file</button> : (
+            <>
+              Done. Digest <code data-testid="file-digest">{p.file.digest}</code>: your admin can check it with <code>python3 {p.file.filename} --digest</code>; the two must match.
+              <div className="cn-actions">
+                <button onClick={p.onDownload}>Download {p.file.filename}</button>
+                <button onClick={p.onIssue} disabled={p.busy || connected}>Get a new file</button>
+              </div>
+            </>
+          )}
+        </li>
+        <li>
+          <strong>Run it in your terminal.</strong>{' '}
+          {!p.file ? <span className="cn-small">The exact command appears once you have the file.</span> : (
+            <>
+              <label className="cn-small">Databricks CLI profile (optional, the sign-in your admin already uses)
+                <input value={p.profile} placeholder="my-profile" autoComplete="off" spellCheck={false} onChange={(e) => p.onProfile(e.target.value)} />
+              </label>
+              {profileLooksWrong(p.profile) && <p className="cn-small" role="alert">A profile name uses only letters, numbers, dots, dashes and underscores; it was left out of the command.</p>}
+              <p><code data-testid="run-command">{command}</code> <button onClick={() => p.onCopy(command)}>Copy command</button></p>
+            </>
+          )}
+        </li>
+        <li>
+          <strong>Watch it here.</strong>
           <div role="status" aria-live="polite" data-state={p.status?.state ?? 'waiting'} data-testid="enrol-status">
-            <p>{enrolStatusText(p.status)}</p>
+            <p>{p.file ? enrolStatusText(p.status) : 'Nothing has run yet.'}</p>
             {p.status?.code && <ErrorNotice code={p.status.code} />}
             {p.status && p.status.checks.length > 0 && (
               <ul>{p.status.checks.map((c) => <li key={c.table} data-passed={c.passed}>{c.passed ? 'Can read' : 'Cannot read'} {c.table}</li>)}</ul>
             )}
           </div>
-        </>
-      )}
+        </li>
+      </ol>
       <div className="cn-actions">
         {connected && <button onClick={p.onDone}>Done</button>}
-        {!connected && <button onClick={p.onCancel} disabled={p.busy}>Cancel</button>}
+        {!connected && <button onClick={p.onCancel} disabled={p.busy}>Back</button>}
       </div>
     </section>
   );
