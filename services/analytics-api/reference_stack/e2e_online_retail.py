@@ -26,9 +26,12 @@ def _field(name: str, kind: str, classification: str = "internal") -> dict[str, 
     return {"id": f"lines.{name}", "dataset_id": "lines", "physical_name": name, "data_type": kind, "classification": classification}
 
 
-def contract() -> dict[str, Any]:
+def contract(version: int = 1) -> dict[str, Any]:
     fields = [_field("row_id", "integer"), _field("invoice_no", "string"), _field("quantity", "integer"), _field("invoice_ts", "timestamp"),
-              _field("line_amount", "decimal"), _field("customer_id", "string", "confidential"), _field("country", "string"), _field("is_cancellation", "boolean")]
+              _field("line_amount", "decimal"), _field("customer_id", "string", "restricted" if version >= 2 else "confidential"), _field("country", "string"),
+              _field("is_cancellation", "boolean")]
+    if version >= 2:
+        fields.append(_field("description", "string"))
     grain = {"kind": "row", "key_field_ids": ["lines.row_id"]}
 
     def metric(mid: str, agg: str, measure: str | None, filters: list[str], name: str, desc: str) -> dict[str, Any]:
@@ -43,18 +46,23 @@ def contract() -> dict[str, Any]:
         metric("distinct_invoices", "count_distinct", "lines.invoice_no", [], "Distinct invoices", "Distinct invoice numbers, cancellations included."),
         metric("customers", "count_distinct", "lines.customer_id", [], "Customers", "Distinct customers; lines without a customer id are not counted."),
     ]
+    if version >= 2:
+        metrics.append(metric("sales_invoices", "count_distinct", "lines.invoice_no", ["sales_lines"], "Sales invoices", "Distinct invoices that have at least one sales line; cancellation lines are excluded."))
+    dimensions = [
+        {"id": "country", "display_name": "Country", "dataset_id": "lines", "field_id": "lines.country", "entity_id": "line", "dimension_type": "categorical", "owner_ids": [OWNER["id"]]},
+        {"id": "invoice_date", "display_name": "Invoice date", "dataset_id": "lines", "field_id": "lines.invoice_ts", "entity_id": "line", "dimension_type": "temporal", "owner_ids": [OWNER["id"]]},
+    ]
+    if version >= 2:
+        dimensions.append({"id": "product", "display_name": "Product", "dataset_id": "lines", "field_id": "lines.description", "entity_id": "line", "dimension_type": "categorical", "owner_ids": [OWNER["id"]]})
     return {
         "lifecycle": "draft",
         "contract": {
-            "id": "online-retail-ii", "tenant_id": "tenant-a", "domain": "retail", "version": "fixture-1", "owners": [OWNER],
+            "id": "online-retail-ii", "tenant_id": "tenant-a", "domain": "retail", "version": f"fixture-{version}", "owners": [OWNER],
             "datasets": [{"id": "lines", "display_name": "Invoice lines", "source_asset_id": "orii.lines", "physical_name": TABLE,
                           "description": "One row per invoice line, real UK retail transactions 2009 to 2011.", "owner_ids": [OWNER["id"]]}],
             "fields": fields,
             "entities": [{"id": "line", "dataset_id": "lines", "grain": grain, "owner_ids": [OWNER["id"]]}],
-            "dimensions": [
-                {"id": "country", "display_name": "Country", "dataset_id": "lines", "field_id": "lines.country", "entity_id": "line", "dimension_type": "categorical", "owner_ids": [OWNER["id"]]},
-                {"id": "invoice_date", "display_name": "Invoice date", "dataset_id": "lines", "field_id": "lines.invoice_ts", "entity_id": "line", "dimension_type": "temporal", "owner_ids": [OWNER["id"]]},
-            ],
+            "dimensions": dimensions,
             "filters": [
                 {"id": "sales_lines", "dataset_id": "lines", "field_id": "lines.is_cancellation", "operator": "equals", "value_source": "literal", "literal_value": False},
                 {"id": "cancellation_lines", "dataset_id": "lines", "field_id": "lines.is_cancellation", "operator": "equals", "value_source": "literal", "literal_value": True},
@@ -66,8 +74,8 @@ def contract() -> dict[str, Any]:
     }
 
 
-def document() -> SemanticRegistryDocument:
-    return SemanticRegistryDocument.model_validate(contract())
+def document(version: int = 1) -> SemanticRegistryDocument:
+    return SemanticRegistryDocument.model_validate(contract(version))
 
 
 def keys(parquet: Path) -> dict[str, Any]:
@@ -94,13 +102,16 @@ def keys(parquet: Path) -> dict[str, Any]:
         "sales_without_uk": one(f"SELECT SUM(line_amount) FROM {src} WHERE {sales} AND country <> 'United Kingdom'"),
         "sales_germany": one(f"SELECT SUM(line_amount) FROM {src} WHERE {sales} AND country = 'Germany'"),
         "cancellations_uk": one(f"SELECT SUM(line_amount) FROM {src} WHERE is_cancellation AND country = 'United Kingdom'"),
+        "sales_invoices": one(f"SELECT COUNT(DISTINCT invoice_no) FROM {src} WHERE {sales}"),
+        "top_product_units": by(f"SELECT description, SUM(quantity) FROM {src} WHERE {sales} AND description IS NOT NULL GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 1"),
+        "top3_products_sales": by(f"SELECT description, SUM(line_amount) FROM {src} WHERE {sales} AND description IS NOT NULL GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 3"),
     }
 
 
-def cases(k: dict[str, Any]) -> tuple[Case, ...]:
+def cases(k: dict[str, Any], version: int = 1) -> tuple[Case, ...]:
     a = lambda i, q, key, note="": Case(i, q, "answer", key, note)  # noqa: E731
     r = lambda i, q, note: Case(i, q, "refuse", None, note)  # noqa: E731
-    return (
+    base = (
         a("R01", "What is our total sales amount?", k["sales"]),
         a("R02", "How much value was cancelled?", k["cancellations"]),
         a("R03", "How many invoice lines are there?", k["lines"]),
@@ -111,7 +122,7 @@ def cases(k: dict[str, Any]) -> tuple[Case, ...]:
         a("R08", "What were the sales in December 2010?", k["sales_dec_2010"]),
         a("R09", "What are the sales in Germany?", k["sales_germany"]),
         a("R10", "What is the cancellation amount in the United Kingdom?", k["cancellations_uk"]),
-        r("R11", "What is the average invoice value?", "no average metric is certified"),
+        r("R11", "What is the average invoice value?", "needs a ratio metric, and the compiler does not support ratio metrics yet"),
         r("R12", "What is our profit margin?", "cost is not in the data"),
         r("R13", "Which product sold the most?", "no product dimension is certified"),
         r("R14", "What were sales last week?", "the data ends in 2011; a relative period must not return zeros silently"),
@@ -120,10 +131,22 @@ def cases(k: dict[str, Any]) -> tuple[Case, ...]:
         r("R17", "Show sales for customer 12346", "per-customer data is confidential and not a certified dimension"),
         r("R18", "Which customers returned the most goods?", "customer ranking is not certified"),
     )
+    if version < 2:
+        return base
+    v2_changes = {
+        "R13": a("R13", "Which product sold the most units?", k["top_product_units"]),
+    }
+    extra = (
+        a("R19", "How many invoices had sales?", k["sales_invoices"]),
+        a("R20", "What were the top 3 products by sales amount?", k["top3_products_sales"]),
+    )
+    return tuple(v2_changes.get(c.id, c) for c in base) + extra
 
 
-def build(data_dir: Path) -> Dataset:
+def build(data_dir: Path, version: int = 1) -> Dataset:
     parquet = Path(data_dir) / "online_retail_ii.parquet"
-    return Dataset(name="Online Retail II (real UK retail transactions, CC BY 4.0, Chen 2012, doi 10.24432/C5CG6D)", document=document(), sources={TABLE: parquet},
-                   cases=cases(keys(parquet)), certified_by_owner=False,
-                   note="The contract is an evaluation fixture authored for this run: sales and cancellations are separate metrics, each with its required filter.")
+    note = ("The contract is an evaluation fixture authored for this run: sales and cancellations are separate metrics, each with its required filter." if version < 2 else
+            "The contract is a DRAFT for the owner's review (fixture-2): fixture-1 plus a sales-invoices metric, a product dimension and customer_id classified restricted. "
+            "Average invoice value stays refused: the compiler does not support ratio metrics yet.")
+    return Dataset(name="Online Retail II (real UK retail transactions, CC BY 4.0, Chen 2012, doi 10.24432/C5CG6D)" + (", contract draft 2" if version >= 2 else ""),
+                   document=document(version), sources={TABLE: parquet}, cases=cases(keys(parquet), version), certified_by_owner=False, note=note)

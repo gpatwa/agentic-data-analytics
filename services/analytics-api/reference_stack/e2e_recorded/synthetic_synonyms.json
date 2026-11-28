@@ -1,0 +1,20 @@
+{
+  "order_count": ["number of orders", "orders placed", "orders received"],
+  "delivered_orders": ["orders delivered", "fulfilled orders", "completed deliveries"],
+  "cancelled_orders": ["canceled orders", "orders cancelled", "cancellations"],
+  "refunded_orders": ["orders refunded", "full refunds"],
+  "partial_refunds": ["part refunds", "orders partially refunded"],
+  "gross_value_usd": ["gross sales", "gross revenue"],
+  "card_tips_usd": ["tips paid by card", "card tip total"],
+  "delivery_minutes_total": ["total delivery time", "delivery time total"],
+  "timed_deliveries": ["measured deliveries", "deliveries with timing"],
+  "city": ["town"],
+  "country": ["nation"],
+  "platform": ["ordering channel", "app type"],
+  "status": ["order status", "order state"],
+  "payment_method": ["payment type", "how paid"],
+  "cuisine": ["food type", "type of food"],
+  "restaurant_name": ["eatery", "vendor name"],
+  "order_ts": ["order date", "order timestamp"],
+  "notes": "Left out generic words (total, count, amount) and any phrase using 'restaurant', 'city' or 'country' since they would overlap display names. Avoided phrases adding time, currency or filter conditions."
+}
