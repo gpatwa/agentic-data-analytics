@@ -56,7 +56,7 @@ def render_markdown() -> str:
         "## What this says", "",
         "- With a careful user every refusal of a right reading becomes an answer and every wrong reading is still rejected: S6 is strictly better than refusing.",
         "- With a habitual user a wrong reading is **answered** every time it is asked about. S6 turns \"no wrong answer\" into \"no wrong answer unless the person confirms the wrong reading\". "
-        "The prompt states the reading in plain words (\"with no filter, no time period and no sort\"), which is what makes a dropped condition visible; a person who does not read it is not protected.",
+        "The prompt states the reading in plain words (\"with no other filter, no time period and no sort\", and any filter the metric always applies), which is what makes a dropped condition visible; a person who does not read it is not protected.",
         "- A confirm rate near 100% in use is a sign the wording rules are too tight or the person is not reading, not proof of correctness.",
         "- The coverage check (K3) is still worth enabling: it is what *finds* the dropped constraint and turns it into a question instead of a silent wrong answer.", "",
         "This does not measure real people, a real model, or other contracts. Whether to accept the habitual-user risk is the owner's policy decision.",

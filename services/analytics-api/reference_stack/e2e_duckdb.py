@@ -101,6 +101,21 @@ def _fixture_document(document: SemanticRegistryDocument) -> SemanticRegistryDoc
     return SemanticRegistryDocument.model_validate(raw)
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.casefold().split())
+
+
+def _request_text(prompt: str) -> str:
+    """The user's question as the product put it into the prompt (a JSON string on the line that starts with `Request:`)."""
+    for line in prompt.splitlines():
+        if line.startswith("Request: "):
+            try:
+                return str(json.loads(line[len("Request: "):]))
+            except ValueError:
+                return ""
+    return ""
+
+
 class _Model:
     """The stand-in model: captures the prompt, or answers from recorded replies."""
 
@@ -114,7 +129,7 @@ class _Model:
     def complete_json(self, *, prompt: str, schema: dict, max_tokens: int) -> Any:  # noqa: ARG002
         env = self.env
         env.prompts[env.current] = prompt
-        reply = env.replies.get(env.current)
+        reply = env.replies.get(env.current) if env.current else env.by_question.get(_norm(_request_text(prompt)))
         if reply is None:
             return {"unsupported_request": True}
         if isinstance(reply, dict) and "metrics" in reply:
@@ -123,7 +138,7 @@ class _Model:
 
 
 class Env:
-    def __init__(self, dataset: Dataset, workdir: Path, replies: dict[str, Any] | None = None, *, coverage: bool = True, cost_cap: float | None = None, confirm: str | None = None) -> None:
+    def __init__(self, dataset: Dataset, workdir: Path, replies: dict[str, Any] | None = None, *, coverage: bool = True, cost_cap: float | None = None, confirm: str | None = None, s6: bool = False) -> None:
         self.dataset, self.replies, self.prompts, self.current, self.n = dataset, replies or {}, {}, "", 0
         self.confirm = confirm  # None: S6 off. "careful": confirms a reading only when the question should be answered. "habitual": always says yes.
         document = dataset.document if dataset.document.lifecycle == "certified" and dataset.document.contract.tenant_id == TENANT else _fixture_document(dataset.document)
@@ -141,7 +156,7 @@ class Env:
                 compiler=CertifiedIntentCompiler(registry, DuckDBCompilerAdapter()), contracts=CertifiedContracts([document]),
                 contexts={TENANT: context_from_contract(document)}, vocabularies={TENANT: certified_vocabulary(document)},
                 model_factory=_Model(self), coverage_tenants=frozenset({TENANT}) if coverage else frozenset(), review_threshold=1e12,
-                confirm_tenants=frozenset({TENANT}) if confirm else frozenset(),
+                confirm_tenants=frozenset({TENANT}) if (confirm or s6) else frozenset(),
                 **({} if cost_cap is None else {"max_cost_units": cost_cap}),
             )
             service = runtime.service()
@@ -152,7 +167,8 @@ class Env:
             return None
 
         app.include_router(build_v2_router(V2Runtime(service=service, verifier=stack.verifier(), feedback=feedback), no_key))
-        self.client, self.stack = TestClient(app), stack
+        self.app, self.client, self.stack = app, TestClient(app), stack
+        self.by_question = {_norm(c.question): self.replies[c.id] for c in dataset.cases if c.id in self.replies}  # for a live server, where no case id is known
 
     def ask(self, case: Case) -> dict[str, Any]:
         self.current, self.n = case.id, self.n + 1

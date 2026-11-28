@@ -36,7 +36,7 @@ def test_off_by_default_the_coverage_refusal_is_unchanged(tmp_path):
 def test_a_mismatch_asks_instead_of_refusing_and_the_prompt_is_plain_words_with_no_data(tmp_path):
     client, stack, _ = runtime(tmp_path)
     q = question(ask(client, stack, "Show revenue for refunded orders", "s6-key-0000002"))
-    assert q["prompt"].startswith("I read this as:") and "no filter" in q["prompt"] and "Is that what you meant?" in q["prompt"]
+    assert q["prompt"].startswith("I read this as:") and "no other filter" in q["prompt"] and "Is that what you meant?" in q["prompt"]
     assert [c["label"] for c in q["choices"]] == ["Yes, that is what I meant", "No, that is not what I meant"] and q["choices"][1]["id"] == "none"
 
 
@@ -106,9 +106,9 @@ def test_the_description_names_filters_and_sorts_so_a_person_can_see_what_was_un
     raw = json.loads((Path(__file__).resolve().parent.parent / "semantic_registry_sandbox/contracts/sandbox-databricks-v1.json").read_text())
     contract = SemanticRegistryDocument.model_validate(raw).contract
     plain = describe_interpretation(intent(), contract)
-    assert "no filter, no time period and no sort" in plain and "a count of rows" in plain
+    assert "no other filter, no time period and no sort" in plain and "a count of rows" in plain
     rich = describe_interpretation(intent(sort=SORT_DESC, filters=[{"field_id": "orders.amount", "operator": "equals", "values": ["210"]}]), contract)
-    assert "filtered by amount equals 210" in rich and "sorted" in rich and "no filter" not in rich
+    assert "filtered by amount equals 210" in rich and "sorted" in rich and "no other filter" not in rich
     assert pytest  # keep the import used
 
 
@@ -164,3 +164,15 @@ def test_the_same_contract_answers_once_the_tenant_has_the_coverage_check(tmp_pa
     client, stack = synonym_runtime(tmp_path / "b", frozenset({"tenant-a"}))
     assert ask(client, stack, "Show revenue", "s6-key-0000011")["outcome"]["outcome"] == "answer"
     assert ask(client, stack, "Show revenue for refunded orders", "s6-key-0000012")["outcome"]["outcome"] == "refuse"
+
+
+def test_the_description_names_the_filter_a_metric_always_applies():
+    from reference_stack import e2e_online_retail as retail
+
+    from packages.platform_contracts.analytics_intent import AnalyticalIntent
+
+    doc = retail.document()
+    intent = AnalyticalIntent.model_validate({"query_id": "q", "tenant_id": "tenant-a", "dataset_id": "lines", "metrics": [{"metric_id": "sales_amount"}],
+                                              "semantic_contract": {"contract_id": "online-retail-ii", "contract_version": "fixture-1"}})
+    text = describe_interpretation(intent, doc.contract)
+    assert "always limited to: is cancellation equals False" in text and "no other filter" in text  # the person is told cancellations are left out

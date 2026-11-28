@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 DATA_PLANE_PROTOCOL = "data-plane-v1"
 _HEX64 = r"^[0-9a-f]{64}$"
 _ALIAS = r"^[a-z0-9][a-z0-9_.-]{0,62}$"
-Scalar = str | int | float | bool | None
+Scalar = bool | int | float | str | None
 
 
 class _Msg(BaseModel):
