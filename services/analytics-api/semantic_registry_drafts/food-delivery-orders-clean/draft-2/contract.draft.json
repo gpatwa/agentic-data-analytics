@@ -2,10 +2,10 @@
   "lifecycle": "draft",
   "contract": {
     "contract_version": "v1",
-    "id": "food-delivery-current",
+    "id": "food-delivery-orders-clean",
     "tenant_id": "tenant-a",
     "domain": "food_delivery",
-    "version": "draft-1",
+    "version": "draft-2",
     "owners": [
       {
         "id": "team.semantic-owners",
@@ -18,9 +18,9 @@
       {
         "id": "orders",
         "display_name": "Orders",
-        "source_asset_id": "synthetic.orders_current",
-        "physical_name": "orders_current",
-        "description": "SYNTHETIC DATA: one row per real order, the latest recorded version.",
+        "source_asset_id": "synthetic.orders_clean",
+        "physical_name": "orders_clean",
+        "description": "SYNTHETIC DATA: one row per real order, the latest recorded version, with the restaurant's own cuisine and the order time in the city's local time.",
         "owner_ids": [
           "team.semantic-owners"
         ]
@@ -66,20 +66,6 @@
         "id": "orders.restaurant_id",
         "dataset_id": "orders",
         "physical_name": "restaurant_id",
-        "data_type": "string",
-        "classification": "internal"
-      },
-      {
-        "id": "orders.restaurant_name",
-        "dataset_id": "orders",
-        "physical_name": "restaurant_name",
-        "data_type": "string",
-        "classification": "internal"
-      },
-      {
-        "id": "orders.cuisine",
-        "dataset_id": "orders",
-        "physical_name": "cuisine",
         "data_type": "string",
         "classification": "internal"
       },
@@ -236,6 +222,27 @@
         "physical_name": "updated_at",
         "data_type": "timestamp",
         "classification": "internal"
+      },
+      {
+        "id": "orders.restaurant_name",
+        "dataset_id": "orders",
+        "physical_name": "restaurant_name",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.cuisine",
+        "dataset_id": "orders",
+        "physical_name": "cuisine",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.order_local_ts",
+        "dataset_id": "orders",
+        "physical_name": "order_local_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
       }
     ],
     "entities": [
@@ -321,21 +328,10 @@
         ]
       },
       {
-        "id": "restaurant_name",
-        "display_name": "Restaurant",
+        "id": "order_date",
+        "display_name": "Order date in local time",
         "dataset_id": "orders",
-        "field_id": "orders.restaurant_name",
-        "entity_id": "order",
-        "dimension_type": "categorical",
-        "owner_ids": [
-          "team.semantic-owners"
-        ]
-      },
-      {
-        "id": "order_ts",
-        "display_name": "Order time",
-        "dataset_id": "orders",
-        "field_id": "orders.order_ts",
+        "field_id": "orders.order_local_ts",
         "entity_id": "order",
         "dimension_type": "temporal",
         "owner_ids": [

@@ -447,6 +447,12 @@ milestones:
       approved_at: 2026-11-28
       scope: "Items 5, 6 and 7 of the owner's priority list, local only: (5) the Olist payment_total preparation step with checks against plain Python, and the same step as dry-run warehouse SQL (creating it in a warehouse is NOT approved); (6) a live-model option for the local DuckDB mode, read from the environment's settings, sending only the product's prompt and never data, tested with a fake client and not run against a real provider; (7) two contract drafts for the owner's review, Online Retail II draft 2 and the synthetic food-delivery contract over orders_current, each with a REVIEW.md of owner decisions. Nothing is certified, deployed or loaded into a warehouse. Olist remains internal-use only."
       record: "The owner answered \"Do item 5,6 and 7\" to the prioritised list on 2026-11-28."
+    synthetic_clean_view_and_local_time:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-28
+      scope: "Items 6 and 7 of the owner's second priority list, local only: a cleaned cuisine (taken from restaurants, no spelling guessed) and a local-time order column, delivered as a NEW view orders_clean layered on orders_current (loader option --clean-view-only, dry-run only, checked on DuckDB against the generator's answer key), a draft contract over it, and a rerun of the 30 builder questions on DuckDB, plus the same questions against the certified orders_current contract. orders_current and its certified contract are NOT changed. Creating orders_clean in any warehouse is NOT approved: executing needs an approval that names orders_clean, with the statements shown first. Nothing is certified."
+      record: "The owner answered \"Do item 6 and 7\" to the prioritised list on 2026-11-28."
     semantic_trust_e6:
       status: approved
       approved_by: user

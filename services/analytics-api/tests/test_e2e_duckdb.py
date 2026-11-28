@@ -278,6 +278,8 @@ def test_the_recorded_replies_and_synonyms_cover_every_question_and_are_valid_sh
     from packages.platform_contracts.analytics_intent import AnalyticalIntent
 
     root = Path(__file__).resolve().parent.parent / "reference_stack/e2e_recorded"
+    certified = json.loads((root / "synthetic_certified_replies.json").read_text())
+    assert sorted(certified) == sorted([f"A{i:02d}" for i in range(1, 21)] + [f"R{i:02d}" for i in range(1, 11)])
     for name, ids in (("retail", [f"R{i:02d}" for i in range(1, 19)]), ("retail2", [f"R{i:02d}" for i in range(1, 21)]), ("olist", [f"Q{i:02d}" for i in range(1, 27)]),
                       ("synthetic", sorted([f"A{i:02d}" for i in range(1, 21)] + [f"R{i:02d}" for i in range(1, 11)]))):
         replies = json.loads((root / f"{name}_replies.json").read_text())
@@ -410,11 +412,12 @@ def test_the_synthetic_view_gives_one_row_per_real_order_and_matches_the_generat
 
     ds = syn.build(synth, tmp_path / "prep")
     truth = json.loads((synth / "truth.json").read_text())
-    n = duckdb.connect().execute(f"SELECT COUNT(*), COUNT(DISTINCT order_id) FROM read_parquet('{ds.sources['orders_current'].as_posix()}')").fetchone()
-    assert n == (truth["values"]["orders_distinct"], truth["values"]["orders_distinct"])  # the raw table over-counts; the view does not
-    assert len(ds.cases) == 30 and ds.certified_by_owner is False
+    for name in ("orders_current", "orders_clean"):
+        n = duckdb.connect().execute(f"SELECT COUNT(*), COUNT(DISTINCT order_id) FROM read_parquet('{(tmp_path / 'prep' / (name + '.parquet')).as_posix()}')").fetchone()
+        assert n == (truth["values"]["orders_distinct"], truth["values"]["orders_distinct"])  # the raw table over-counts; the views do not
+    assert len(ds.cases) == 30 and ds.certified_by_owner is False and set(ds.sources) == {"orders_clean"}
     gaps = {c.id for c in ds.cases if c.note.startswith("gap")}
-    assert {"A07", "A08", "A10", "A14", "A15", "A16"} == gaps and all(c.expect == "refuse" for c in ds.cases if c.id in gaps)
+    assert {"A07", "A08", "A10"} == gaps and all(c.expect == "refuse" for c in ds.cases if c.id in gaps)  # months and cuisines are answerable now
 
 
 def test_the_synthetic_contract_restricts_the_personal_looking_fields_and_runs_a_question(synth, tmp_path):
@@ -423,7 +426,7 @@ def test_the_synthetic_contract_restricts_the_personal_looking_fields_and_runs_a
     ds = syn.build(synth, tmp_path / "prep")
     fields = {f.physical_name: f.classification for f in ds.document.contract.fields}
     assert all(fields[n] == "restricted" for n in ("customer_id", "customer_email", "courier_phone", "delivery_address"))
-    reply = {"dataset_id": "orders", "metrics": [{"metric_id": "order_count"}], "semantic_contract": {"contract_id": "food-delivery-current", "contract_version": "draft-1"}}
+    reply = {"dataset_id": "orders", "metrics": [{"metric_id": "order_count"}], "semantic_contract": {"contract_id": "food-delivery-orders-clean", "contract_version": "draft-2"}}
     res = {r["id"]: r for r in e.score(ds, {"A01": reply}, cost_cap=1e9, confirm="careful")}
     assert res["A01"]["status"] == "correct", res["A01"]  # "How many orders were placed?" equals the generator's 9,995-style key, not the raw row count
     assert res["R01"]["status"] == "correct_refusal"  # a builder refusal with no reply is refused
@@ -446,8 +449,30 @@ def test_the_committed_drafts_equal_what_the_builders_produce_and_are_uncertifie
     root = Path(__file__).resolve().parent.parent / "semantic_registry_drafts"
     retail_draft = root / "online-retail-ii/fixture-2/contract.draft.json"
     assert retail_draft.read_text() == retail.document(2).model_dump_json(indent=2) + "\n"
-    synth_draft = root / "food-delivery-current/draft-1/contract.draft.json"
+    synth_draft = root / "food-delivery-orders-clean/draft-2/contract.draft.json"
     assert synth_draft.read_text() == syn.build(synth, tmp_path / "prep").document.model_dump_json(indent=2) + "\n"  # the column types are the same at every tier
     for d in (retail_draft, synth_draft):
         assert '"lifecycle":"draft"' in d.read_text().replace(" ", "").replace("\n", "") and (d.parent / "REVIEW.md").exists()
     assert "Not certified" in (retail_draft.parent / "REVIEW.md").read_text() and "Not certified" in (synth_draft.parent / "REVIEW.md").read_text()
+
+
+def test_the_certified_orders_current_contract_runs_over_the_same_questions_and_is_marked_certified_by_the_owner(synth, tmp_path):
+    from reference_stack import e2e_synthetic as syn
+
+    ds = syn.build_certified(synth, tmp_path / "prep")
+    c = ds.document.contract
+    assert ds.certified_by_owner is True and [m.id for m in c.metrics] == ["order_count"] and {"cuisine", "order_ts"} <= {d.id for d in c.dimensions}
+    assert c.datasets[0].physical_name == "orders_current" and set(ds.sources) == {"orders_current"}  # only the physical name is rewritten, in memory
+    assert {x.id for x in ds.cases if x.note.startswith("gap")} == {"A06", "A07", "A08", "A09", "A10", "A19", "A20"}
+    reply = {"dataset_id": "orders_current", "metrics": [{"metric_id": "order_count"}], "semantic_contract": {"contract_id": "food-delivery-orders-current", "contract_version": "2026-11-21"}}
+    res = {r["id"]: r for r in e.score(ds, {"A01": reply}, cost_cap=1e9, confirm="careful")}
+    assert res["A01"]["status"] == "correct", res["A01"]
+
+
+def test_the_clean_contract_offers_one_time_dimension_and_it_is_local(synth, tmp_path):
+    from reference_stack import e2e_synthetic as syn
+
+    c = syn.build(synth, tmp_path / "prep").document.contract
+    times = [d for d in c.dimensions if d.dimension_type == "temporal"]
+    assert [d.id for d in times] == ["order_date"] and times[0].field_id == "orders.order_local_ts"  # no UTC dimension to pick by mistake
+    assert {f.physical_name for f in c.fields if f.classification == "restricted"} == {"customer_id", "customer_email", "courier_phone", "delivery_address"}

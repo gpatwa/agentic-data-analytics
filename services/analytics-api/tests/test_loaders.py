@@ -457,3 +457,53 @@ def test_the_usd_view_needs_an_approval_that_names_it(tmp_path):
     f.write_text("a:\n  g:\n    status: approved\n    approved_by: user\n    scope: 'dev.sch on https://h with Wh orders_current'\n")
     with pytest.raises(ApprovalError):
         check_approval("g", "https://h", "dev", "sch", "Wh", 15, f, also=("orders_usd_gross",))
+
+
+# ---- the clean view: cuisine from restaurants, local order time -------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+def test_the_clean_view_plan_is_guarded_parses_and_has_no_stray_quote(data, engine):
+    from reference_stack.loaders.plan import guard
+
+    plan = synthetic_plan(data, engine, "cmp_ref", "synth_fd", clean_view_only=True)
+    step = plan.steps[0]
+    guard(plan, step.text)
+    assert sqlglot.parse_one(step.text, read=engine) is not None and step.text.count("'") % 2 == 0  # an apostrophe in a comment would break the statement
+    for c in plan.checks:
+        assert sqlglot.parse_one(c.sql, read=engine) is not None, c.name
+    assert "orders_current" in step.text and "restaurants" in step.text and "orders_flat" not in step.text  # layered on the certified view, never a change to it
+
+
+def test_the_clean_view_gives_the_key_s_twelve_cuisines_and_its_local_months_on_duckdb(data):
+    truth = json.loads((data / "truth.json").read_text())
+    plan = synthetic_plan(data, "duckdb", "cat", "sch", clean_view_only=True)
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS cat")
+    con.execute("CREATE SCHEMA cat.sch")
+    for name in ("orders_flat", "restaurants"):
+        con.execute(f"CREATE VIEW cat.sch.{name} AS SELECT * FROM read_parquet('{(data / (name + '.parquet')).as_posix()}')")
+    full = synthetic_plan(data, "duckdb", "cat", "sch", with_curated_view=True)
+    cur = full.steps[-1].text
+    con.execute(cur[: cur.index(" COMMENT")] + cur[cur.index(" AS SELECT"):])
+    sql = plan.steps[0].text
+    con.execute(sql[: sql.index(" COMMENT")] + sql[sql.index(" AS SELECT"):])
+    for c in plan.checks:
+        got = con.execute(c.sql).fetchall()
+        if isinstance(c.expected, dict):
+            assert {str(k): int(v) for k, v in got} == {str(k): int(v) for k, v in c.expected.items()}, c.name
+        else:
+            assert int(got[0][0]) == c.expected, c.name
+    raw = con.execute("SELECT COUNT(DISTINCT cuisine) FROM cat.sch.orders_current").fetchone()[0]
+    clean = con.execute("SELECT COUNT(DISTINCT cuisine) FROM cat.sch.orders_clean").fetchone()[0]
+    assert raw > 12 and clean == 12  # the order-level copy carries the spelling variants; the restaurant's own value does not
+    assert con.execute("SELECT COUNT(*) FROM cat.sch.orders_current").fetchone()[0] == truth["values"]["orders_distinct"]  # orders_current is unchanged
+
+
+def test_executing_the_clean_view_needs_an_approval_that_names_it(tmp_path):
+    from reference_stack.loaders.approval import ApprovalError, check_approval
+
+    f = tmp_path / "p.yaml"
+    f.write_text("a:\n  g:\n    status: approved\n    approved_by: user\n    scope: 'dev.sch on https://h with Wh'\n")
+    with pytest.raises(ApprovalError):
+        check_approval("g", "https://h", "dev", "sch", "Wh", 15, f, also=("orders_clean",))

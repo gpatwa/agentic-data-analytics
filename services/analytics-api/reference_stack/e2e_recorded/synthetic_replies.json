@@ -1,12 +1,11 @@
 {
  "A01": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000001-A01",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -15,13 +14,12 @@
   ]
  },
  "A02": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000002-A02",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -30,13 +28,12 @@
   ]
  },
  "A03": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000003-A03",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -45,13 +42,12 @@
   ]
  },
  "A04": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000004-A04",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -60,13 +56,12 @@
   ]
  },
  "A05": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000005-A05",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -75,13 +70,12 @@
   ]
  },
  "A06": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000006-A06",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -89,20 +83,13 @@
    }
   ]
  },
- "A07": {
-  "unsupported_request": true
- },
- "A08": {
-  "unsupported_request": true
- },
  "A09": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000009-A09",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -110,14 +97,41 @@
    }
   ]
  },
+ "A19": {
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000019-A19",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
+  },
+  "metrics": [
+   {
+    "metric_id": "delivery_minutes_total"
+   }
+  ]
+ },
+ "A20": {
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000020-A20",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
+  },
+  "metrics": [
+   {
+    "metric_id": "timed_deliveries"
+   }
+  ]
+ },
  "A10": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000010-A10",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -135,13 +149,12 @@
   ]
  },
  "A11": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000011-A11",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -159,13 +172,12 @@
   ]
  },
  "A12": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000012-A12",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -183,13 +195,12 @@
   ]
  },
  "A13": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000013-A13",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -207,13 +218,12 @@
   ]
  },
  "A14": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000014-A14",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -221,20 +231,19 @@
    }
   ],
   "time_range": {
-   "dimension_id": "order_ts",
+   "dimension_id": "order_date",
    "start": "2025-01-01T00:00:00Z",
    "end": "2025-02-01T00:00:00Z",
    "inclusive_end": false
   }
  },
  "A15": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000015-A15",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -242,20 +251,19 @@
    }
   ],
   "time_range": {
-   "dimension_id": "order_ts",
+   "dimension_id": "order_date",
    "start": "2025-07-01T00:00:00Z",
    "end": "2025-08-01T00:00:00Z",
    "inclusive_end": false
   }
  },
  "A16": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000016-A16",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -263,20 +271,19 @@
    }
   ],
   "time_range": {
-   "dimension_id": "order_ts",
+   "dimension_id": "order_date",
    "start": "2025-12-01T00:00:00Z",
    "end": "2026-01-01T00:00:00Z",
    "inclusive_end": false
   }
  },
  "A17": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000017-A17",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -294,13 +301,12 @@
   ]
  },
  "A18": {
-  "intent_version": "v1",
   "query_id": "2591c674ea8032f0:e2e-duckdb-000018-A18",
   "tenant_id": "tenant-a",
   "dataset_id": "orders",
   "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
+   "contract_id": "food-delivery-orders-clean",
+   "contract_version": "draft-2"
   },
   "metrics": [
    {
@@ -317,35 +323,11 @@
    }
   ]
  },
- "A19": {
-  "intent_version": "v1",
-  "query_id": "2591c674ea8032f0:e2e-duckdb-000019-A19",
-  "tenant_id": "tenant-a",
-  "dataset_id": "orders",
-  "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
-  },
-  "metrics": [
-   {
-    "metric_id": "delivery_minutes_total"
-   }
-  ]
+ "A07": {
+  "unsupported_request": true
  },
- "A20": {
-  "intent_version": "v1",
-  "query_id": "2591c674ea8032f0:e2e-duckdb-000020-A20",
-  "tenant_id": "tenant-a",
-  "dataset_id": "orders",
-  "semantic_contract": {
-   "contract_id": "food-delivery-current",
-   "contract_version": "draft-1"
-  },
-  "metrics": [
-   {
-    "metric_id": "timed_deliveries"
-   }
-  ]
+ "A08": {
+  "unsupported_request": true
  },
  "R01": {
   "unsupported_request": true

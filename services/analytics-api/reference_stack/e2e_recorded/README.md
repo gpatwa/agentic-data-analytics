@@ -6,4 +6,4 @@ Recorded inputs for the DuckDB end-to-end runs (`reference_stack/e2e_duckdb.py`,
 
 Regenerate by capturing prompts (`e2e_run <dataset> ... prompts OUT.json`), giving each prompt to an agent, and saving its replies.
 
-- `retail2_*`: Online Retail II contract draft 2. `synthetic_*`: the synthetic food-delivery contract over `orders_current` (invented data).
+- `retail2_*`: Online Retail II contract draft 2. `synthetic_*`: the synthetic food-delivery draft contract over `orders_clean` (invented data); `synthetic_certified_replies.json`: the same questions against the owner's certified `orders_current` contract.
