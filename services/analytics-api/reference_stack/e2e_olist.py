@@ -19,8 +19,6 @@ from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
 
-import duckdb
-
 from packages.platform_contracts.semantic import SemanticRegistryDocument
 from reference_stack.e2e_duckdb import Case, Dataset
 
@@ -29,18 +27,10 @@ CONTRACT = SERVICE / "semantic_registry/contracts/olist-commerce-v1.json"
 
 
 def prepare(csv_dir: Path, out_dir: Path) -> dict[str, Path]:
-    """Write the two tables the contract names. `payment_total` is the sum of an order's payments (never a join that repeats them)."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect()
-    orders, items = out_dir / "olist_orders.parquet", out_dir / "olist_order_items.parquet"
-    con.execute(f"""COPY (SELECT o.order_id, o.customer_id, o.order_status, CAST(o.order_purchase_timestamp AS TIMESTAMP) AS order_purchase_timestamp,
-        CAST(p.payment_total AS DECIMAL(14,2)) AS payment_total
-        FROM read_csv_auto('{(csv_dir / "olist_orders_dataset.csv").as_posix()}', header=true, sample_size=-1) o
-        LEFT JOIN (SELECT order_id, SUM(payment_value) AS payment_total FROM read_csv_auto('{(csv_dir / "olist_order_payments_dataset.csv").as_posix()}', header=true, sample_size=-1) GROUP BY 1) p
-        USING (order_id)) TO '{orders.as_posix()}' (FORMAT PARQUET)""")
-    con.execute(f"""COPY (SELECT order_id, order_item_id, product_id, seller_id, CAST(price AS DECIMAL(12,2)) AS price, CAST(freight_value AS DECIMAL(12,2)) AS freight_value
-        FROM read_csv_auto('{(csv_dir / "olist_order_items_dataset.csv").as_posix()}', header=true, sample_size=-1)) TO '{items.as_posix()}' (FORMAT PARQUET)""")
-    return {"olist_orders": orders, "olist_order_items": items}
+    """The step the contract assumes: see `reference_stack/olist_prepare.py` (payments summed per order first, then checked against plain Python)."""
+    from reference_stack import olist_prepare
+
+    return olist_prepare.prepare(csv_dir, out_dir)
 
 
 def keys(csv_dir: Path) -> dict[str, object]:

@@ -1,0 +1,13 @@
+{
+  "sales_amount": ["revenue", "sales revenue", "turnover", "net sales value"],
+  "cancellation_amount": ["cancelled value", "cancellation value", "cancelled amount"],
+  "units_sold": ["quantity sold", "items sold", "pieces sold"],
+  "invoice_lines": ["line items", "order lines", "transaction lines"],
+  "distinct_invoices": ["unique invoices", "different invoices"],
+  "customers": ["buyers", "customer count", "number of customers", "unique customers"],
+  "sales_invoices": ["non cancelled invoices"],
+  "country": ["nation"],
+  "invoice_date": ["order date", "transaction date", "purchase date", "date of sale"],
+  "product": ["product name", "product description", "item description"],
+  "notes": "Left out generic words (sales, orders, total, items) and phrases like 'number of invoices' that blur distinct_invoices with sales_invoices; kept sales_invoices and country minimal since few phrases mean exactly the same thing."
+}

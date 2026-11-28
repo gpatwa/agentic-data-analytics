@@ -1,0 +1,772 @@
+{
+  "lifecycle": "draft",
+  "contract": {
+    "contract_version": "v1",
+    "id": "food-delivery-current",
+    "tenant_id": "tenant-a",
+    "domain": "food_delivery",
+    "version": "draft-1",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "orders",
+        "display_name": "Orders",
+        "source_asset_id": "synthetic.orders_current",
+        "physical_name": "orders_current",
+        "description": "SYNTHETIC DATA: one row per real order, the latest recorded version.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "orders.row_id",
+        "dataset_id": "orders",
+        "physical_name": "row_id",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.order_id",
+        "dataset_id": "orders",
+        "physical_name": "order_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.order_ts",
+        "dataset_id": "orders",
+        "physical_name": "order_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.city",
+        "dataset_id": "orders",
+        "physical_name": "city",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.country",
+        "dataset_id": "orders",
+        "physical_name": "country",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.restaurant_id",
+        "dataset_id": "orders",
+        "physical_name": "restaurant_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.restaurant_name",
+        "dataset_id": "orders",
+        "physical_name": "restaurant_name",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.cuisine",
+        "dataset_id": "orders",
+        "physical_name": "cuisine",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.platform",
+        "dataset_id": "orders",
+        "physical_name": "platform",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.status",
+        "dataset_id": "orders",
+        "physical_name": "status",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.subtotal",
+        "dataset_id": "orders",
+        "physical_name": "subtotal",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.delivery_fee",
+        "dataset_id": "orders",
+        "physical_name": "delivery_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.service_fee",
+        "dataset_id": "orders",
+        "physical_name": "service_fee",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.discount_amount",
+        "dataset_id": "orders",
+        "physical_name": "discount_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.tax",
+        "dataset_id": "orders",
+        "physical_name": "tax",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.tip_amount",
+        "dataset_id": "orders",
+        "physical_name": "tip_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.total_amount",
+        "dataset_id": "orders",
+        "physical_name": "total_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.currency",
+        "dataset_id": "orders",
+        "physical_name": "currency",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.payment_method",
+        "dataset_id": "orders",
+        "physical_name": "payment_method",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.items_count",
+        "dataset_id": "orders",
+        "physical_name": "items_count",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.prep_minutes",
+        "dataset_id": "orders",
+        "physical_name": "prep_minutes",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.delivery_minutes",
+        "dataset_id": "orders",
+        "physical_name": "delivery_minutes",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.courier_id",
+        "dataset_id": "orders",
+        "physical_name": "courier_id",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.customer_id",
+        "dataset_id": "orders",
+        "physical_name": "customer_id",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "orders.customer_email",
+        "dataset_id": "orders",
+        "physical_name": "customer_email",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "orders.courier_phone",
+        "dataset_id": "orders",
+        "physical_name": "courier_phone",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "orders.delivery_address",
+        "dataset_id": "orders",
+        "physical_name": "delivery_address",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "orders.promo_code",
+        "dataset_id": "orders",
+        "physical_name": "promo_code",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.is_reversal",
+        "dataset_id": "orders",
+        "physical_name": "is_reversal",
+        "data_type": "boolean",
+        "classification": "internal"
+      },
+      {
+        "id": "orders.updated_at",
+        "dataset_id": "orders",
+        "physical_name": "updated_at",
+        "data_type": "timestamp",
+        "classification": "internal"
+      }
+    ],
+    "entities": [
+      {
+        "id": "order",
+        "dataset_id": "orders",
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "dimensions": [
+      {
+        "id": "city",
+        "display_name": "City",
+        "dataset_id": "orders",
+        "field_id": "orders.city",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "country",
+        "display_name": "Country",
+        "dataset_id": "orders",
+        "field_id": "orders.country",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "platform",
+        "display_name": "Platform",
+        "dataset_id": "orders",
+        "field_id": "orders.platform",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "status",
+        "display_name": "Status",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "payment_method",
+        "display_name": "Payment method",
+        "dataset_id": "orders",
+        "field_id": "orders.payment_method",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "cuisine",
+        "display_name": "Cuisine",
+        "dataset_id": "orders",
+        "field_id": "orders.cuisine",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "restaurant_name",
+        "display_name": "Restaurant",
+        "dataset_id": "orders",
+        "field_id": "orders.restaurant_name",
+        "entity_id": "order",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "order_ts",
+        "display_name": "Order time",
+        "dataset_id": "orders",
+        "field_id": "orders.order_ts",
+        "entity_id": "order",
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "id": "order_count",
+        "display_name": "Order count",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "delivered_orders",
+        "display_name": "Delivered orders",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "delivered"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "cancelled_orders",
+        "display_name": "Cancelled orders",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "cancelled"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "refunded_orders",
+        "display_name": "Refunded orders",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "refunded"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "partial_refunds",
+        "display_name": "Partial refunds",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "partially_refunded"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "gross_value_usd",
+        "display_name": "Gross value in US dollars",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.total_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "not_cancelled",
+          "usd"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "card_tips_usd",
+        "display_name": "Card tips in US dollars",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.tip_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "not_cancelled",
+          "usd",
+          "card"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "delivery_minutes_total",
+        "display_name": "Delivery minutes total",
+        "dataset_id": "orders",
+        "aggregation": "sum",
+        "measure_field_id": "orders.delivery_minutes",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "timed"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "timed_deliveries",
+        "display_name": "Timed deliveries",
+        "dataset_id": "orders",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "order",
+          "key_field_ids": [
+            "orders.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "timed"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [
+      {
+        "id": "delivered",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "delivered"
+      },
+      {
+        "id": "cancelled",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "cancelled"
+      },
+      {
+        "id": "refunded",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "refunded"
+      },
+      {
+        "id": "partially_refunded",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "partially_refunded"
+      },
+      {
+        "id": "not_cancelled",
+        "dataset_id": "orders",
+        "field_id": "orders.status",
+        "operator": "not_equals",
+        "value_source": "literal",
+        "literal_value": "cancelled"
+      },
+      {
+        "id": "usd",
+        "dataset_id": "orders",
+        "field_id": "orders.currency",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "USD"
+      },
+      {
+        "id": "card",
+        "dataset_id": "orders",
+        "field_id": "orders.payment_method",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": "card"
+      },
+      {
+        "id": "timed",
+        "dataset_id": "orders",
+        "field_id": "orders.delivery_minutes",
+        "operator": "greater_than",
+        "value_source": "literal",
+        "literal_value": -1
+      }
+    ],
+    "policies": [
+      {
+        "id": "policy_order_count",
+        "target_ids": [
+          "order_count"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_delivered_orders",
+        "target_ids": [
+          "delivered_orders"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "delivered"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_cancelled_orders",
+        "target_ids": [
+          "cancelled_orders"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "cancelled"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_refunded_orders",
+        "target_ids": [
+          "refunded_orders"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "refunded"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_partial_refunds",
+        "target_ids": [
+          "partial_refunds"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "partially_refunded"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_gross_value_usd",
+        "target_ids": [
+          "gross_value_usd"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "not_cancelled",
+          "usd"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_card_tips_usd",
+        "target_ids": [
+          "card_tips_usd"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "not_cancelled",
+          "usd",
+          "card"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_delivery_minutes_total",
+        "target_ids": [
+          "delivery_minutes_total"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "timed"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_timed_deliveries",
+        "target_ids": [
+          "timed_deliveries"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "timed"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      }
+    ],
+    "metadata": {}
+  }
+}

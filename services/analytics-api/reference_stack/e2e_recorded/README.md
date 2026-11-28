@@ -5,3 +5,5 @@ Recorded inputs for the DuckDB end-to-end runs (`reference_stack/e2e_duckdb.py`,
 - Olist files are for internal use only (its licence is reported as non-commercial).
 
 Regenerate by capturing prompts (`e2e_run <dataset> ... prompts OUT.json`), giving each prompt to an agent, and saving its replies.
+
+- `retail2_*`: Online Retail II contract draft 2. `synthetic_*`: the synthetic food-delivery contract over `orders_current` (invented data).

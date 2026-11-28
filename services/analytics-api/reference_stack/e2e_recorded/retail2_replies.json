@@ -1,0 +1,22 @@
+{
+"R01": {"query_id":"2591c674ea8032f0:e2e-duckdb-000001-R01","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_amount"}]},
+"R02": {"query_id":"2591c674ea8032f0:e2e-duckdb-000002-R02","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"cancellation_amount"}]},
+"R03": {"query_id":"2591c674ea8032f0:e2e-duckdb-000003-R03","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"invoice_lines"}]},
+"R04": {"query_id":"2591c674ea8032f0:e2e-duckdb-000004-R04","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"distinct_invoices"}]},
+"R05": {"query_id":"2591c674ea8032f0:e2e-duckdb-000005-R05","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"customers"}]},
+"R06": {"query_id":"2591c674ea8032f0:e2e-duckdb-000006-R06","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"units_sold"}]},
+"R07": {"query_id":"2591c674ea8032f0:e2e-duckdb-000007-R07","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[{"dimension_id":"country"}],"filters":[{"field_id":"lines.country","operator":"in","values":["United Kingdom","Germany","France"]}]},
+"R08": {"query_id":"2591c674ea8032f0:e2e-duckdb-000008-R08","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_amount"}],"time_range":{"dimension_id":"invoice_date","start":"2010-12-01T00:00:00Z","end":"2011-01-01T00:00:00Z","inclusive_end":false}},
+"R09": {"query_id":"2591c674ea8032f0:e2e-duckdb-000009-R09","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_amount"}],"filters":[{"field_id":"lines.country","operator":"equals","values":["Germany"]}]},
+"R10": {"query_id":"2591c674ea8032f0:e2e-duckdb-000010-R10","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"cancellation_amount"}],"filters":[{"field_id":"lines.country","operator":"equals","values":["United Kingdom"]}]},
+"R11": {"unsupported_request": true},
+"R12": {"unsupported_request": true},
+"R13": {"query_id":"2591c674ea8032f0:e2e-duckdb-000013-R13","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"units_sold"}],"group_by":[{"dimension_id":"product"}],"sort":[{"target_kind":"metric","target_id":"units_sold","direction":"desc"}],"limit":1},
+"R14": {"unsupported_request": true},
+"R15": {"unsupported_request": true},
+"R16": {"unsupported_request": true},
+"R17": {"unsupported_request": true},
+"R18": {"unsupported_request": true},
+"R19": {"query_id":"2591c674ea8032f0:e2e-duckdb-000019-R19","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_invoices"}]},
+"R20": {"query_id":"2591c674ea8032f0:e2e-duckdb-000020-R20","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-2"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[{"dimension_id":"product"}],"sort":[{"target_kind":"metric","target_id":"sales_amount","direction":"desc"}],"limit":3}
+}

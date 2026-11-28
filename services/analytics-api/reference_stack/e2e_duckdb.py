@@ -129,6 +129,8 @@ class _Model:
     def complete_json(self, *, prompt: str, schema: dict, max_tokens: int) -> Any:  # noqa: ARG002
         env = self.env
         env.prompts[env.current] = prompt
+        if env.live is not None:
+            return env.live.complete_json(prompt=prompt, schema=schema, max_tokens=max_tokens)
         reply = env.replies.get(env.current) if env.current else env.by_question.get(_norm(_request_text(prompt)))
         if reply is None:
             return {"unsupported_request": True}
@@ -138,8 +140,9 @@ class _Model:
 
 
 class Env:
-    def __init__(self, dataset: Dataset, workdir: Path, replies: dict[str, Any] | None = None, *, coverage: bool = True, cost_cap: float | None = None, confirm: str | None = None, s6: bool = False) -> None:
+    def __init__(self, dataset: Dataset, workdir: Path, replies: dict[str, Any] | None = None, *, coverage: bool = True, cost_cap: float | None = None, confirm: str | None = None, s6: bool = False, live: Any = None) -> None:
         self.dataset, self.replies, self.prompts, self.current, self.n = dataset, replies or {}, {}, "", 0
+        self.live = live  # a structured-output client for a live model; when set it answers every prompt instead of the recorded replies
         self.confirm = confirm  # None: S6 off. "careful": confirms a reading only when the question should be answered. "habitual": always says yes.
         document = dataset.document if dataset.document.lifecycle == "certified" and dataset.document.contract.tenant_id == TENANT else _fixture_document(dataset.document)
         registry = workdir / "registry"
@@ -225,6 +228,10 @@ def judge(case: Case, body: dict[str, Any], tol: Decimal) -> tuple[str, str]:
     if kind != "answer":
         return "false_refusal", f"{kind}: {out.get('reason_code') or ''}".strip()
     rows = (out.get("result") or {}).get("rows") or []
+    if isinstance(case.key, dict) and len(case.key) == 1 and len(rows) == 1 and len(rows[0]) == 1:
+        # "How many orders in New York?" answered as one filtered number, not a table: compare that number with the one key value
+        value, want = _num(rows[0][0]), Decimal(str(next(iter(case.key.values()))))
+        return ("correct", str(value)) if value is not None and _close(value, want, tol) else ("wrong_answer", f"got {value}, key {want}")
     if isinstance(case.key, dict):
         got = {_label(r[0]): _num(r[-1]) for r in rows}
         bad = [k for k, v in case.key.items() if got.get(_label(k)) is None or not _close(got[_label(k)], Decimal(str(v)), tol)]

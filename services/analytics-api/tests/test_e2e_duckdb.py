@@ -25,8 +25,8 @@ def data(tmp_path_factory):
     return out
 
 
-def intent(metric, **kw):
-    return {"dataset_id": "lines", "metrics": [{"metric_id": metric}], "semantic_contract": {"contract_id": "online-retail-ii", "contract_version": "fixture-1"}, **kw}
+def intent(metric, version="fixture-1", **kw):
+    return {"dataset_id": "lines", "metrics": [{"metric_id": metric}], "semantic_contract": {"contract_id": "online-retail-ii", "contract_version": version}, **kw}
 
 
 def by_country(metric="sales_amount", countries=("United Kingdom", "Germany", "France")):
@@ -278,10 +278,176 @@ def test_the_recorded_replies_and_synonyms_cover_every_question_and_are_valid_sh
     from packages.platform_contracts.analytics_intent import AnalyticalIntent
 
     root = Path(__file__).resolve().parent.parent / "reference_stack/e2e_recorded"
-    for name, ids in (("retail", [f"R{i:02d}" for i in range(1, 19)]), ("olist", [f"Q{i:02d}" for i in range(1, 27)])):
+    for name, ids in (("retail", [f"R{i:02d}" for i in range(1, 19)]), ("retail2", [f"R{i:02d}" for i in range(1, 21)]), ("olist", [f"Q{i:02d}" for i in range(1, 27)]),
+                      ("synthetic", sorted([f"A{i:02d}" for i in range(1, 21)] + [f"R{i:02d}" for i in range(1, 11)]))):
         replies = json.loads((root / f"{name}_replies.json").read_text())
         assert sorted(replies) == ids
         for reply in replies.values():
             assert reply == {"unsupported_request": True} or AnalyticalIntent.model_validate({**reply, "query_id": "q", "tenant_id": "t"})
         syn = json.loads((root / f"{name}_synonyms.json").read_text())
         assert "notes" in syn and all(isinstance(v, list) for k, v in syn.items() if k != "notes")
+
+
+# ---- the live-model option (no network: a fake client and a controlled environment) ----------------------------------------------------------------
+
+
+class FakeLive:
+    """Stands in for OpenAIStructuredClient: records what it was sent and replies like a model."""
+
+    def __init__(self, reply):
+        self.reply, self.sent = reply, []
+
+    def complete_json(self, *, prompt, schema, max_tokens):
+        self.sent.append(prompt)
+        return self.reply(prompt) if callable(self.reply) else self.reply
+
+
+def test_a_live_client_answers_instead_of_the_recorded_replies_and_gets_only_the_prompt(data, tmp_path):
+    import re
+
+    from reference_stack import e2e_local as local
+
+    def as_a_model_would(prompt):  # a real model is told which query_id and tenant_id to set, and does
+        rid = re.search(r'Set query_id to "([^"]+)" and tenant_id to "([^"]+)"', prompt)
+        return {**intent("sales_amount"), "query_id": rid.group(1), "tenant_id": rid.group(2)}
+
+    live = FakeLive(as_a_model_would)
+    env, dataset = local.build_env("retail", data, tmp_path / "work", None, None, live=live)
+    local.add_routes(env)
+    from fastapi.testclient import TestClient
+
+    class Loopback:
+        async def __call__(self, scope, receive, send):
+            await env.app({**scope, "client": ("127.0.0.1", 50000)}, receive, send)
+
+    client = TestClient(Loopback())
+    token = client.post("/api/v2/auth/dev-login").json()["token"]
+    body = client.post("/api/v2/analytics/analyze", json={"request_text": "What is our total sales amount?", "purpose": "analytics"},
+                       headers={"Authorization": f"Bearer {token}", "Idempotency-Key": "live-test-000001"}).json()
+    assert body["state"] == "waiting_clarification"  # a live reply goes through the same governed path, S6 included
+    assert len(live.sent) == 1 and "Certified vocabulary" in live.sent[0] and "What is our total sales amount?" in live.sent[0]
+    assert "20813918" not in live.sent[0] and "United Kingdom" not in live.sent[0]  # a value from the data is never in the prompt
+    assert dataset.cases  # the dataset is unchanged
+
+
+def test_the_live_model_needs_settings_and_never_prints_a_value(monkeypatch, capsys, tmp_path):
+    from reference_stack import e2e_local as local
+    from reference_stack import live_model
+
+    from app.config import Settings
+
+    for name in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "ANALYTICS_LLM_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(live_model.LiveModelNotConfigured, match="ANALYTICS_LLM_API_KEY"):
+        live_model.build_client(Settings(_env_file=None))
+    with pytest.raises(live_model.LiveModelNotConfigured, match="AZURE_OPENAI_API_KEY"):
+        live_model.build_client(Settings(_env_file=None, AZURE_OPENAI_ENDPOINT="https://example.invalid"))
+    assert local.main(["retail", "--data", str(tmp_path), "--live-model", "--selftest"]) == 2
+    err = capsys.readouterr().err
+    assert "refused:" in err and "ANALYTICS_LLM_API_KEY" in err
+
+
+def test_the_provider_is_described_without_a_key(monkeypatch):
+    from reference_stack import live_model
+
+    from app.config import Settings
+
+    az = Settings(_env_file=None, AZURE_OPENAI_ENDPOINT="https://example.invalid", AZURE_OPENAI_API_KEY="sk-secret-value", AZURE_OPENAI_DEPLOYMENT="dep-1")
+    assert live_model.describe(az) == "Azure OpenAI, deployment dep-1" and "secret" not in live_model.describe(az)
+    oa = Settings(_env_file=None, ANALYTICS_LLM_API_KEY="sk-secret-value", ANALYTICS_LLM_MODEL="m-1")
+    assert "m-1" in live_model.describe(oa) and "secret" not in live_model.describe(oa)
+
+
+def test_recording_replies_from_a_live_model_keeps_objects_and_marks_the_rest(data):
+    from reference_stack import live_model
+
+    prompts = e.capture_prompts(retail.build(data))
+    ids = list(prompts)
+    seen = iter([intent("invoice_lines"), "free text", {"unsupported_request": True}])
+    client = FakeLive(lambda _p: next(seen))
+    replies = live_model.record_replies(client, {i: prompts[i] for i in ids[:3]})
+    assert replies[ids[0]]["metrics"][0]["metric_id"] == "invoice_lines" and replies[ids[1]].get("unsupported_request") is True and replies[ids[2]] == {"unsupported_request": True}
+    assert len(client.sent) == 3 and all("Certified vocabulary" in p for p in client.sent)
+
+
+# ---- Retail draft 2 and the synthetic orders_current dataset --------------------------------------------------------------------------------------
+
+
+def test_retail_draft_2_adds_a_metric_and_a_dimension_and_keeps_customer_id_out_of_the_models_sight(data):
+    ds = retail.build(data, 2)
+    c = ds.document.contract
+    assert c.version == "fixture-2" and "sales_invoices" in {m.id for m in c.metrics} and "product" in {d.id for d in c.dimensions}
+    assert next(f for f in c.fields if f.id == "lines.customer_id").classification == "restricted"
+    prompt = e.capture_prompts(ds)["R17"]["prompt"]
+    assert "lines.customer_id" not in prompt.split('"filterable_fields"')[1]  # a restricted field is never offered to the model as a field to filter on
+    ids = {x.id for x in ds.cases}
+    assert {"R19", "R20"} <= ids and next(x for x in ds.cases if x.id == "R13").expect == "answer" and next(x for x in ds.cases if x.id == "R11").expect == "refuse"
+    assert ds.certified_by_owner is False and "ratio" in ds.note
+
+
+def test_retail_draft_2_answers_the_new_metric_and_the_product_question_through_the_governed_path(data):
+    ds = retail.build(data, 2)
+    replies = {"R19": intent("sales_invoices", "fixture-2"), "R13": intent("units_sold", "fixture-2", group_by=[{"dimension_id": "product"}], sort=[{"target_kind": "metric", "target_id": "units_sold", "direction": "desc"}], limit=1)}
+    got = {r["id"]: r for r in e.score(ds, replies, cost_cap=1e9, confirm="careful")}
+    assert got["R19"]["status"] == "correct", got["R19"]
+    assert got["R13"]["status"] in {"correct", "wrong_answer"}  # on this data every product is 'item'; the status says the path ran, the real-data report says how it did
+
+
+@pytest.fixture(scope="module")
+def synth(tmp_path_factory):
+    from reference_stack.synthetic.config import GeneratorConfig
+    from reference_stack.synthetic.food_delivery import generate
+
+    out = tmp_path_factory.mktemp("synth_t")
+    generate(GeneratorConfig(tier="T"), out)
+    return out
+
+
+def test_the_synthetic_view_gives_one_row_per_real_order_and_matches_the_generators_key(synth, tmp_path):
+    import json
+
+    from reference_stack import e2e_synthetic as syn
+
+    ds = syn.build(synth, tmp_path / "prep")
+    truth = json.loads((synth / "truth.json").read_text())
+    n = duckdb.connect().execute(f"SELECT COUNT(*), COUNT(DISTINCT order_id) FROM read_parquet('{ds.sources['orders_current'].as_posix()}')").fetchone()
+    assert n == (truth["values"]["orders_distinct"], truth["values"]["orders_distinct"])  # the raw table over-counts; the view does not
+    assert len(ds.cases) == 30 and ds.certified_by_owner is False
+    gaps = {c.id for c in ds.cases if c.note.startswith("gap")}
+    assert {"A07", "A08", "A10", "A14", "A15", "A16"} == gaps and all(c.expect == "refuse" for c in ds.cases if c.id in gaps)
+
+
+def test_the_synthetic_contract_restricts_the_personal_looking_fields_and_runs_a_question(synth, tmp_path):
+    from reference_stack import e2e_synthetic as syn
+
+    ds = syn.build(synth, tmp_path / "prep")
+    fields = {f.physical_name: f.classification for f in ds.document.contract.fields}
+    assert all(fields[n] == "restricted" for n in ("customer_id", "customer_email", "courier_phone", "delivery_address"))
+    reply = {"dataset_id": "orders", "metrics": [{"metric_id": "order_count"}], "semantic_contract": {"contract_id": "food-delivery-current", "contract_version": "draft-1"}}
+    res = {r["id"]: r for r in e.score(ds, {"A01": reply}, cost_cap=1e9, confirm="careful")}
+    assert res["A01"]["status"] == "correct", res["A01"]  # "How many orders were placed?" equals the generator's 9,995-style key, not the raw row count
+    assert res["R01"]["status"] == "correct_refusal"  # a builder refusal with no reply is refused
+
+
+def test_the_judge_accepts_a_filtered_single_number_for_a_one_entry_key_and_still_catches_a_wrong_one():
+    tol = Decimal("0.01")
+    one = e.Case("F", "How many orders in New York?", "answer", {"New York": 561})
+    assert e.judge(one, body("answer", [["561"]]), tol)[0] == "correct"
+    assert e.judge(one, body("answer", [["560"]]), tol)[0] == "wrong_answer"
+    assert e.judge(one, body("answer", [["New York", "561"]]), tol)[0] == "correct"  # a labelled row still works
+    assert e.judge(one, body("answer", [["Boston", "561"]]), tol)[0] == "wrong_answer"
+
+
+def test_the_committed_drafts_equal_what_the_builders_produce_and_are_uncertified(synth, tmp_path, data):
+    from pathlib import Path
+
+    from reference_stack import e2e_synthetic as syn
+
+    root = Path(__file__).resolve().parent.parent / "semantic_registry_drafts"
+    retail_draft = root / "online-retail-ii/fixture-2/contract.draft.json"
+    assert retail_draft.read_text() == retail.document(2).model_dump_json(indent=2) + "\n"
+    synth_draft = root / "food-delivery-current/draft-1/contract.draft.json"
+    assert synth_draft.read_text() == syn.build(synth, tmp_path / "prep").document.model_dump_json(indent=2) + "\n"  # the column types are the same at every tier
+    for d in (retail_draft, synth_draft):
+        assert '"lifecycle":"draft"' in d.read_text().replace(" ", "").replace("\n", "") and (d.parent / "REVIEW.md").exists()
+    assert "Not certified" in (retail_draft.parent / "REVIEW.md").read_text() and "Not certified" in (synth_draft.parent / "REVIEW.md").read_text()

@@ -1,0 +1,430 @@
+{
+  "lifecycle": "draft",
+  "contract": {
+    "contract_version": "v1",
+    "id": "online-retail-ii",
+    "tenant_id": "tenant-a",
+    "domain": "retail",
+    "version": "fixture-2",
+    "owners": [
+      {
+        "id": "team.semantic-owners",
+        "display_name": "Semantic owners",
+        "owner_type": "team",
+        "contact_reference": null
+      }
+    ],
+    "datasets": [
+      {
+        "id": "lines",
+        "display_name": "Invoice lines",
+        "source_asset_id": "orii.lines",
+        "physical_name": "online_retail_ii",
+        "description": "One row per invoice line, real UK retail transactions 2009 to 2011.",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "id": "lines.row_id",
+        "dataset_id": "lines",
+        "physical_name": "row_id",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.invoice_no",
+        "dataset_id": "lines",
+        "physical_name": "invoice_no",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.quantity",
+        "dataset_id": "lines",
+        "physical_name": "quantity",
+        "data_type": "integer",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.invoice_ts",
+        "dataset_id": "lines",
+        "physical_name": "invoice_ts",
+        "data_type": "timestamp",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.line_amount",
+        "dataset_id": "lines",
+        "physical_name": "line_amount",
+        "data_type": "decimal",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.customer_id",
+        "dataset_id": "lines",
+        "physical_name": "customer_id",
+        "data_type": "string",
+        "classification": "restricted"
+      },
+      {
+        "id": "lines.country",
+        "dataset_id": "lines",
+        "physical_name": "country",
+        "data_type": "string",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.is_cancellation",
+        "dataset_id": "lines",
+        "physical_name": "is_cancellation",
+        "data_type": "boolean",
+        "classification": "internal"
+      },
+      {
+        "id": "lines.description",
+        "dataset_id": "lines",
+        "physical_name": "description",
+        "data_type": "string",
+        "classification": "internal"
+      }
+    ],
+    "entities": [
+      {
+        "id": "line",
+        "dataset_id": "lines",
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "dimensions": [
+      {
+        "id": "country",
+        "display_name": "Country",
+        "dataset_id": "lines",
+        "field_id": "lines.country",
+        "entity_id": "line",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "invoice_date",
+        "display_name": "Invoice date",
+        "dataset_id": "lines",
+        "field_id": "lines.invoice_ts",
+        "entity_id": "line",
+        "dimension_type": "temporal",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "product",
+        "display_name": "Product",
+        "dataset_id": "lines",
+        "field_id": "lines.description",
+        "entity_id": "line",
+        "dimension_type": "categorical",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "metrics": [
+      {
+        "id": "sales_amount",
+        "display_name": "Sales amount",
+        "dataset_id": "lines",
+        "aggregation": "sum",
+        "measure_field_id": "lines.line_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "cancellation_amount",
+        "display_name": "Cancellation amount",
+        "dataset_id": "lines",
+        "aggregation": "sum",
+        "measure_field_id": "lines.line_amount",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "cancellation_lines"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "units_sold",
+        "display_name": "Units sold",
+        "dataset_id": "lines",
+        "aggregation": "sum",
+        "measure_field_id": "lines.quantity",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "invoice_lines",
+        "display_name": "Invoice lines",
+        "dataset_id": "lines",
+        "aggregation": "count",
+        "measure_field_id": null,
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "distinct_invoices",
+        "display_name": "Distinct invoices",
+        "dataset_id": "lines",
+        "aggregation": "count_distinct",
+        "measure_field_id": "lines.invoice_no",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "customers",
+        "display_name": "Customers",
+        "dataset_id": "lines",
+        "aggregation": "count_distinct",
+        "measure_field_id": "lines.customer_id",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      },
+      {
+        "id": "sales_invoices",
+        "display_name": "Sales invoices",
+        "dataset_id": "lines",
+        "aggregation": "count_distinct",
+        "measure_field_id": "lines.invoice_no",
+        "numerator_metric_id": null,
+        "denominator_metric_id": null,
+        "grain": {
+          "kind": "row",
+          "key_field_ids": [
+            "lines.row_id"
+          ]
+        },
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "certification": "certified",
+        "owner_ids": [
+          "team.semantic-owners"
+        ]
+      }
+    ],
+    "joins": [],
+    "filters": [
+      {
+        "id": "sales_lines",
+        "dataset_id": "lines",
+        "field_id": "lines.is_cancellation",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": false
+      },
+      {
+        "id": "cancellation_lines",
+        "dataset_id": "lines",
+        "field_id": "lines.is_cancellation",
+        "operator": "equals",
+        "value_source": "literal",
+        "literal_value": true
+      }
+    ],
+    "policies": [
+      {
+        "id": "policy_sales_amount",
+        "target_ids": [
+          "sales_amount"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_cancellation_amount",
+        "target_ids": [
+          "cancellation_amount"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "cancellation_lines"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_units_sold",
+        "target_ids": [
+          "units_sold"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_invoice_lines",
+        "target_ids": [
+          "invoice_lines"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_distinct_invoices",
+        "target_ids": [
+          "distinct_invoices"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_customers",
+        "target_ids": [
+          "customers"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      },
+      {
+        "id": "policy_sales_invoices",
+        "target_ids": [
+          "sales_invoices"
+        ],
+        "classification": "internal",
+        "allowed_purposes": [
+          "analytics"
+        ],
+        "required_filter_ids": [
+          "sales_lines"
+        ],
+        "owner_ids": [
+          "team.semantic-owners"
+        ],
+        "allowed_groups": []
+      }
+    ],
+    "metadata": {}
+  }
+}

@@ -441,6 +441,12 @@ milestones:
       approved_at: 2026-11-28
       scope: "Enabling S6 (confirm instead of refuse) for the tenant sandbox, on the evidence of docs/evaluation/e2e-duckdb-summary.md (a careful user: 10 of 10 Online Retail II and 3 of 3 Olist answerable questions correct, every refusal held; a habitual user: one wrongly answered question per dataset). The owner accepts the habitual-confirmer risk. The setting is ANALYTICS_INTERPRETATION_CONFIRM_TENANTS=sandbox, with ANALYTICS_INTENT_COVERAGE_TENANTS=sandbox beside it (K3, already approved). It is a deployment setting of whichever environment serves the sandbox tenant; this repository has no such environment (the local stack has no model, and the Azure pilot serves other tenants), so NOTHING WAS CHANGED IN ANY ENVIRONMENT. Applying it where the tenant is served is a deployment step that needs the owner to name the environment and ask for that change. It does NOT approve S6 for any other tenant, changing the Azure pilot, or certifying any contract."
       record: "The owner answered \"Yes, enable S6\" to \"Enable S6 for the sandbox tenant?\" on 2026-11-28."
+    duckdb_milestone_followups_5_6_7:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-28
+      scope: "Items 5, 6 and 7 of the owner's priority list, local only: (5) the Olist payment_total preparation step with checks against plain Python, and the same step as dry-run warehouse SQL (creating it in a warehouse is NOT approved); (6) a live-model option for the local DuckDB mode, read from the environment's settings, sending only the product's prompt and never data, tested with a fake client and not run against a real provider; (7) two contract drafts for the owner's review, Online Retail II draft 2 and the synthetic food-delivery contract over orders_current, each with a REVIEW.md of owner decisions. Nothing is certified, deployed or loaded into a warehouse. Olist remains internal-use only."
+      record: "The owner answered \"Do item 5,6 and 7\" to the prioritised list on 2026-11-28."
     semantic_trust_e6:
       status: approved
       approved_by: user

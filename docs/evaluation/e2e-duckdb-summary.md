@@ -27,6 +27,21 @@ Wrong numbers in every setup, both datasets: **0**. Every question the contract 
 8. **A boolean filter was being turned into a number (found by clicking through, fixed here).** On the local web screen the confirm prompt read "is cancellation equals 0.0". In pydantic 2.6 a union written `str | int | float | bool` writes `False` and `True` as `0.0` and `1.0` in JSON mode, and the runtime carries intents and contracts that way, so a boolean filter reached the compiler as a number (DuckDB accepts that; Postgres and Databricks would not). The union order is now `bool | int | float | str` in the five contract modules (semantic, intent, answer, artifact, data plane), with a test that fails on the old order. The five-setup reports were rerun on the fixed code and are unchanged.
 9. **The confirm prompt had to say what the metric always applies.** It said "with no filter" for a metric that always leaves out cancellation lines. It now says "always limited to: is cancellation equals False; with no other filter, no time period and no sort".
 
+## Three more things done (2026-11-28, same approval)
+
+**The Olist `payment_total` step.** `reference_stack/olist_prepare.py` performs the step the certified contract assumed: payments summed per order first, written to DuckDB Parquet and checked against plain-Python numbers from the CSVs (99,441 orders; 99,440 with a payment; one order with none stays in with no total; total paid 16,008,872.12, equal). The same step is available as a `CREATE VIEW` for Databricks or Snowflake (dry-run text; creating it live needs its own approval).
+
+**A live model for the local mode.** `--live-model` on `e2e_local`, and `e2e_run ... record`, read the provider from the environment's settings (Azure OpenAI, or an OpenAI-compatible endpoint), never from a flag. What leaves the computer is the product's prompt (the certified vocabulary and the question), never a row or a value from the data. It is tested with a fake client and has **not** been run against a real provider: it needs your credentials.
+
+**Two contract drafts for your review**, each with a `REVIEW.md` of the decisions you would make before certifying anything (`semantic_registry_drafts/`):
+
+| Draft | Answerable, careful user (D) | Habitual user (E) | What it shows |
+|---|---|---|---|
+| Online Retail II draft 2 (adds sales invoices, product, `customer_id` restricted) | **13 of 13** | 13 of 13, **0 wrongly answered** | Classifying `customer_id` restricted closes the finding above: the model is never offered it, so the per-customer question cannot be filtered. Top products include `Manual` and `DOTCOM POSTAGE`: a decision for you |
+| Synthetic food delivery over `orders_current` | 12 of 14, 2 wrong numbers | 12 of 14, 2 wrong, 4 wrongly answered | The planted defects show up exactly where the contract does not handle them (below) |
+
+On the synthetic data the two wrong numbers are the planted spelling-drift defect: "orders for pizza" is 170 on the raw cuisine column against 200 in the key, because `pizza`, `PIZZA` and `Pizza ` are separate values. The product answered the certified column faithfully; the view needs a cleaned cuisine column. The four wrongly answered questions are the other planted defects meeting a habitual user: months answered in UTC (865 against 873 for January 2025) because the compiler does not convert time zones, and a confident `0` for reversal rows, which the view leaves out. Average invoice value stays refused because the compiler does not support ratio metrics yet.
+
 ## Run it yourself, locally
 
 ```bash
