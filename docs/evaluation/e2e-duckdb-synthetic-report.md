@@ -1,21 +1,21 @@
-# End to end on DuckDB: Synthetic food delivery, tier S (invented data, planted defects, answer keys from the generator)
+# End to end on DuckDB: Synthetic food delivery, tier S (invented data, planted defects, answer keys from the generator), draft contract over orders_clean
 
-Contract: **an evaluation fixture, not certified by the owner** (lifecycle set to certified in a temporary copy only). The contract is an authored draft over the curated `orders_current` view, for the owner's review. Questions that need reversal rows, local-time months, ratios or joins are expected to be refused as named gaps.
+Contract: **an evaluation fixture, not certified by the owner** (lifecycle set to certified in a temporary copy only). The contract is an authored draft over the new `orders_clean` view, for the owner's review. Questions that need reversal rows are expected to be refused as named gaps.
 Model: a Claude agent standing in for the model, given the exact prompt the product builds and nothing else
 Answer keys: computed outside the product (plain Python over the source files, or an independent statement), never through the compiler.
-30 questions: 14 the contract can answer and 16 it should refuse (a refusal that names a missing definition is a gap, not a failure).
+30 questions: 17 the contract can answer and 13 it should refuse (a refusal that names a missing definition is a gap, not a failure).
 
 ## Results by setup
 
 | Setup | Correct (of answerable) | Wrong numbers | Wrongly answered | Correct refusals | False refusals |
 |---|---|---|---|---|---|
-| **A** As authored (cost bounds raised for a table this size, coverage check on) | 0 of 14 | 0 | 0 | 16 | 14 |
-| **B** A plus synonyms proposed blind by a fresh agent (kept only if the validator accepts each) | 0 of 14 | 0 | 0 | 16 | 14 |
-| **C** B with the product's own default cost bounds (a run budget of 10,000 units) | 0 of 14 | 0 | 0 | 16 | 14 |
-| **D** B plus confirm-instead-of-refuse (S6) answered by a careful user (confirms only a right reading) | 12 of 14 | 2 | 0 | 16 | 0 |
-| **E** B plus S6 answered by a habitual user (always says yes) | 12 of 14 | 2 | 4 | 12 | 0 |
+| **A** As authored (cost bounds raised for a table this size, coverage check on) | 0 of 17 | 0 | 0 | 13 | 17 |
+| **B** A plus synonyms proposed blind by a fresh agent (kept only if the validator accepts each) | 0 of 17 | 0 | 0 | 13 | 17 |
+| **C** B with the product's own default cost bounds (a run budget of 10,000 units) | 0 of 17 | 0 | 0 | 13 | 17 |
+| **D** B plus confirm-instead-of-refuse (S6) answered by a careful user (confirms only a right reading) | 17 of 17 | 0 | 0 | 13 | 0 |
+| **E** B plus S6 answered by a habitual user (always says yes) | 17 of 17 | 0 | 1 | 12 | 0 |
 
-Synonyms in B to E: 33 kept, 2 rejected by the validator. Rejected: card_tips_usd / tips paid by card (Value). Rejected: status / order status (Value).
+Synonyms in B to E: 30 kept, 2 rejected by the validator. Rejected: partial_refunds / partially refunded orders (Value). Rejected: card_tips_usd / tips paid by card (Value).
 
 ## Questions that were not answered correctly or refused correctly, by setup
 
@@ -31,6 +31,9 @@ Synonyms in B to E: 33 kept, 2 rejected by the validator. Rejected: card_tips_us
 | A | A11 | How many orders were placed in New York? | answer | false_refusal | refuse: unsupported_request |
 | A | A12 | How many orders were placed in London? | answer | false_refusal | refuse: unsupported_request |
 | A | A13 | How many orders were placed in Chicago? | answer | false_refusal | refuse: unsupported_request |
+| A | A14 | How many orders were placed in January 2025? | answer | false_refusal | refuse: unsupported_request |
+| A | A15 | How many orders were placed in July 2025? | answer | false_refusal | refuse: unsupported_request |
+| A | A16 | How many orders were placed in December 2025? | answer | false_refusal | refuse: unsupported_request |
 | A | A17 | How many orders were for pizza? | answer | false_refusal | refuse: unsupported_request |
 | A | A18 | How many orders were for sushi? | answer | false_refusal | refuse: unsupported_request |
 | A | A19 | What is the total delivery time in minutes? | answer | false_refusal | refuse: unsupported_request |
@@ -45,6 +48,9 @@ Synonyms in B to E: 33 kept, 2 rejected by the validator. Rejected: card_tips_us
 | B | A11 | How many orders were placed in New York? | answer | false_refusal | refuse: unsupported_request |
 | B | A12 | How many orders were placed in London? | answer | false_refusal | refuse: unsupported_request |
 | B | A13 | How many orders were placed in Chicago? | answer | false_refusal | refuse: unsupported_request |
+| B | A14 | How many orders were placed in January 2025? | answer | false_refusal | refuse: unsupported_request |
+| B | A15 | How many orders were placed in July 2025? | answer | false_refusal | refuse: unsupported_request |
+| B | A16 | How many orders were placed in December 2025? | answer | false_refusal | refuse: unsupported_request |
 | B | A17 | How many orders were for pizza? | answer | false_refusal | refuse: unsupported_request |
 | B | A18 | How many orders were for sushi? | answer | false_refusal | refuse: unsupported_request |
 | B | A19 | What is the total delivery time in minutes? | answer | false_refusal | refuse: unsupported_request |
@@ -59,18 +65,14 @@ Synonyms in B to E: 33 kept, 2 rejected by the validator. Rejected: card_tips_us
 | C | A11 | How many orders were placed in New York? | answer | false_refusal | refuse: unsupported_request |
 | C | A12 | How many orders were placed in London? | answer | false_refusal | refuse: unsupported_request |
 | C | A13 | How many orders were placed in Chicago? | answer | false_refusal | refuse: unsupported_request |
+| C | A14 | How many orders were placed in January 2025? | answer | false_refusal | refuse: unsupported_request |
+| C | A15 | How many orders were placed in July 2025? | answer | false_refusal | refuse: unsupported_request |
+| C | A16 | How many orders were placed in December 2025? | answer | false_refusal | refuse: unsupported_request |
 | C | A17 | How many orders were for pizza? | answer | false_refusal | refuse: unsupported_request |
 | C | A18 | How many orders were for sushi? | answer | false_refusal | refuse: unsupported_request |
 | C | A19 | What is the total delivery time in minutes? | answer | false_refusal | refuse: unsupported_request |
 | C | A20 | How many orders have a recorded delivery time? | answer | false_refusal | refuse: unsupported_request |
-| D | A17 | How many orders were for pizza? | answer | wrong_answer | got 170, key 200 |
-| D | A18 | How many orders were for sushi? | answer | wrong_answer | got 575, key 676 |
 | E | A10 | How many reversal rows are there? | refuse | wrongly_answered | answered: The total is 0. |
-| E | A14 | How many orders were placed in January 2025? | refuse | wrongly_answered | answered: The total is 865. |
-| E | A15 | How many orders were placed in July 2025? | refuse | wrongly_answered | answered: The total is 811. |
-| E | A16 | How many orders were placed in December 2025? | refuse | wrongly_answered | answered: The total is 872. |
-| E | A17 | How many orders were for pizza? | answer | wrong_answer | got 170, key 200 |
-| E | A18 | How many orders were for sushi? | answer | wrong_answer | got 575, key 676 |
 
 ## Every question under setup D
 
@@ -89,11 +91,11 @@ Synonyms in B to E: 33 kept, 2 rejected by the validator. Rejected: card_tips_us
 | A11 | How many orders were placed in New York? | answer | correct | 2025 |
 | A12 | How many orders were placed in London? | answer | correct | 565 |
 | A13 | How many orders were placed in Chicago? | answer | correct | 728 |
-| A14 | How many orders were placed in January 2025? | refuse | correct_refusal | unsupported_request |
-| A15 | How many orders were placed in July 2025? | refuse | correct_refusal | unsupported_request |
-| A16 | How many orders were placed in December 2025? | refuse | correct_refusal | unsupported_request |
-| A17 | How many orders were for pizza? | answer | wrong_answer | got 170, key 200 |
-| A18 | How many orders were for sushi? | answer | wrong_answer | got 575, key 676 |
+| A14 | How many orders were placed in January 2025? | answer | correct | 873 |
+| A15 | How many orders were placed in July 2025? | answer | correct | 817 |
+| A16 | How many orders were placed in December 2025? | answer | correct | 876 |
+| A17 | How many orders were for pizza? | answer | correct | 200 |
+| A18 | How many orders were for sushi? | answer | correct | 676 |
 | A19 | What is the total delivery time in minutes? | answer | correct | 221108 |
 | A20 | How many orders have a recorded delivery time? | answer | correct | 9359 |
 | R01 | What is the refund rate? | refuse | correct_refusal | unsupported_request |

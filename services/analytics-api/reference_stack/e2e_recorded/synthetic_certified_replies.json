@@ -1,0 +1,423 @@
+{
+ "A01": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000001-A01",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [],
+  "sort": [],
+  "limit": 100
+ },
+ "A02": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000002-A02",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.status",
+    "operator": "equals",
+    "values": [
+     "delivered"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A03": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000003-A03",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.status",
+    "operator": "equals",
+    "values": [
+     "cancelled"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A04": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000004-A04",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.status",
+    "operator": "equals",
+    "values": [
+     "refunded"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A05": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000005-A05",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.status",
+    "operator": "equals",
+    "values": [
+     "partially_refunded"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A06": {
+  "unsupported_request": true
+ },
+ "A07": {
+  "unsupported_request": true
+ },
+ "A08": {
+  "unsupported_request": true
+ },
+ "A09": {
+  "unsupported_request": true
+ },
+ "A10": {
+  "unsupported_request": true
+ },
+ "A11": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000011-A11",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.city",
+    "operator": "equals",
+    "values": [
+     "New York"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A12": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000012-A12",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.city",
+    "operator": "equals",
+    "values": [
+     "London"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A13": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000013-A13",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.city",
+    "operator": "equals",
+    "values": [
+     "Chicago"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A14": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000014-A14",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [],
+  "sort": [],
+  "limit": 100,
+  "time_range": {
+   "dimension_id": "order_ts",
+   "start": "2025-01-01T00:00:00Z",
+   "end": "2025-02-01T00:00:00Z",
+   "inclusive_end": false
+  }
+ },
+ "A15": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000015-A15",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [],
+  "sort": [],
+  "limit": 100,
+  "time_range": {
+   "dimension_id": "order_ts",
+   "start": "2025-07-01T00:00:00Z",
+   "end": "2025-08-01T00:00:00Z",
+   "inclusive_end": false
+  }
+ },
+ "A16": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000016-A16",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [],
+  "sort": [],
+  "limit": 100,
+  "time_range": {
+   "dimension_id": "order_ts",
+   "start": "2025-12-01T00:00:00Z",
+   "end": "2026-01-01T00:00:00Z",
+   "inclusive_end": false
+  }
+ },
+ "A17": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000017-A17",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.cuisine",
+    "operator": "equals",
+    "values": [
+     "pizza"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A18": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000018-A18",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [],
+  "filters": [
+   {
+    "field_id": "orders_current.cuisine",
+    "operator": "equals",
+    "values": [
+     "sushi"
+    ]
+   }
+  ],
+  "sort": [],
+  "limit": 100
+ },
+ "A19": {
+  "unsupported_request": true
+ },
+ "A20": {
+  "unsupported_request": true
+ },
+ "R01": {
+  "unsupported_request": true
+ },
+ "R02": {
+  "unsupported_request": true
+ },
+ "R03": {
+  "unsupported_request": true
+ },
+ "R04": {
+  "unsupported_request": true
+ },
+ "R05": {
+  "unsupported_request": true
+ },
+ "R06": {
+  "unsupported_request": true
+ },
+ "R07": {
+  "unsupported_request": true
+ },
+ "R08": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000028-R08",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders_current",
+  "semantic_contract": {
+   "contract_id": "food-delivery-orders-current",
+   "contract_version": "2026-11-21"
+  },
+  "metrics": [
+   {
+    "metric_id": "order_count"
+   }
+  ],
+  "group_by": [
+   {
+    "dimension_id": "order_ts",
+    "time_granularity": "week"
+   }
+  ],
+  "filters": [],
+  "sort": [
+   {
+    "target_kind": "dimension",
+    "target_id": "order_ts",
+    "direction": "asc"
+   }
+  ],
+  "limit": 100,
+  "time_range": {
+   "dimension_id": "order_ts",
+   "start": "2026-11-16T00:00:00Z",
+   "end": "2026-11-30T00:00:00Z",
+   "inclusive_end": false
+  }
+ },
+ "R09": {
+  "unsupported_request": true
+ },
+ "R10": {
+  "unsupported_request": true
+ }
+}

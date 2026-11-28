@@ -37,10 +37,10 @@ def build_env(dataset_name: str, data: Path, work: Path, replies_file: Path | No
         from reference_stack import e2e_online_retail as m
 
         dataset = m.build(data, 2 if dataset_name == "retail2" else 1)
-    elif dataset_name == "synthetic":
+    elif dataset_name in ("synthetic", "synthetic_certified"):
         from reference_stack import e2e_synthetic as m
 
-        dataset = m.build(data, work / "prepared")
+        dataset = (m.build_certified if dataset_name == "synthetic_certified" else m.build)(data, work / "prepared")
     else:
         from reference_stack import e2e_olist as m
 
@@ -95,7 +95,7 @@ def banner(dataset: e.Dataset, env: e.Env, *, web: bool, port: int, token_file: 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="reference_stack.e2e_local", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("dataset", choices=("retail", "retail2", "olist", "synthetic"))
+    p.add_argument("dataset", choices=("retail", "retail2", "olist", "synthetic", "synthetic_certified"))
     p.add_argument("--data", required=True, type=Path)
     p.add_argument("--work", type=Path, help="a directory for prepared files (olist) and the throwaway control database; default: a temporary one")
     p.add_argument("--replies", type=Path, help="recorded replies (required unless --live-model)")

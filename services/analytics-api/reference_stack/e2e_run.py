@@ -24,7 +24,7 @@ from reference_stack import e2e_duckdb as e
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="reference_stack.e2e_run", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("dataset", choices=("retail", "retail2", "olist", "synthetic"))
+    p.add_argument("dataset", choices=("retail", "retail2", "olist", "synthetic", "synthetic_certified"))
     p.add_argument("--data", required=True, type=Path)
     p.add_argument("--work", type=Path, help="olist: a directory for the prepared Parquet files")
     sub = p.add_subparsers(dest="action", required=True)
@@ -47,13 +47,13 @@ def main(argv: list[str] | None = None) -> int:
             from reference_stack import e2e_online_retail as m
 
             dataset = m.build(args.data, 2 if args.dataset == "retail2" else 1)
-        elif args.dataset == "synthetic":
+        elif args.dataset in ("synthetic", "synthetic_certified"):
             from reference_stack import e2e_synthetic as m
 
             if not args.work:
                 print("refused: synthetic needs --work", file=sys.stderr)
                 return 2
-            dataset = m.build(args.data, args.work)
+            dataset = (m.build_certified if args.dataset == "synthetic_certified" else m.build)(args.data, args.work)
         else:
             from reference_stack import e2e_olist as m
 
