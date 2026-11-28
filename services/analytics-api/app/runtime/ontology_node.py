@@ -136,6 +136,7 @@ def describe_interpretation(intent: AnalyticalIntent, contract: SemanticContract
     """Plain words for the person, built from the certified contract and the intent's ids. Never data values from the warehouse."""
     names = {m.id: m for m in contract.metrics}
     dims = {d.id: d for d in contract.dimensions}
+    filters = {f.id: f for f in contract.filters}
 
     def label(item, fallback: str) -> str:
         return (getattr(item, "display_name", None) or fallback.replace("_", " "))[:80]
@@ -145,7 +146,12 @@ def describe_interpretation(intent: AnalyticalIntent, contract: SemanticContract
         m = names.get(ref.metric_id)
         how = "a count of rows" if m and m.aggregation == "count" and not m.measure_field_id else (
             f"the {m.aggregation} of {m.measure_field_id.split('.')[-1].replace('_', ' ')}" if m and m.measure_field_id else "a certified measure")
-        parts.append(f"{label(m, ref.metric_id)} ({how})")
+        always = []
+        for fid in (m.required_filter_ids if m else []):  # a metric's own required filters are part of what it means, so the person is told about them
+            f = filters.get(fid)
+            if f is not None:
+                always.append(f"{f.field_id.split('.')[-1].replace('_', ' ')} {f.operator.replace('_', ' ')} {str(f.literal_value)[:40] if f.literal_value is not None else f.value_source}")
+        parts.append(f"{label(m, ref.metric_id)} ({how}" + (f"; always limited to: {', '.join(always)}" if always else "") + ")")
     text = "I read this as: " + " and ".join(parts)
     if intent.group_by:
         text += ", grouped by " + ", ".join(label(dims.get(g.dimension_id), g.dimension_id) for g in intent.group_by)
@@ -156,7 +162,7 @@ def describe_interpretation(intent: AnalyticalIntent, contract: SemanticContract
         extras.append("limited to a time period")
     if intent.sort:
         extras.append("sorted")
-    text += "; " + ("; ".join(extras) if extras else "with no filter, no time period and no sort") + ". Is that what you meant?"
+    text += "; " + ("; ".join(extras) if extras else "with no other filter, no time period and no sort") + ". Is that what you meant?"
     return text[:1_900]
 
 

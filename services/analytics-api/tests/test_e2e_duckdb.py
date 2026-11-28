@@ -216,3 +216,72 @@ def test_a_habitual_user_lets_a_wrong_reading_through_and_the_report_counts_it(d
     assert list(matrix["runs"]) == ["A", "B", "C", "D", "E"]
     text = e.render_matrix(ds, matrix, model_note="a stand-in")
     assert "## Results by setup" in text and "Wrongly answered" in text and "evaluation fixture, not certified by the owner" in text
+
+
+# ---- the local click-through server --------------------------------------------------------------------------------------------------------------
+
+
+def _write(tmp_path, name, obj):
+    import json
+
+    path = tmp_path / name
+    path.write_text(json.dumps(obj))
+    return path
+
+
+def test_the_local_server_asks_to_confirm_then_answers_and_refuses_what_it_has_no_reply_for(data, tmp_path):
+    from reference_stack import e2e_local as local
+
+    replies = _write(tmp_path, "replies.json", {"R01": intent("sales_amount")})
+    env, dataset = local.build_env("retail", data, tmp_path / "work", replies, None)
+    local.add_routes(env)
+    from fastapi.testclient import TestClient
+
+    outside = TestClient(env.app)  # the test client's address is not loopback
+    assert outside.post("/api/v2/auth/dev-login").status_code == 403  # the dev sign-in answers only the loopback address
+    class Loopback:  # this Starlette's test client cannot set the caller address, so the ASGI scope says the caller is 127.0.0.1
+        async def __call__(self, scope, receive, send):
+            await env.app({**scope, "client": ("127.0.0.1", 50000)}, receive, send)
+
+    client = TestClient(Loopback())
+    assert client.get("/health").json()["mode"].startswith("local DuckDB")
+    token = client.post("/api/v2/auth/dev-login").json()["token"]
+    auth = {"Authorization": f"Bearer {token}", "Idempotency-Key": "local-test-000001"}
+    first = client.post("/api/v2/analytics/analyze", json={"request_text": "What is our total sales amount?", "purpose": "analytics"}, headers=auth).json()
+    assert first["state"] == "waiting_clarification" and first["outcome"]["questions"][0]["id"] == "interpretation"
+    assert "always limited to: is cancellation equals False" in first["outcome"]["questions"][0]["prompt"]  # a boolean stays a boolean, and the person is told what is always applied
+    yes = first["outcome"]["questions"][0]["choices"][0]["id"]
+    done = client.post(f"/api/v2/analytics/runs/{first['run_id']}/clarify", json={"purpose": "analytics", "ambiguity_code": "interpretation", "selected_id": yes},
+                       headers={"Authorization": f"Bearer {token}"}).json()
+    assert done["outcome"]["outcome"] == "answer" and Decimal(done["outcome"]["result"]["rows"][0][0]) == Decimal(str(dataset.cases[0].key)).quantize(Decimal("0.001"))
+    other = client.post("/api/v2/analytics/analyze", json={"request_text": "Which product sold the most?", "purpose": "analytics"}, headers={**auth, "Idempotency-Key": "local-test-000002"}).json()
+    assert other["outcome"]["outcome"] == "refuse"  # no recorded reply: refused, never guessed
+
+
+def test_the_selftest_passes_and_a_missing_file_is_refused_by_type_only(data, tmp_path):
+    from reference_stack import e2e_local as local
+
+    replies = _write(tmp_path, "replies.json", {"R01": intent("sales_amount"), "R03": intent("invoice_lines")})
+    env, dataset = local.build_env("retail", data, tmp_path / "work", replies, None)
+    local.add_routes(env)
+    assert local.selftest(env, dataset) == 0
+    assert local.main(["retail", "--data", str(tmp_path / "nowhere"), "--replies", str(replies), "--selftest"]) == 2  # a missing data file is a refusal by type only
+
+
+# ---- the recorded inputs ---------------------------------------------------------------------------------------------------------------------------
+
+
+def test_the_recorded_replies_and_synonyms_cover_every_question_and_are_valid_shapes():
+    import json
+    from pathlib import Path
+
+    from packages.platform_contracts.analytics_intent import AnalyticalIntent
+
+    root = Path(__file__).resolve().parent.parent / "reference_stack/e2e_recorded"
+    for name, ids in (("retail", [f"R{i:02d}" for i in range(1, 19)]), ("olist", [f"Q{i:02d}" for i in range(1, 27)])):
+        replies = json.loads((root / f"{name}_replies.json").read_text())
+        assert sorted(replies) == ids
+        for reply in replies.values():
+            assert reply == {"unsupported_request": True} or AnalyticalIntent.model_validate({**reply, "query_id": "q", "tenant_id": "t"})
+        syn = json.loads((root / f"{name}_synonyms.json").read_text())
+        assert "notes" in syn and all(isinstance(v, list) for k, v in syn.items() if k != "notes")

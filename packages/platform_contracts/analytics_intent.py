@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from packages.platform_contracts.semantic import SemanticContract
 
 ANALYTICAL_INTENT_VERSION = "v1"
-Scalar = str | int | float | bool
+Scalar = bool | int | float | str
 
 
 class IntentModel(BaseModel):

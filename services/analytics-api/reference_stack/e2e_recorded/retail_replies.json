@@ -1,0 +1,20 @@
+{
+"R01": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000001-R01","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R02": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000002-R02","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"cancellation_amount"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R03": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000003-R03","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"invoice_lines"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R04": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000004-R04","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"distinct_invoices"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R05": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000005-R05","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"customers"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R06": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000006-R06","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"units_sold"}],"group_by":[],"filters":[],"sort":[],"limit":100},
+"R07": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000007-R07","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[{"dimension_id":"country"}],"filters":[{"field_id":"lines.country","operator":"in","values":["United Kingdom","Germany","France"]}],"sort":[],"limit":100},
+"R08": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000008-R08","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[],"time_range":{"dimension_id":"invoice_date","start":"2010-12-01T00:00:00Z","end":"2011-01-01T00:00:00Z","inclusive_end":false},"filters":[],"sort":[],"limit":100},
+"R09": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000009-R09","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[],"filters":[{"field_id":"lines.country","operator":"equals","values":["Germany"]}],"sort":[],"limit":100},
+"R10": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000010-R10","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"cancellation_amount"}],"group_by":[],"filters":[{"field_id":"lines.country","operator":"equals","values":["United Kingdom"]}],"sort":[],"limit":100},
+"R11": {"unsupported_request": true},
+"R12": {"unsupported_request": true},
+"R13": {"unsupported_request": true},
+"R14": {"unsupported_request": true},
+"R15": {"unsupported_request": true},
+"R16": {"unsupported_request": true},
+"R17": {"intent_version":"v1","query_id":"2591c674ea8032f0:e2e-duckdb-000017-R17","tenant_id":"tenant-a","dataset_id":"lines","semantic_contract":{"contract_id":"online-retail-ii","contract_version":"fixture-1"},"metrics":[{"metric_id":"sales_amount"}],"group_by":[],"filters":[{"field_id":"lines.customer_id","operator":"equals","values":["12346"]}],"sort":[],"limit":100},
+"R18": {"unsupported_request": true}
+}

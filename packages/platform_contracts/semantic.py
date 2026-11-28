@@ -152,7 +152,7 @@ class SemanticFilter(BaseModel):
     field_id: str = Field(min_length=1, max_length=255)
     operator: Literal["equals", "not_equals", "in", "not_in", "greater_than", "less_than"]
     value_source: Literal["literal", "request_context", "identity_claim"]
-    literal_value: str | int | float | bool | list[str | int | float | bool] | None = None
+    literal_value: bool | int | float | str | list[bool | int | float | str] | None = None
 
     @model_validator(mode="after")
     def validate_value_source(self) -> "SemanticFilter":

@@ -28,7 +28,7 @@ class AnalyticsOutcomeBase(BaseModel):
 class AnalyticsFilterEvidence(BaseModel):
     field_id: str = Field(min_length=1, max_length=255)
     operator: str = Field(min_length=1, max_length=64)
-    value: str | int | float | bool | None = None
+    value: bool | int | float | str | None = None
 
 
 class AnalyticsProvenance(BaseModel):
@@ -78,7 +78,7 @@ class AnalyticsClaim(BaseModel):
 
 class AnalyticsResultTable(BaseModel):
     columns: list[str] = Field(max_length=50)
-    rows: list[list[str | int | float | bool | None]] = Field(max_length=1_000)
+    rows: list[list[bool | int | float | str | None]] = Field(max_length=1_000)
     row_count: int = Field(ge=0)
 
 

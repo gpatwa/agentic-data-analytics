@@ -24,6 +24,18 @@ Wrong numbers in every setup, both datasets: **0**. Every question the contract 
 6. **The default cost bounds are sized for small tables.** On 1,067,371 rows a distinct count or a grouping exceeds the 10,000-unit run budget or the 1,000,000-unit execution limit (setup C: 1 of 10 against 4 of 10 in A). The bounds should be set per connection by the owner; raising them here was a harness setting, reported.
 7. **The certified Olist contract assumes a prepared column.** `payment_total` is not in the raw Olist data: payments must be summed per order first. The contract states the field but nothing in the repository performs that step. A load step for it is needed before the contract can run on a customer's raw tables.
 
+8. **A boolean filter was being turned into a number (found by clicking through, fixed here).** On the local web screen the confirm prompt read "is cancellation equals 0.0". In pydantic 2.6 a union written `str | int | float | bool` writes `False` and `True` as `0.0` and `1.0` in JSON mode, and the runtime carries intents and contracts that way, so a boolean filter reached the compiler as a number (DuckDB accepts that; Postgres and Databricks would not). The union order is now `bool | int | float | str` in the five contract modules (semantic, intent, answer, artifact, data plane), with a test that fails on the old order. The five-setup reports were rerun on the fixed code and are unchanged.
+9. **The confirm prompt had to say what the metric always applies.** It said "with no filter" for a metric that always leaves out cancellation lines. It now says "always limited to: is cancellation equals False; with no other filter, no time period and no sort".
+
+## Run it yourself, locally
+
+```bash
+cd services/analytics-api
+PYTHONPATH=.:../.. python3 -m reference_stack.e2e_local retail --data <dir with online_retail_ii.parquet> --replies reference_stack/e2e_recorded/retail_replies.json --synonyms reference_stack/e2e_recorded/retail_synonyms.json --web
+```
+
+It starts the real governed routes over DuckDB on 127.0.0.1:8090 and the web screen on 127.0.0.1:5174 (S6 and the coverage check on). Open Governed, paste the token from `.local-stack/e2e-token.txt` (throwaway, this process only), and ask one of the listed questions. The model replays recorded replies for those questions and refuses anything else; add Azure OpenAI credentials for a live model in a later step. `--selftest` asks one question, confirms it, checks the number against the independent key, and stops. The recorded replies and synonyms come from the stand-in agents; regenerate them with `e2e_run ... prompts` and an agent as described in the module docstrings.
+
 ## Not shown
 
 A real language model's choices, real users (the careful and habitual users are scripted), other contracts, any warehouse other than DuckDB, and certification: the Retail contract is a fixture and nothing here certifies anything. Olist figures are for internal use only.

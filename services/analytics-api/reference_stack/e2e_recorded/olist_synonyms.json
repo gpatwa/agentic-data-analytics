@@ -1,0 +1,6 @@
+{
+  "delivered_revenue": ["delivered sales", "revenue from delivered orders", "delivered order revenue", "delivered order sales", "completed delivery revenue"],
+  "order_status": ["status of order", "current order state", "fulfilment status", "order stage"],
+  "purchase_time": ["purchase date", "order date", "date of purchase", "order placed time", "purchase timestamp"],
+  "notes": "Left out bare words like revenue, sales, status and date because they are generic or would overlap other items. Left out phrases implying a time period or grouping (monthly, by month), and shipping or payment terms, which mean something different."
+}

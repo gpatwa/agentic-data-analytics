@@ -1,0 +1,159 @@
+{
+ "Q01": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000001-Q01",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "olist-commerce",
+   "contract_version": "2026-08-20"
+  },
+  "metrics": [
+   {
+    "metric_id": "delivered_revenue"
+   }
+  ],
+  "group_by": [
+   {
+    "dimension_id": "purchase_time",
+    "time_granularity": "month"
+   }
+  ]
+ },
+ "Q02": {
+  "unsupported_request": true
+ },
+ "Q03": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000003-Q03",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "olist-commerce",
+   "contract_version": "2026-08-20"
+  },
+  "metrics": [
+   {
+    "metric_id": "delivered_revenue"
+   }
+  ],
+  "time_range": {
+   "dimension_id": "purchase_time",
+   "start": "2017-01-01T00:00:00Z",
+   "end": "2018-01-01T00:00:00Z",
+   "inclusive_end": false
+  }
+ },
+ "Q04": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000004-Q04",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "olist-commerce",
+   "contract_version": "2026-08-20"
+  },
+  "metrics": [
+   {
+    "metric_id": "delivered_revenue"
+   }
+  ],
+  "group_by": [
+   {
+    "dimension_id": "purchase_time",
+    "time_granularity": "month"
+   }
+  ],
+  "sort": [
+   {
+    "target_kind": "metric",
+    "target_id": "delivered_revenue",
+    "direction": "desc"
+   }
+  ],
+  "limit": 1
+ },
+ "Q05": {
+  "unsupported_request": true
+ },
+ "Q06": {
+  "unsupported_request": true
+ },
+ "Q07": {
+  "unsupported_request": true
+ },
+ "Q08": {
+  "unsupported_request": true
+ },
+ "Q09": {
+  "unsupported_request": true
+ },
+ "Q10": {
+  "unsupported_request": true
+ },
+ "Q11": {
+  "unsupported_request": true
+ },
+ "Q12": {
+  "unsupported_request": true
+ },
+ "Q13": {
+  "unsupported_request": true
+ },
+ "Q14": {
+  "unsupported_request": true
+ },
+ "Q15": {
+  "unsupported_request": true
+ },
+ "Q16": {
+  "unsupported_request": true
+ },
+ "Q17": {
+  "unsupported_request": true
+ },
+ "Q18": {
+  "unsupported_request": true
+ },
+ "Q19": {
+  "unsupported_request": true
+ },
+ "Q20": {
+  "unsupported_request": true
+ },
+ "Q21": {
+  "unsupported_request": true
+ },
+ "Q22": {
+  "unsupported_request": true
+ },
+ "Q23": {
+  "unsupported_request": true
+ },
+ "Q24": {
+  "unsupported_request": true
+ },
+ "Q25": {
+  "unsupported_request": true
+ },
+ "Q26": {
+  "intent_version": "v1",
+  "query_id": "2591c674ea8032f0:e2e-duckdb-000026-Q26",
+  "tenant_id": "tenant-a",
+  "dataset_id": "orders",
+  "semantic_contract": {
+   "contract_id": "olist-commerce",
+   "contract_version": "2026-08-20"
+  },
+  "metrics": [
+   {
+    "metric_id": "delivered_revenue"
+   }
+  ],
+  "group_by": [
+   {
+    "dimension_id": "order_status"
+   }
+  ]
+ }
+}

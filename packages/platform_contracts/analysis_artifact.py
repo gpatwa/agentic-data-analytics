@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ARTIFACT_VERSION = "analysis-artifact-v1"
 _HEX64 = r"^[0-9a-f]{64}$"
-Cell = str | int | float | bool | None
+Cell = bool | int | float | str | None
 _OUTCOME_KINDS: dict[str, set[str]] = {
     "answer": {"succeeded"},
     "refuse": {"refused", "review_required"},

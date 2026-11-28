@@ -1,0 +1,11 @@
+{
+  "sales_amount": ["revenue", "sales revenue", "turnover", "sales value"],
+  "cancellation_amount": ["cancelled value", "returned value", "refunded value"],
+  "units_sold": ["items sold", "quantity sold", "pieces sold"],
+  "invoice_lines": ["line items", "order lines", "invoice rows"],
+  "distinct_invoices": ["unique invoices", "unique orders", "number of invoices"],
+  "customers": ["buyers", "shoppers", "clients"],
+  "country": ["nation"],
+  "invoice_date": ["billing date", "purchase date", "order date"],
+  "notes": "Left out bare words like sales, orders, quantity and date because they are generic or collide with item names, and avoided any phrase with net, gross, monthly or similar conditions. Kept country to one phrase since other candidates such as market or region mean something different."
+}
