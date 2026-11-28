@@ -9,3 +9,7 @@ create_entra_app = true            # needs Application Administrator (or set ent
 min_cohort      = "10"             # security decision F-03
 budget_emails   = ["you@example.com"]
 monthly_budget_usd = 100
+
+# Optional per-tenant switches (empty is off and adds nothing to the app). Setting either and merging to main APPLIES it to the running app.
+# intent_coverage_tenants        = "tenant-a"   # K3: refuse a question whose words the interpreted request does not use
+# interpretation_confirm_tenants = "tenant-a"   # S6: ask the requester to confirm a reading instead of refusing (humans only)

@@ -309,6 +309,11 @@ locals {
     ENTRA_AUDIENCE       = var.create_entra_app ? azuread_application.api[0].client_id : var.entra_audience
     ANALYTICS_TENANT_MAP = local.tenant_map
   }
+  # Optional, per-tenant switches: added only when set, so leaving them empty changes nothing about the running app.
+  optional_env = merge(
+    var.intent_coverage_tenants != "" ? { ANALYTICS_INTENT_COVERAGE_TENANTS = var.intent_coverage_tenants } : {},
+    var.interpretation_confirm_tenants != "" ? { ANALYTICS_INTERPRETATION_CONFIRM_TENANTS = var.interpretation_confirm_tenants } : {},
+  )
 }
 
 resource "azurerm_container_app" "api" {
@@ -359,7 +364,7 @@ resource "azurerm_container_app" "api" {
       memory = "1Gi"
 
       dynamic "env" {
-        for_each = local.plain_env
+        for_each = merge(local.plain_env, local.optional_env)
         content {
           name  = env.key
           value = env.value

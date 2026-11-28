@@ -162,6 +162,18 @@ variable "v2_contracts" {
   default = "sales-core@v1"
 }
 
+variable "intent_coverage_tenants" {
+  description = "Comma-separated analytics tenants (or *) whose questions must be fully covered by the interpreted request (K3). Empty is off, and nothing is added to the app's environment."
+  type        = string
+  default     = ""
+}
+
+variable "interpretation_confirm_tenants" {
+  description = "Comma-separated analytics tenants whose requesters are asked to confirm a reading instead of being refused when only the wording check fails (S6). Humans only. Empty is off, and nothing is added to the app's environment."
+  type        = string
+  default     = ""
+}
+
 variable "min_cohort" {
   description = "Minimum group size (security finding F-03). Empty disables it; the security persona recommends 10."
   type        = string
