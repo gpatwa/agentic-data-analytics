@@ -435,6 +435,12 @@ milestones:
       approved_at: 2026-11-28
       scope: "Build the end-to-end milestone on DuckDB with Online Retail II and Olist as the primary data (reference_stack/e2e_duckdb.py and its two dataset modules; docs/evaluation/e2e-duckdb-*.md). Local only: no warehouse is contacted. Online Retail II was downloaded again from the UCI repository under the earlier approval (its SHA-256 was checked against the recorded value); Olist was read from the local copy another session of the owner's already downloaded. A fresh Claude agent stands in for the model and for the synonym proposer; the Retail contract is an evaluation fixture and nothing here certifies a contract. Olist is for internal use only until its licence is checked. It does NOT approve loading either dataset into Databricks or Snowflake, enabling S6 or K3 anywhere, or certifying any contract."
       record: "The owner answered \"Yes, build the milestone with Online Retail II and Olist\" on 2026-11-28, after being told the DuckDB end-to-end proof comes before any further Databricks or Snowflake step."
+    s6_enable_sandbox_tenant:
+      status: approved
+      approved_by: user
+      approved_at: 2026-11-28
+      scope: "Enabling S6 (confirm instead of refuse) for the tenant sandbox, on the evidence of docs/evaluation/e2e-duckdb-summary.md (a careful user: 10 of 10 Online Retail II and 3 of 3 Olist answerable questions correct, every refusal held; a habitual user: one wrongly answered question per dataset). The owner accepts the habitual-confirmer risk. The setting is ANALYTICS_INTERPRETATION_CONFIRM_TENANTS=sandbox, with ANALYTICS_INTENT_COVERAGE_TENANTS=sandbox beside it (K3, already approved). It is a deployment setting of whichever environment serves the sandbox tenant; this repository has no such environment (the local stack has no model, and the Azure pilot serves other tenants), so NOTHING WAS CHANGED IN ANY ENVIRONMENT. Applying it where the tenant is served is a deployment step that needs the owner to name the environment and ask for that change. It does NOT approve S6 for any other tenant, changing the Azure pilot, or certifying any contract."
+      record: "The owner answered \"Yes, enable S6\" to \"Enable S6 for the sandbox tenant?\" on 2026-11-28."
     semantic_trust_e6:
       status: approved
       approved_by: user

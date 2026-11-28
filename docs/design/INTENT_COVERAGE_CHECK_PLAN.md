@@ -131,3 +131,14 @@ The owner approved items 1 to 4 of the priority list (program file `s6_s4_k3_dec
 - **A guard, so synonyms cannot ship without K3.** A contract with synonyms is refused for a tenant that does not have the coverage check (`synonyms_need_coverage`). Deploying v2 without K3 therefore fails closed instead of answering a dropped constraint.
 - **K3.** The sandbox certification harness runs with the coverage check. The deployment setting is `ANALYTICS_INTENT_COVERAGE_TENANTS`; **there is no deployment target for the sandbox tenant in this repository, so nothing was changed in any environment.** Setting it where the sandbox tenant is served is a deployment step the owner asks for.
 - **S6 built, off by default.** `ANALYTICS_INTERPRETATION_CONFIRM_TENANTS` lists the tenants whose requesters are asked "I read this as ... Is that what you meant?" when only the wording check fails. Humans only (an agent gets `human_required`), bound to the exact reading (contract, metrics, groupings, filters, time range, sort, limit), a "no" is the refusal it would have been, evidence holds no words. Scripted-user evaluation: `docs/evaluation/interpretation-confirm-s6-report.md`. A careful user turns every refusal of a right reading into an answer; **a habitual confirmer lets every wrong reading that is asked about through (25 of 25 in the corpus, 10 of 10 in the hold-out).** The owner accepted that risk in the approval; it is not enabled for any tenant.
+
+## Enabling K3 and S6 for the sandbox tenant: approved, not applied (2026-11-28)
+
+The owner approved enabling S6 for the tenant `sandbox` after the DuckDB end-to-end run (`docs/evaluation/e2e-duckdb-summary.md`). Both are per-tenant deployment settings; this repository has no environment that serves the sandbox tenant with a model, so none was changed. To apply, in the environment that serves the tenant:
+
+```text
+ANALYTICS_INTENT_COVERAGE_TENANTS=sandbox
+ANALYTICS_INTERPRETATION_CONFIRM_TENANTS=sandbox
+```
+
+Before and after: with both off, ordinary phrasings are refused (4 of 10 Retail and 0 of 3 Olist questions answered in the run); with S6 on and a person confirming the readings that are right, 10 of 10 and 3 of 3. Humans only: an agent caller gets `human_required` and cannot confirm. Watch the confirm rate in use: a rate near 100% means people are not reading the prompt or the wording rules are too tight, and is not proof of correctness. Contract version `2026-11-20` (certified synonyms) must only be served with the coverage setting above; the runtime refuses it otherwise (`synonyms_need_coverage`).
